@@ -4,6 +4,12 @@ from base.pages import clients, invoices
 from base.model import model
 
 
+def CentRound(monies):
+  """Rounds the given float to two decimals."""
+  if monies:
+    return '%.2f' % monies
+
+
 class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker,
                 invoices.PageMaker):
   """Holds all the request handlers for the application"""
@@ -14,6 +20,8 @@ class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker,
 
   def _PostInit(self):
     """Sets up all the default vars"""
+    self.parser.RegisterFunction('CentRound', CentRound)
+    self.parser.RegisterFunction('DateOnly', lambda x: str(x)[0:10])
     self.connection.modelcache = model.modelcache.ClearCache()
 
   def _PostRequest(self, response):
