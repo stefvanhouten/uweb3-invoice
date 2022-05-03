@@ -17,13 +17,19 @@ def main():
     name of a presenter method which should handle it.
   - The execution path, internally used to find templates etc.
   """
-  return uweb3.uWeb(basepages.PageMaker,
-                    [('/invoices', 'RequestInvoices', 'GET'),
-                     ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
-                     ('/invoices', 'RequestNewInvoice', 'POST'),
-                     ('/client/([0-9]+)', 'RequestClient'),
-                     ('/clients', 'RequestClients', 'GET'),
-                     ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
-                     ('/clients', 'RequestNewClient', 'POST'),
-                     ('/clients/save', 'RequestSaveClient', 'POST'),
-                     ('(/.*)', 'FourOhFour')], os.path.dirname(__file__))
+  return uweb3.uWeb(
+      basepages.PageMaker,
+      [
+          ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
+          # API routes
+          ('/api/v1/invoices', 'RequestInvoices', 'GET'),
+          ('/api/v1/invoices', 'RequestNewInvoice', 'POST'),
+          ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
+          ('/api/v1/invoice/(.*)', 'RequestInvoiceDetailsJSON', 'GET'),
+          ('/api/v1/client/([0-9]+)', 'RequestClient'),
+          ('/api/v1/clients', 'RequestClients', 'GET'),
+          ('/api/v1/clients', 'RequestNewClient', 'POST'),
+          ('/api/v1/clients/save', 'RequestSaveClient', 'POST'),
+          ('(/.*)', 'FourOhFour')
+      ],
+      os.path.dirname(__file__))
