@@ -8,9 +8,10 @@ from base.model.invoice import InvoiceProduct
 
 # uweb modules
 import uweb3
-from base.decorators import json_error_wrapper
+from base.decorators import NotExistsErrorCatcher, json_error_wrapper
 from base.model import model
 from base.pages.clients import RequestClientSchema
+from base import basepages
 
 
 class InvoiceSchema(Schema):
@@ -79,10 +80,10 @@ class PageMaker:
       raise e
     finally:
       model.Client.autocommit(self.connection, True)
-    return self.req.Redirect(f'/api/v1/invoice/{invoice["sequenceNumber"]}',
-                             httpcode=200)
+    return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
 
   @uweb3.decorators.TemplateParser('invoice.html')
+  @NotExistsErrorCatcher
   def RequestInvoiceDetails(self, sequence_number):
     invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
     companydetails = {'companydetails': self.options.get('companydetails')}
