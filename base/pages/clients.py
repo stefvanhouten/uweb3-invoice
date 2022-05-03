@@ -10,7 +10,7 @@ from base.model import model
 from base.decorators import NotExistsErrorCatcher, json_error_wrapper
 
 
-class RequestClient(Schema):
+class RequestClientSchema(Schema):
 
   class Meta:
     unknown = EXCLUDE
@@ -57,7 +57,10 @@ class PageMaker:
     Takes:
       client: int
     """
-    client = model.Client.FromClientNumber(self.connection, int(client))
+    client_number = RequestClientSchema().load({'client': client})
+
+    client = model.Client.FromClientNumber(self.connection,
+                                           client_number['client'])
     return {'client': client}
 
   @uweb3.decorators.ContentType('application/json')
@@ -68,7 +71,7 @@ class PageMaker:
     Takes:
       client: int
     """
-    client_number = RequestClient().load(self.post)
+    client_number = RequestClientSchema().load(dict(self.post))
     client = model.Client.FromClientNumber(self.connection,
                                            client_number['client'])
     data = ClientSchema().load(self.post, partial=True)
