@@ -2,18 +2,12 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
+from marshmallow import Schema, fields, EXCLUDE
 
 # uweb modules
 import uweb3
 from base.model import model
 from base.decorators import NotExistsErrorCatcher, json_error_wrapper
-
-import sys
-import json
-from packaging import version
-from pprint import pprint
-
-from marshmallow import Schema, fields, EXCLUDE, ValidationError
 
 class RequestClient(Schema):
   class Meta:
@@ -37,8 +31,6 @@ class PageMaker:
   @json_error_wrapper
   def RequestClients(self):
     return {
-        'title': 'Clients',
-        'page_id': 'clients',
         'clients': list(model.Client.List(self.connection)),
     }
   @uweb3.decorators.ContentType('application/json')
