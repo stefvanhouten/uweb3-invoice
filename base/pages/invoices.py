@@ -2,22 +2,35 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
+from itertools import zip_longest
+from marshmallow import Schema, fields, EXCLUDE
 
 # uweb modules
-from itertools import zip_longest
-from base import decorators
 import uweb3
+from base import decorators
 from base.model import model
+
+
+class InvoiceSchema(Schema):
+
+  class Meta:
+    unknown = EXCLUDE
+
+  title = fields.Str(required=True, allow_none=False)
+  description = fields.Str(required=True, allow_none=False)
+  client = fields.Str(required=True, allow_none=False)
+  status = fields.Str(required=True, allow_none=False)
+  reservation = fields.Str()
 
 
 class PageMaker:
 
+  @uweb3.decorators.ContentType('application/json')
+  @decorators.json_error_wrapper
   def RequestInvoices(self):
     return {
-        'clients': list(model.Client.List(self.connection)),
-        'products': list(model.Product.List(self.connection)),
+        # 'clients': list(model.Client.List(self.connection)),
         'invoices': list(model.Invoice.List(self.connection)),
-        'scripts': ['/js/invoice.js']
     }
 
   def RequestInvoiceDetails(self, sequence_number):

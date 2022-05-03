@@ -4,6 +4,7 @@ import uweb3
 from base.model import model
 from marshmallow import ValidationError
 
+
 def NotExistsErrorCatcher(f):
   """Decorator to return a 404 if a NotExistError exception was returned."""
 
@@ -15,8 +16,10 @@ def NotExistsErrorCatcher(f):
 
   return wrapper
 
+
 def json_error_wrapper(func):
   wraps(func)
+
   def wrapper_schema_validation(*args, **kwargs):
     try:
       return func(*args, **kwargs)

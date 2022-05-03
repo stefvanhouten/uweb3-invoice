@@ -11,6 +11,8 @@ from base.model.model import RichModel, Client
 from base.libs import modelcache
 
 PAYMENT_PERIOD = datetime.timedelta(14)
+
+
 class InvoiceProduct(RichModel):
   """Abstraction class for Products that are linked to an invoice"""
 

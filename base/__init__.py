@@ -18,13 +18,11 @@ def main():
   - The execution path, internally used to find templates etc.
   """
   return uweb3.uWeb(basepages.PageMaker,
-          [
-          ('/invoices', 'RequestInvoices', 'GET'),
-          ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
-          ('/invoices', 'RequestNewInvoice', 'POST'),
-          ('/client/([0-9]+)', 'RequestClient'),
-          ('/clients', 'RequestClients', 'GET'),
-          ('/clients', 'RequestNewClient', 'POST'),
-          ('/clients/save', 'RequestSaveClient', 'POST'),
-          ('(/.*)', 'FourOhFour')],
-                    os.path.dirname(__file__))
+                    [('/invoices', 'RequestInvoices', 'GET'),
+                     ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
+                     ('/invoices', 'RequestNewInvoice', 'POST'),
+                     ('/client/([0-9]+)', 'RequestClient'),
+                     ('/clients', 'RequestClients', 'GET'),
+                     ('/clients', 'RequestNewClient', 'POST'),
+                     ('/clients/save', 'RequestSaveClient', 'POST'),
+                     ('(/.*)', 'FourOhFour')], os.path.dirname(__file__))

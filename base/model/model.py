@@ -11,13 +11,13 @@ import re
 from uweb3 import model
 from base.libs import modelcache
 
-
 NOTDELETEDDATE = '1000-01-01 00:00:00'
 NOTDELETED = 'dateDeleted = "%s"' % NOTDELETEDDATE
 
 
 class InvalidNameError(Exception):
   """Invalid name value."""
+
 
 class RichModel(modelcache.Record):
   """Provides a richer uweb Record class."""
@@ -315,9 +315,9 @@ class Client(RichVersionedRecord):
                               clientnumber)
     return cls(connection, client[0])
 
+
 class Session(model.SecureCookie):
   """Provides a model to request the secure cookie named 'session'"""
-
 
 
 from base.model.invoice import Invoice

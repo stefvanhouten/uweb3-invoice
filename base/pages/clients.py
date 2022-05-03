@@ -9,14 +9,20 @@ import uweb3
 from base.model import model
 from base.decorators import NotExistsErrorCatcher, json_error_wrapper
 
+
 class RequestClient(Schema):
+
   class Meta:
-        unknown = EXCLUDE
+    unknown = EXCLUDE
+
   client = fields.Int(required=True, allow_none=False)
 
+
 class ClientSchema(Schema):
+
   class Meta:
-        unknown = EXCLUDE
+    unknown = EXCLUDE
+
   name = fields.Str(required=True, allow_none=False)
   city = fields.Str(required=True, allow_none=False)
   postalCode = fields.Str(required=True, allow_none=False)
@@ -27,12 +33,14 @@ class ClientSchema(Schema):
 
 class PageMaker:
   """Holds all the request handlers for the application"""
+
   @uweb3.decorators.ContentType('application/json')
   @json_error_wrapper
   def RequestClients(self):
     return {
         'clients': list(model.Client.List(self.connection)),
     }
+
   @uweb3.decorators.ContentType('application/json')
   @json_error_wrapper
   def RequestNewClient(self):
@@ -61,7 +69,8 @@ class PageMaker:
       client: int
     """
     client_number = RequestClient().load(self.post)
-    client = model.Client.FromClientNumber(self.connection, client_number['client'])
+    client = model.Client.FromClientNumber(self.connection,
+                                           client_number['client'])
     data = ClientSchema().load(self.post, partial=True)
     client.update(data)
     client.Save()

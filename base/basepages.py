@@ -3,7 +3,9 @@ import uweb3
 from base.pages import clients, invoices
 from base.model import model
 
-class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker, invoices.PageMaker):
+
+class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker,
+                invoices.PageMaker):
   """Holds all the request handlers for the application"""
 
   def __init__(self, *args, **kwds):
@@ -21,9 +23,11 @@ class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker, invoices.PageMaker)
   @uweb3.decorators.ContentType('application/json')
   def FourOhFour(self, path):
     """The request could not be fulfilled, this returns a 404."""
-    return uweb3.Response({
-              "error": True,
-              "errors": ["Requested page not found"],
-              "http_status": HTTPStatus.NOT_FOUND,
-          },
-          httpcode=HTTPStatus.NOT_FOUND,)
+    return uweb3.Response(
+        {
+            "error": True,
+            "errors": ["Requested page not found"],
+            "http_status": HTTPStatus.NOT_FOUND,
+        },
+        httpcode=HTTPStatus.NOT_FOUND,
+    )
