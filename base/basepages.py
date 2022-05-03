@@ -3,6 +3,8 @@ import uweb3
 from base.pages import clients, invoices
 from base.model import model
 
+API_VERSION = '/api/v1'
+
 
 def CentRound(monies):
   """Rounds the given float to two decimals."""
@@ -27,6 +29,15 @@ class PageMaker(uweb3.DebuggingPageMaker, clients.PageMaker,
   def _PostRequest(self, response):
     cleanups = model.modelcache.CleanCache(self.connection.modelcache)
     return response
+
+  def RequestInvalidcommand(self, command=None, error=None, httpcode=404):
+    """Returns an error message"""
+    uweb3.logging.warning('Bad page %r requested with method %s', command,
+                          self.req.method)
+    if command is None and error is None:
+      command = '%s for method %s' % (self.req.path, self.req.method)
+    page_data = self.parser.Parse('404.html', command=command, error=error)
+    return uweb3.Response(content=page_data, httpcode=httpcode)
 
   @uweb3.decorators.ContentType('application/json')
   def FourOhFour(self, path):
