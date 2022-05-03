@@ -73,6 +73,7 @@ class PageMaker:
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
       for product in products['products']:
         product['invoice'] = invoice['ID']
+        # TODO: Add API call to reduce stock
         InvoiceProduct.Create(self.connection, product)
         model.Client.commit(self.connection)
     except Exception as e:
