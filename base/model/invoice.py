@@ -151,30 +151,3 @@ class Invoice(RichModel):
       product['index'] = index
       index = index + 1  # TODO implement loop indices in the template parser
       yield product
-
-  def AddProduct(self, id, price, vat_percent, quantity):
-    """Adds a product to the current invoice."""
-    product = Product.FromName(self.connection, id)
-    if product.currentstock < quantity:
-      additional_needed = quantity - product.currentstock
-      # Attempt to assemble the additional products from parts. If not possible this raises an exception.
-      product.Assemble(additional_needed)
-
-    Stock.Create(
-        self.connection,
-        {
-            'product': product,
-            'amount': -abs(
-                int(quantity)),  # TODO (Stef) only allow positive numbers.
-            'reference': f'Invoice: {self.key}',
-            'lot': None
-        })
-    return InvoiceProduct.Create(
-        self.connection, {
-            'invoice': self.key,
-            'product': product['ID'],
-            'name': product['name'],
-            'price': price,
-            'quantity': quantity,
-            'vat_percentage': vat_percent
-        })
