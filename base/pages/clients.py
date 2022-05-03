@@ -74,7 +74,7 @@ class PageMaker:
     client_number = RequestClientSchema().load(dict(self.post))
     client = model.Client.FromClientNumber(self.connection,
                                            client_number['client'])
-    data = ClientSchema().load(self.post, partial=True)
+    data = ClientSchema().load(dict(self.post), partial=True)
     client.update(data)
     client.Save()
     return client
