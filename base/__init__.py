@@ -23,6 +23,7 @@ def main():
                      ('/invoices', 'RequestNewInvoice', 'POST'),
                      ('/client/([0-9]+)', 'RequestClient'),
                      ('/clients', 'RequestClients', 'GET'),
+                     ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
                      ('/clients', 'RequestNewClient', 'POST'),
                      ('/clients/save', 'RequestSaveClient', 'POST'),
                      ('(/.*)', 'FourOhFour')], os.path.dirname(__file__))
