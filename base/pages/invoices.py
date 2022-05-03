@@ -29,8 +29,7 @@ class PageMaker:
   @decorators.json_error_wrapper
   def RequestInvoices(self):
     return {
-        # 'clients': list(model.Client.List(self.connection)),
-        'invoices': list(model.Invoice.List(self.connection)),
+        ' invoices': list(model.Invoice.List(self.connection)),
     }
 
   def RequestInvoiceDetails(self, sequence_number):
