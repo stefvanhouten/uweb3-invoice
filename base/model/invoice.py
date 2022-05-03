@@ -4,58 +4,20 @@
 import datetime
 import time
 
+import pytz
+
 # Custom modules
-from base.model.model import RichModel
+from base.model.model import RichModel, Client
 from base.libs import modelcache
 
-class Companydetails(modelcache.Record):
-  """Abstraction class for companyDetails stored in the database."""
+PAYMENT_PERIOD = datetime.timedelta(14)
+class InvoiceProduct(RichModel):
+  """Abstraction class for Products that are linked to an invoice"""
 
-  @classmethod
-  def HighestNumber(cls, connection):
-    """Returns the ID for the newest companydetails."""
-    with connection as cursor:
-      number = cursor.Select(fields='max(ID) AS maxid',
-                             table=cls.TableName(),
-                             escape=False)
-    if number:
-      return number[0]['maxid']
-    return 0
-
-  def Totals(self, state='new', client=None):
-    """Returns the financial total with and without vat.
-
-    Specifying a client will limit the totals to that client.
-    """
-    conditions = [
-        "invoice.client=client.ID", "product.invoice = invoice.ID",
-        "invoice.status='%s'" % state
-    ]
-    if client:
-      conditions.append('client.clientNumber = %d' % (client['clientNumber']))
-
-    with self.connection as cursor:
-      total = cursor.Select(
-          table=('invoice', 'client', 'product'),
-          fields=('SUM((price / 100) * vat_percentage) + SUM(price) AS total',
-                  'SUM(price) as totalex'),
-          conditions=conditions,
-          escape=False)
-    return total
-
-  @classmethod
-  def Pricing(cls, connection):
-    """Return the current global system prices as a Dict."""
-    with connection as cursor:
-      prices = cursor.Select(table=cls.TableName(),
-                             order=[('ID', True)],
-                             limit=1)
-    if prices:
-      returnvalues = {}
-      for key in list(prices[0].keys()):
-        if key.startswith('price'):
-          returnvalues[key[5:]] = float(prices[0][key])
-      return returnvalues
+  def Totals(self):
+    """Read the price from the database and create the vat amount."""
+    self['vat_amount'] = (self['price'] * self['quantity'] /
+                          100) * self['vat_percentage']
 
 
 class Invoice(RichModel):
@@ -64,14 +26,11 @@ class Invoice(RichModel):
   _FOREIGN_RELATIONS = {
       'contract': None,
       'client': {
-          'class': 'Client',
+          'class': Client,
           'loader': 'FromPrimary',
           'LookupKey': 'ID'
       }
   }
-  SEARCHABLE_COLUMNS = [
-      'sequenceNumber', 'client.name', 'title', 'dateCreated', 'status'
-  ]
 
   def _PreCreate(self, cursor):
     super(Invoice, self)._PreCreate(cursor)
@@ -106,8 +65,8 @@ class Invoice(RichModel):
       Invoice: the newly created invoice.
     """
     record.setdefault('sequenceNumber', cls.NextNumber(connection))
-    record.setdefault('companyDetails',
-                      Companydetails.HighestNumber(connection))
+    # record.setdefault('companyDetails',
+    #                   Companydetails.HighestNumber(connection))
     record.setdefault('dateDue', datetime.date.today() + PAYMENT_PERIOD)
     return super(Invoice, cls).Create(connection, record)
 
@@ -126,23 +85,39 @@ class Invoice(RichModel):
       return '%s-%03d' % (year, int(sequence) + 1)
     return '%s-%03d' % (time.strftime('%Y'), 1)
 
+  @classmethod
+  def List(cls, *args, **kwds):
+    invoices = list(super().List(*args, **kwds))
+    today = pytz.utc.localize(datetime.datetime.utcnow())
+    for invoice in invoices:
+      invoice['totals'] = invoice.Totals()
+      invoice['dateDue'] = invoice['dateDue'].replace(
+          tzinfo=datetime.timezone.utc)
+
+      if today > invoice['dateDue'] and invoice['status'] != 'paid':
+        invoice['overdue'] = 'overdue'
+      else:
+        invoice['overdue'] = ''
+    return invoices
+
   def Totals(self):
     """Read the price from the database and create the vat amount."""
     with self.connection as cursor:
       totals = cursor.Select(
-          table='product',
-          fields=('SUM((price / 100) * vat_percentage) + SUM(price) AS total',
-                  'SUM(price) as totalex'),
+          table='invoiceProduct',
+          fields=
+          ('SUM(((price * quantity) / 100) * vat_percentage) + SUM(price * quantity) AS total',
+           'SUM(price * quantity) as totalex'),
           conditions='invoice=%d' % self,
           escape=False)
 
     vatresults = []
     with self.connection as cursor:
       vatgroup = cursor.Select(
-          table='product',
+          table='invoiceProduct',
           fields=('vat_percentage',
-                  'sum((price / 100) * vat_percentage) as total',
-                  'sum(price) as taxable'),
+                  'sum(((price * quantity) / 100) * vat_percentage) as total',
+                  'sum(price * quantity) as taxable'),
           group='vat_percentage',
           conditions='invoice=%d' % self,
           escape=False)
@@ -163,22 +138,41 @@ class Invoice(RichModel):
 
   def Products(self):
     """Returns all products that are part of this invoice."""
-    products = Product.List(self.connection, conditions='invoice=%d' % self)
+    products = InvoiceProduct.List(
+        self.connection,
+        conditions=['invoice=%d' % self])  # TODO (Stef) filter on not deleted
     index = 1
     for product in products:
       product['invoice'] = self
-      product = Product(self.connection, product)
+      product = InvoiceProduct(self.connection, product)
       product.Totals()
       product['index'] = index
       index = index + 1  # TODO implement loop indices in the template parser
       yield product
 
-  def AddProduct(self, name, price, vat_percent):
+  def AddProduct(self, id, price, vat_percent, quantity):
     """Adds a product to the current invoice."""
-    return Product.Create(
+    product = Product.FromName(self.connection, id)
+    if product.currentstock < quantity:
+      additional_needed = quantity - product.currentstock
+      # Attempt to assemble the additional products from parts. If not possible this raises an exception.
+      product.Assemble(additional_needed)
+
+    Stock.Create(
+        self.connection,
+        {
+            'product': product,
+            'amount': -abs(
+                int(quantity)),  # TODO (Stef) only allow positive numbers.
+            'reference': f'Invoice: {self.key}',
+            'lot': None
+        })
+    return InvoiceProduct.Create(
         self.connection, {
             'invoice': self.key,
-            'name': name,
+            'product': product['ID'],
+            'name': product['name'],
             'price': price,
+            'quantity': quantity,
             'vat_percentage': vat_percent
         })
