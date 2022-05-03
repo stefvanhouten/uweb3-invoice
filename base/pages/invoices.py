@@ -65,7 +65,7 @@ class PageMaker:
     products = ProductsCollectionSchema().load(dict(self.post))
 
     client = model.Client.FromPrimary(self.connection, client_number['client'])
-    sanitized_invoice['client'] = client_number['client']
+    sanitized_invoice['client'] = client['ID']
 
     try:
       model.Client.autocommit(self.connection, False)
@@ -79,7 +79,8 @@ class PageMaker:
       raise e
     finally:
       model.Client.autocommit(self.connection, True)
-    return self.req.Redirect('/invoices', httpcode=303)
+    return self.req.Redirect(f'/api/v1/invoice/{invoice["sequenceNumber"]}',
+                             httpcode=200)
 
   @uweb3.decorators.TemplateParser('invoice.html')
   def RequestInvoiceDetails(self, sequence_number):
@@ -89,5 +90,17 @@ class PageMaker:
     return {
         'invoice': invoice,
         'products': invoice.Products(),
+        'totals': invoice.Totals()
+    }
+
+  @uweb3.decorators.ContentType('application/json')
+  @json_error_wrapper
+  def RequestInvoiceDetailsJSON(self, sequence_number):
+    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
+    companydetails = {'companydetails': self.options.get('companydetails')}
+    invoice.update(companydetails)
+    return {
+        'invoice': invoice,
+        'products': list(invoice.Products()),
         'totals': invoice.Totals()
     }
