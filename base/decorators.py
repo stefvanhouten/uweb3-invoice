@@ -1,8 +1,9 @@
-from functools import wraps
+import requests
 from http import HTTPStatus
-import uweb3
 from base.model import model
 from marshmallow import ValidationError
+
+import uweb3
 
 
 def NotExistsErrorCatcher(f):
@@ -17,8 +18,18 @@ def NotExistsErrorCatcher(f):
   return wrapper
 
 
+def RequestWrapper(f):
+
+  def wrapper(*args, **kwargs):
+    try:
+      return f(*args, **kwargs)
+    except requests.exceptions.ConnectionError as error:
+      return args[0].Error(error=error)
+
+  return wrapper
+
+
 def json_error_wrapper(func):
-  wraps(func)
 
   def wrapper_schema_validation(*args, **kwargs):
     try:

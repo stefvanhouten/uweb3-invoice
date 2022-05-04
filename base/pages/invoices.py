@@ -4,15 +4,20 @@
 # standard modules
 from itertools import zip_longest
 from multiprocessing.sharedctypes import Value
+import marshmallow
 import requests
 from marshmallow import Schema, fields, EXCLUDE
 from base.model.invoice import InvoiceProduct
 
 # uweb modules
 import uweb3
-from base.decorators import NotExistsErrorCatcher, json_error_wrapper
+from base.decorators import NotExistsErrorCatcher, RequestWrapper, json_error_wrapper
 from base.model import model
 from base.pages.clients import RequestClientSchema
+
+
+class WarehouseAPIException(Exception):
+  """Error that was raised during an API call to warehouse."""
 
 
 class InvoiceSchema(Schema):
@@ -52,19 +57,19 @@ class PageMaker:
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
+  @RequestWrapper
   @uweb3.decorators.TemplateParser('invoices/create.html')
-  def RequestNewInvoicePage(self):
-    # TODO: Setup for API route nad key.
-    # Catch connectionerror
-    response = requests.get(
-        'http://127.0.0.1:8002/api/v1/products?apikey=6435e79d8b1f6d9ef1cf35fd458bcd5e'
-    )
+  def RequestNewInvoicePage(self, errors=[]):
+    api_url = self.config.options['general']['warehouse_api']
+    api_key = self.config.options['general']['apikey']
+    response = requests.get(f'{api_url}/products?apikey={api_key}')
     if response.status_code != 200:
       return self.Error("Something went wrong!")
 
     return {
         'clients': list(model.Client.List(self.connection)),
         'products': response.json()['products'],
+        'errors': errors,
         'scripts': ['/js/invoice.js']
     }
 
@@ -85,14 +90,19 @@ class PageMaker:
 
     client = model.Client.FromClientNumber(self.connection,
                                            int(self.post.getfirst('client')))
-
-    sanitized_invoice = InvoiceSchema().load({
-        'client': client['ID'],
-        'title': self.post.getfirst('title'),
-        'description': self.post.getfirst('description')
-    })
-    products = ProductsCollectionSchema().load({'products': products})
-    self._handle_create(sanitized_invoice, products)
+    try:
+      sanitized_invoice = InvoiceSchema().load({
+          'client': client['ID'],
+          'title': self.post.getfirst('title'),
+          'description': self.post.getfirst('description')
+      })
+      products = ProductsCollectionSchema().load({'products': products})
+      self._handle_create(sanitized_invoice, products)
+    except marshmallow.exceptions.ValidationError as error:
+      return self.RequestNewInvoicePage(errors=[error.messages])
+    except WarehouseAPIException as error:
+      if 'errors' in error.args[0]:
+        return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.ContentType('application/json')
@@ -150,6 +160,9 @@ class PageMaker:
     }
 
   def _handle_create(self, sanitized_invoice, products):
+    api_url = self.config.options['general']['warehouse_api']
+    api_key = self.config.options['general']['apikey']
+
     try:
       model.Client.autocommit(self.connection, False)
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
@@ -157,19 +170,16 @@ class PageMaker:
         product['invoice'] = invoice['ID']
         # TODO: Add API call to reduce stock
         InvoiceProduct.Create(self.connection, product)
-        response = requests.post(
-            f'http://127.0.0.1:8002/api/v1/product/{product["name"]}/stock',
-            json={
-                "amount": -abs(product['quantity']),
-                "apikey": "6435e79d8b1f6d9ef1cf35fd458bcd5e"
-            })
+        response = requests.post(f'{api_url}/product/{product["name"]}/stock',
+                                 json={
+                                     "amount": -abs(product['quantity']),
+                                     "apikey": api_key
+                                 })
         if response.status_code == 200:
           model.Client.commit(self.connection)
         else:
           model.Client.rollback(self.connection)
-          raise ValueError(response.json())
-    except ValueError:
-      raise
+          raise WarehouseAPIException(response.json())
     except Exception:
       model.Client.rollback(self.connection)
       raise
