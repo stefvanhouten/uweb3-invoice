@@ -20,7 +20,22 @@ def main():
   return uweb3.uWeb(
       basepages.PageMaker,
       [
+          ('/', 'RequestIndex'),
+
+          # # login / user management
+          ('/login', 'HandleLogin', 'POST'),
+          ('/login', 'RequestLogin'),
+          ('/logout', 'RequestLogout'),
           ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
+          ('/resetpassword', 'RequestResetPassword'),
+          ('/resetpassword/([^/]*)/(.*)', 'RequestResetPassword'),
+          ('/setup', 'RequestSetup'),
+
+          #Invoices
+          ('/invoices', 'Test', 'POST'),
+          ('/invoices', 'RequestInvoicesPage', 'GET'),
+          ('/invoices/new', 'RequestNewInvoicePage'),
+
           # API routes
           (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),
           (f'{basepages.API_VERSION}/invoices', 'RequestNewInvoice', 'POST'),
@@ -29,8 +44,14 @@ def main():
           (f'{basepages.API_VERSION}/client/([0-9]+)', 'RequestClient'),
           (f'{basepages.API_VERSION}/clients', 'RequestClients', 'GET'),
           (f'{basepages.API_VERSION}/clients', 'RequestNewClient', 'POST'),
-          (f'{basepages.API_VERSION}/clients/save', 'RequestSaveClient',
-           'POST'),
-          ('(/.*)', 'FourOhFour')
+          (f'{basepages.API_VERSION}/clients/save', 'RequestSaveClient'),
+          (f'{basepages.API_VERSION}(.*)', 'FourOhFour', 'POST'),
+
+          # Helper files
+          ('(/styles/.*)', 'Static'),
+          ('(/js/.*)', 'Static'),
+          ('(/media/.*)', 'Static'),
+          ('(/favicon.ico)', 'Static'),
+          ('(/.*)', 'RequestInvalidcommand'),
       ],
       os.path.dirname(__file__))
