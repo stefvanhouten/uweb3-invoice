@@ -73,6 +73,7 @@
 
               var price = ioEls[1].valueAsNumber;
               var vat = ioEls[2].valueAsNumber;
+              ioEls[6].value = data['possible_stock'];
               let quantity = ioEls[3].valueAsNumber;
               var vatAmount = ((price * quantity) / 100) * vat;
               var subtotal = price * quantity + vatAmount;
