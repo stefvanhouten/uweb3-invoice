@@ -321,5 +321,6 @@ class Session(model.SecureCookie):
 
 
 from base.model.invoice import Invoice
+from base.model.user import User, Session
 
 NotExistError = model.NotExistError
