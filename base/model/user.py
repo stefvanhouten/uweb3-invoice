@@ -6,6 +6,19 @@ class User(model.Record):
   """Provides interaction to the user table"""
 
   @classmethod
+  def IsFirstUser(cls, connection):
+    with connection as cursor:
+      return cursor.Execute(
+          """SELECT EXISTS(SELECT * FROM user) as user_exists;"""
+      )[0]['user_exists'] == 0
+
+  @classmethod
+  def Create(cls, connection, record, generate_password_hash=False):
+    if generate_password_hash:
+      record['password'] = pbkdf2_sha256.hash(record['password'])
+    return super().Create(connection, record)
+
+  @classmethod
   def FromEmail(cls, connection, email, conditions=None):
     """Returns the user with the given email address.
 
