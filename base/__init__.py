@@ -31,7 +31,16 @@ def main():
           ('/resetpassword/([^/]*)/(.*)', 'RequestResetPassword'),
           ('/setup', 'RequestSetup'),
 
-          #Invoices
+          # Clients
+          ('/clients', 'RequestClientsPage', 'GET'),
+          ('/clients', 'RequestNewClientPage', 'POST'),
+          ('/clients/save', 'RequestSaveClientPage', 'POST'),
+          (
+              '/client/(.*)',
+              'RequestClientPage',
+          ),
+
+          # Invoices
           ('/invoices', 'RequestInvoicesPage', 'GET'),
           ('/invoices/new', 'RequestNewInvoicePage', 'GET'),
           ('/invoices/new', 'RequestCreateNewInvoicePage', 'POST'),
