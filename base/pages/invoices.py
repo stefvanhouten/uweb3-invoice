@@ -168,13 +168,14 @@ class PageMaker:
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
       for product in products['products']:
         product['invoice'] = invoice['ID']
-        # TODO: Add API call to reduce stock
         InvoiceProduct.Create(self.connection, product)
-        response = requests.post(f'{api_url}/product/{product["name"]}/stock',
-                                 json={
-                                     "amount": -abs(product['quantity']),
-                                     "apikey": api_key
-                                 })
+        response = requests.post(
+            f'{api_url}/product/{product["name"]}/stock',
+            json={
+                "amount": -abs(product['quantity']),
+                "reference": f"Invoice ID: {invoice['ID']}",
+                "apikey": api_key
+            })
         if response.status_code == 200:
           model.Client.commit(self.connection)
         else:
