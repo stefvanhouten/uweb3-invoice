@@ -1,0 +1,42 @@
+[header]
+<main>
+  <div>
+    <section>
+      <header>
+        <h1>Your invoices</h1>
+      </header>
+      <table class="invoices">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Client</th>
+            <th>Title</th>
+            <th>PDF</th>
+            <th>UBL</th>
+            <th>Date created</th>
+            <th>Ex. VAT</th>
+            <th>Inc. VAT</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ for invoice in [invoices] }}
+          <tr class="[invoice:overdue]">
+            <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
+            <td><a href="/client/[invoice:client:clientNumber]">[invoice:client:name]</a></td>
+            <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:title]</a></td>
+            <td><a href="/pdfinvoice/[invoice:sequenceNumber]">PDF</a></td>
+            <td><a href="/ublinvoice/[invoice:sequenceNumber]">UBL</a></td>
+            <td>[invoice:dateCreated|DateOnly|html]</td>
+            <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
+            <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
+            <td>[invoice:status]</td>
+          </tr>
+          {{ endfor }}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</main>
+<script src="/js/products.js"></script>
+[footer]
