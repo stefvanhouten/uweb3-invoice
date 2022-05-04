@@ -32,9 +32,9 @@ def main():
           ('/setup', 'RequestSetup'),
 
           #Invoices
-          ('/invoices', 'Test', 'POST'),
           ('/invoices', 'RequestInvoicesPage', 'GET'),
-          ('/invoices/new', 'RequestNewInvoicePage'),
+          ('/invoices/new', 'RequestNewInvoicePage', 'GET'),
+          ('/invoices/new', 'RequestCreateNewInvoicePage', 'POST'),
 
           # API routes
           (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),

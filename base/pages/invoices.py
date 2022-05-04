@@ -3,6 +3,7 @@
 
 # standard modules
 from itertools import zip_longest
+from multiprocessing.sharedctypes import Value
 import requests
 from marshmallow import Schema, fields, EXCLUDE
 from base.model.invoice import InvoiceProduct
@@ -69,16 +70,13 @@ class PageMaker:
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
-  def Test(self):
-    products = self.post.getlist('products')
-    prices = self.post.getlist('invoice_prices')
-    vat = self.post.getlist('invoice_vat')
-    quantity = self.post.getlist('quantity')
-
-    product_dict = {'products': []}
-    for product, price, vat, quantity in zip_longest(products, prices, vat,
-                                                     quantity):
-      product_dict['products'].append({
+  def RequestCreateNewInvoicePage(self):
+    # TODO: Handle validation errors
+    products = []
+    for product, price, vat, quantity in zip_longest(
+        self.post.getlist('products'), self.post.getlist('invoice_prices'),
+        self.post.getlist('invoice_vat'), self.post.getlist('quantity')):
+      products.append({
           'name': product,
           'price': price,
           'vat_percentage': vat,
@@ -93,21 +91,8 @@ class PageMaker:
         'title': self.post.getfirst('title'),
         'description': self.post.getfirst('description')
     })
-    products = ProductsCollectionSchema().load(product_dict)
-
-    model.Client.autocommit(self.connection, False)
-    try:
-      invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-      for product in products['products']:
-        product['invoice'] = invoice['ID']
-        # TODO: Add API call to reduce stock
-        InvoiceProduct.Create(self.connection, product)
-      model.Client.commit(self.connection)
-    except Exception as e:
-      model.Client.rollback(self.connection)
-      raise e
-    finally:
-      model.Client.autocommit(self.connection, True)
+    products = ProductsCollectionSchema().load({'products': products})
+    self._handle_create(sanitized_invoice, products)
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.ContentType('application/json')
@@ -137,19 +122,7 @@ class PageMaker:
     client = model.Client.FromPrimary(self.connection, client_number['client'])
     sanitized_invoice['client'] = client['ID']
 
-    try:
-      model.Client.autocommit(self.connection, False)
-      invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-      for product in products['products']:
-        product['invoice'] = invoice['ID']
-        # TODO: Add API call to reduce stock
-        InvoiceProduct.Create(self.connection, product)
-        model.Client.commit(self.connection)
-    except Exception as e:
-      model.Client.rollback(self.connection)
-      raise e
-    finally:
-      model.Client.autocommit(self.connection, True)
+    invoice = self._handle_create(sanitized_invoice, products)
     return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
 
   @uweb3.decorators.TemplateParser('invoice.html')
@@ -175,3 +148,31 @@ class PageMaker:
         'products': list(invoice.Products()),
         'totals': invoice.Totals()
     }
+
+  def _handle_create(self, sanitized_invoice, products):
+    try:
+      model.Client.autocommit(self.connection, False)
+      invoice = model.Invoice.Create(self.connection, sanitized_invoice)
+      for product in products['products']:
+        product['invoice'] = invoice['ID']
+        # TODO: Add API call to reduce stock
+        InvoiceProduct.Create(self.connection, product)
+        response = requests.post(
+            f'http://127.0.0.1:8002/api/v1/product/{product["name"]}/stock',
+            json={
+                "amount": -abs(product['quantity']),
+                "apikey": "6435e79d8b1f6d9ef1cf35fd458bcd5e"
+            })
+        if response.status_code == 200:
+          model.Client.commit(self.connection)
+        else:
+          model.Client.rollback(self.connection)
+          raise ValueError(response.json())
+    except ValueError:
+      raise
+    except Exception:
+      model.Client.rollback(self.connection)
+      raise
+    finally:
+      model.Client.autocommit(self.connection, True)
+    return invoice

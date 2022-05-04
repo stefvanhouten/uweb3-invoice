@@ -74,13 +74,13 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
   @uweb3.decorators.TemplateParser('logout.html')
   def RequestLogout(self):
     """Handles logouts"""
-    message = 'You where already logged out.'
+    message = 'You were already logged out.'
     if self.user:
       message = ''
       if 'action' in self.post:
         session = model.Session(self.connection)
         session.Delete()
-        message = 'Logged out.'
+        return self.req.Redirect('/login')
     return {'message': message}
 
   @uweb3.decorators.checkxsrf

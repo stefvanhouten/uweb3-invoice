@@ -32,6 +32,15 @@ def json_error_wrapper(func):
           },
           httpcode=HTTPStatus.NOT_FOUND,
       )
+    except ValueError as e:
+      return uweb3.Response(
+          {
+              "error": True,
+              "errors": e.args,
+              "http_status": HTTPStatus.NOT_FOUND,
+          },
+          httpcode=HTTPStatus.NOT_FOUND,
+      )
     except ValidationError as error:
       return uweb3.Response(
           {
