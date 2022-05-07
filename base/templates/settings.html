@@ -1,0 +1,168 @@
+[header]
+<main>
+  <div>
+    <section class="[page_id]">
+      <header>
+        <h1>Your settings</h1>
+        {{ ifpresent [settings:name]}}
+        <p>[settings:name]</p>
+        {{endif}}
+      </header>
+      <div>
+      {{ ifpresent [errors] }}
+        {{ for key, value in [errors|items]}}
+          {{ for error in [value] }}
+            <p class="error">[key]: [error]</p>
+          {{ endfor }}
+        {{ endfor }}
+      {{ endif }}
+      </div>
+      <div class="grid">
+        <div class="col-1-2">
+          <form action="/settings/save" method="post">
+            <input type="hidden" name="xsrf" value="[xsrf]" />
+
+            <fieldset>
+              <legend>General</legend>
+              <div>
+                <label for="settings_name">Name*</label>
+                <input
+                  type="text"
+                  name="name"
+                  id="settings_name"
+                  value="{{ifpresent [settings:name]}}[settings:name]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_telephone">Telephone*</label>
+                <input
+                  type="tel"
+                  name="telephone"
+                  id="settings_telephone"
+                  value="{{ifpresent [settings:telephone]}}[settings:telephone]{{endif}}"
+                  placeholder="+31"
+                  required
+                />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Postal address</legend>
+              <div>
+                <label for="settings_address">Address*</label>
+                <input
+                  type="text"
+                  name="address"
+                  id="settings_address"
+                  value="{{ifpresent [settings:address]}}[settings:address]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_postalCode">Postal code*</label>
+                <input
+                  type="text"
+                  name="postalCode"
+                  id="settings_postalCode"
+                  value="{{ifpresent [settings:postalCode]}}[settings:postalCode]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_city">City*</label>
+                <input
+                  type="text"
+                  name="city"
+                  id="settings_city"
+                  value="{{ifpresent [settings:city]}}[settings:city]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_country">Country*</label>
+                <input
+                  type="text"
+                  name="country"
+                  id="settings_country"
+                  value="{{ifpresent [settings:country]}}[settings:country]{{endif}}"
+                  placeholder="NL"
+                  required
+                />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Business</legend>
+              <div>
+                <label for="settings_vat"><abbr title="Value-added tax">VAT</abbr> number*</label>
+                <input
+                  type="text"
+                  name="vat"
+                  id="settings_vat"
+                  value="{{ifpresent [settings:vat]}}[settings:vat]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_kvk"
+                  ><abbr title="Chamber of commerce">KvK</abbr> number*</label
+                >
+                <input
+                  type="text"
+                  name="kvk"
+                  id="settings_kvk"
+                  value="{{ifpresent [settings:kvk]}}[settings:kvk]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_invoiceprefix">Invoice prefix*</label>
+                <input
+                  type="text"
+                  name="invoiceprefix"
+                  id="settings_invoiceprefix"
+                  value="{{ifpresent [settings:invoiceprefix]}}[settings:invoiceprefix]{{endif}}"
+                  required
+                />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Banking</legend>
+              <div>
+                <label for="settings_bank">Bank*</label>
+                <input
+                  type="text"
+                  name="bank"
+                  id="settings_bank"
+                  value="{{ifpresent [settings:bank]}}[settings:bank]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_bankAccount">Bank account*</label>
+                <input
+                  type="text"
+                  name="bankAccount"
+                  id="settings_bankAccount"
+                  value="{{ifpresent [settings:bankAccount]}}[settings:bankAccount]{{endif}}"
+                  required
+                />
+              </div>
+              <div>
+                <label for="settings_bankCity">Bank city*</label>
+                <input
+                  type="text"
+                  name="bankCity"
+                  id="settings_bankCity"
+                  value="{{ifpresent [settings:bankCity]}}[settings:bankCity]{{endif}}"
+                  required
+                />
+              </div>
+            </fieldset>
+            <input type="submit" value="Save changes" />
+          </form>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+[footer]

@@ -221,6 +221,51 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
       return {'error': 'Not all fields are properly filled out.'}
     return
 
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.TemplateParser('settings.html')
+  def RequestSettings(self, errors={}):
+    """Returns the settings page."""
+    settings = None
+    highestcompanyid = model.Companydetails.HighestNumber(self.connection)
+    if highestcompanyid:
+      settings = model.Companydetails.FromPrimary(self.connection,
+                                                  highestcompanyid)
+    return {
+        'title': 'Settings',
+        'page_id': 'settings',
+        'settings': settings,
+        'errors': errors
+    }
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  def RequestSettingsSave(self):
+    """Saves the changes and returns the settings page."""
+    if not self.post:
+      return self.req.Redirect('/settings')
+
+    fieldstorage_to_dict = {
+        key: self.post.getfirst(key, '') for key in list(self.post.keys())
+    }
+    try:
+      newsettings = invoices.CompanyDetailsSchema().load(fieldstorage_to_dict)
+    except marshmallow.exceptions.ValidationError as error:
+      return self.RequestSettings(errors=error.messages)
+
+    settings = None
+    increment = model.Companydetails.HighestNumber(self.connection)
+
+    try:
+      settings = model.Companydetails.FromPrimary(self.connection, increment)
+    except uweb3.model.NotExistError:
+      pass
+
+    if settings:
+      settings.Create(self.connection, newsettings)
+    else:
+      model.Companydetails.Create(self.connection, newsettings)
+    return self.RequestSettings()
+
   def RequestInvalidcommand(self, command=None, error=None, httpcode=404):
     """Returns an error message"""
     uweb3.logging.warning('Bad page %r requested with method %s', command,
