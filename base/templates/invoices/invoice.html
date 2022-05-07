@@ -111,14 +111,15 @@
   <table class="header">
     <tr>
       <td class="logo"></td>
-      <td><strong>Factuurnummer:</strong> [invoice:sequenceNumber]</td>
     </tr>
     <tr>
-      <td>[invoice:companydetails:address]</td>
+      <td><strong>Address:</strong> [invoice:companydetails:address]</td>
+      <td><strong>Factuurnummer:</strong> [invoice:sequenceNumber]</td>
       <td><strong>KvK-nummer:</strong> [invoice:companydetails:kvk]</td>
     </tr>
     <tr>
-      <td>[invoice:companydetails:postalCode] [invoice:companydetails:city]</td>
+      <td><strong>Woonplaats:</strong>[invoice:companydetails:city]</td>
+      <td><strong>Postcode:</strong>[invoice:companydetails:postalCode]</td>
       <td><strong>BTW-nummer:</strong> [invoice:companydetails:vat]</td>
     </tr>
     <tr>
@@ -127,10 +128,10 @@
       </td>
     </tr>
     <tr>
-      <td></td>
       <td><strong>Bank:</strong> [invoice:companydetails:bank]</td>
     </tr>
   </table>
+
   <table class="leader">
     <tr>
       <td width="80%" class="address">
