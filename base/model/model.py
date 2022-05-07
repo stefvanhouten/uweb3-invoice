@@ -320,7 +320,7 @@ class Session(model.SecureCookie):
   """Provides a model to request the secure cookie named 'session'"""
 
 
-from base.model.invoice import Invoice
+from base.model.invoice import Invoice, Companydetails
 from base.model.user import User, Session
 
 NotExistError = model.NotExistError

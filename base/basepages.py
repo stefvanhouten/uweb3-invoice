@@ -186,6 +186,13 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
         'password_confirm' in self.post and self.post.getfirst('password')
         == self.post.getfirst('password_confirm')):
       try:
+        newsettings = {
+            key: self.post.getfirst(key, '')
+            for key in list(self.post.keys())
+            if key not in ('xsrf', 'email', 'password', 'password_confirm',
+                           'apikey', 'warehouse_api', 'hostname', 'locale')
+        }
+        model.Companydetails.Create(self.connection, newsettings)
         user = model.User.Create(self.connection, {
             'ID': 1,
             'email': self.post.getfirst('email'),

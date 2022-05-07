@@ -7,91 +7,88 @@
   </header>
 </section>
 <section id="loginaccess">
-  <h3>Settings and admin account:</h3>
+  <h3>Application settings:</h3>
   {{ ifpresent [error] }}
   <p class="error">[error]</p>
   {{ endif }}
   <form action="/setup" method="post">
     <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]" />
-    <div>
-      <label for="new_email">Admin email address</label
-      ><input
-        name="email"
-        id="new_email"
-        type="email"
-        required
-        placeholder="example@email.com"
-        minlength="4"
-        maxlength="255"
-      />
-    </div>
-    <div>
-      <label for="new_password_new">New password</label
-      ><input
-        name="password"
-        id="new_password_new"
-        type="password"
-        required
-        minlength="8"
-        autocomplete="new-password"
-      />
-    </div>
-    <div>
-      <label for="new_password_confirm">Confirm new password</label
-      ><input
-        name="password_confirm"
-        id="new_password_confirm"
-        type="password"
-        required
-        minlength="8"
-        autocomplete="new-password"
-      />
-    </div>
-    <p>
-      Both passwords need to be the same, so we are sure you dont lock yourself
-      out. <br />
-      Make sure to have at least 8 characters in your password.
-    </p>
-    <div>
-      <label for="new_hostname">Hostname</label
-      ><input
-        name="hostname"
-        id="new_hostname"
-        type="text"
-        required
-        placeholder="myserver.com"
-        minlength="4"
-        maxlength="255"
-      />
-    </div>
-    <div>
-      <label for="new_locale">Locale</label
-      ><input
-        name="locale"
-        id="new_locale"
-        type="text"
-        required
-        placeholder="en_GB"
-        minlength="5"
-        maxlength="10"
-      />
-    </div>
-    <p>
-      The selected Locale needs to be available on the server. It will be used
-      for curreny formatting.
-    </p>
-    <div>
-      <label for="new_hostname">Hostname</label
-      ><input
-        name="hostname"
-        id="new_hostname"
-        type="text"
-        required
-        placeholder="myserver.com"
-        minlength="4"
-        maxlength="255"
-      />
-    </div>
+    <fieldset>
+      <legend>User account</legend>
+      <div>
+        <label for="new_email">Admin email address</label
+        ><input
+          name="email"
+          id="new_email"
+          type="email"
+          required
+          placeholder="example@email.com"
+          minlength="4"
+          maxlength="255"
+        />
+      </div>
+      <div>
+        <label for="new_password_new">New password</label
+        ><input
+          name="password"
+          id="new_password_new"
+          type="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+        />
+      </div>
+      <div>
+        <label for="new_password_confirm">Confirm new password</label
+        ><input
+          name="password_confirm"
+          id="new_password_confirm"
+          type="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+        />
+      </div>
+      <p>
+        Both passwords need to be the same, so we are sure you dont lock
+        yourself out. <br />
+        Make sure to have at least 8 characters in your password.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Application settings</legend>
+      <div>
+        <label for="new_hostname">Hostname</label
+        ><input
+          name="hostname"
+          id="new_hostname"
+          type="text"
+          required
+          placeholder="myserver.com"
+          minlength="4"
+          maxlength="255"
+        />
+      </div>
+      <div>
+        <label for="new_locale">Locale</label
+        ><input
+          name="locale"
+          id="new_locale"
+          type="text"
+          required
+          placeholder="en_GB"
+          minlength="5"
+          maxlength="10"
+        />
+      </div>
+      <p>
+        The selected Locale needs to be available on the server. It will be used
+        for curreny formatting.
+      </p>
+    </fieldset>
+    <fieldset>
+      <legend>Warehouse settings</legend>
     <div>
       <label for="warehouse_api">Warehouse API</label
       ><input
@@ -104,13 +101,147 @@
     </div>
     <div>
       <label for="warehouse_api">API key</label
-      ><input
-        name="apikey"
-        id="apikey"
-        type="text"
-        required
-      />
+      ><input name="apikey" id="apikey" type="text" required />
     </div>
+    </fieldset>
+    <fieldset>
+      <legend>Personal information</legend>
+      <div>
+        <label for="settings_name">Name*</label>
+        <input
+          type="text"
+          name="name"
+          id="settings_name"
+          value="{{ifpresent [settings:name]}}[settings:name]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_telephone">Telephone*</label>
+        <input
+          type="tel"
+          name="telephone"
+          id="settings_telephone"
+          value="{{ifpresent [settings:telephone]}}[settings:telephone]{{endif}}"
+          placeholder="+31"
+          required
+        />
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Postal address</legend>
+      <div>
+        <label for="settings_address">Address*</label>
+        <input
+          type="text"
+          name="address"
+          id="settings_address"
+          value="{{ifpresent [settings:address]}}[settings:address]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_postalCode">Postal code*</label>
+        <input
+          type="text"
+          name="postalCode"
+          id="settings_postalCode"
+          value="{{ifpresent [settings:postalCode]}}[settings:postalCode]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_city">City*</label>
+        <input
+          type="text"
+          name="city"
+          id="settings_city"
+          value="{{ifpresent [settings:city]}}[settings:city]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_country">Country*</label>
+        <input
+          type="text"
+          name="country"
+          id="settings_country"
+          value="{{ifpresent [settings:country]}}[settings:country]{{endif}}"
+          placeholder="NL"
+          required
+        />
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Business</legend>
+      <div>
+        <label for="settings_vat"
+          ><abbr title="Value-added tax">VAT</abbr> number*</label
+        >
+        <input
+          type="text"
+          name="vat"
+          id="settings_vat"
+          value="{{ifpresent [settings:vat]}}[settings:vat]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_kvk"
+          ><abbr title="Chamber of commerce">KvK</abbr> number*</label
+        >
+        <input
+          type="text"
+          name="kvk"
+          id="settings_kvk"
+          value="{{ifpresent [settings:kvk]}}[settings:kvk]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_invoiceprefix">Invoice prefix*</label>
+        <input
+          type="text"
+          name="invoiceprefix"
+          id="settings_invoiceprefix"
+          value="{{ifpresent [settings:invoiceprefix]}}[settings:invoiceprefix]{{endif}}"
+          required
+        />
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Banking</legend>
+      <div>
+        <label for="settings_bank">Bank*</label>
+        <input
+          type="text"
+          name="bank"
+          id="settings_bank"
+          value="{{ifpresent [settings:bank]}}[settings:bank]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_bankAccount">Bank account*</label>
+        <input
+          type="text"
+          name="bankAccount"
+          id="settings_bankAccount"
+          value="{{ifpresent [settings:bankAccount]}}[settings:bankAccount]{{endif}}"
+          required
+        />
+      </div>
+      <div>
+        <label for="settings_bankCity">Bank city*</label>
+        <input
+          type="text"
+          name="bankCity"
+          id="settings_bankCity"
+          value="{{ifpresent [settings:bankCity]}}[settings:bankCity]{{endif}}"
+          required
+        />
+      </div>
+    </fieldset>
     <div><input type="submit" value="Save changes" class="primary" /></div>
   </form>
 </section>
