@@ -242,9 +242,6 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
   @uweb3.decorators.checkxsrf
   def RequestSettingsSave(self):
     """Saves the changes and returns the settings page."""
-    if not self.post:
-      return self.req.Redirect('/settings')
-
     fieldstorage_to_dict = {
         key: self.post.getfirst(key, '') for key in list(self.post.keys())
     }

@@ -32,8 +32,8 @@ def main():
           ('/setup', 'RequestSetup'),
 
           # Settings
-          ('/settings', 'RequestSettings'),
-          ('/settings/save', 'RequestSettingsSave'),
+          ('/settings', 'RequestSettings', 'GET'),
+          ('/settings', 'RequestSettingsSave', 'POST'),
 
           # Clients
           ('/clients', 'RequestClientsPage', 'GET'),
