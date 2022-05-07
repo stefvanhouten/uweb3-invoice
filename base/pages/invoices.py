@@ -135,12 +135,10 @@ class PageMaker:
     invoice = self._handle_create(sanitized_invoice, products)
     return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
 
-  @uweb3.decorators.TemplateParser('invoice.html')
+  @uweb3.decorators.TemplateParser('invoices/invoice.html')
   @NotExistsErrorCatcher
   def RequestInvoiceDetails(self, sequence_number):
     invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-    companydetails = {'companydetails': self.options.get('companydetails')}
-    invoice.update(companydetails)
     return {
         'invoice': invoice,
         'products': invoice.Products(),

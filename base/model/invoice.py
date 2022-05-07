@@ -13,6 +13,21 @@ from base.libs import modelcache
 PAYMENT_PERIOD = datetime.timedelta(14)
 
 
+class Companydetails(modelcache.Record):
+  """Abstraction class for companyDetails stored in the database."""
+
+  @classmethod
+  def HighestNumber(cls, connection):
+    """Returns the ID for the newest companydetails."""
+    with connection as cursor:
+      number = cursor.Select(fields='max(ID) AS maxid',
+                             table=cls.TableName(),
+                             escape=False)
+    if number:
+      return number[0]['maxid']
+    return 0
+
+
 class InvoiceProduct(RichModel):
   """Abstraction class for Products that are linked to an invoice"""
 
@@ -67,8 +82,8 @@ class Invoice(RichModel):
       Invoice: the newly created invoice.
     """
     record.setdefault('sequenceNumber', cls.NextNumber(connection))
-    # record.setdefault('companyDetails',
-    #                   Companydetails.HighestNumber(connection))
+    record.setdefault('companyDetails',
+                      Companydetails.HighestNumber(connection))
     record.setdefault('dateDue', datetime.date.today() + PAYMENT_PERIOD)
     return super(Invoice, cls).Create(connection, record)
 
