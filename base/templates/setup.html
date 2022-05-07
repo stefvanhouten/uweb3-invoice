@@ -8,8 +8,12 @@
 </section>
 <section id="loginaccess">
   <h3>Application settings:</h3>
-  {{ ifpresent [error] }}
-  <p class="error">[error]</p>
+  {{ ifpresent [errors] }}
+    {{ for key, value in [errors|items]}}
+      {{ for error in [value] }}
+        <p class="error">[key]: [error]</p>
+      {{ endfor }}
+    {{ endfor }}
   {{ endif }}
   <form action="/setup" method="post">
     <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]" />
@@ -33,9 +37,9 @@
           name="password"
           id="new_password_new"
           type="password"
-          required
-          minlength="8"
           autocomplete="new-password"
+          minlength="8"
+          required
         />
       </div>
       <div>
@@ -44,9 +48,9 @@
           name="password_confirm"
           id="new_password_confirm"
           type="password"
-          required
           minlength="8"
           autocomplete="new-password"
+          required
         />
       </div>
       <p>
@@ -112,7 +116,6 @@
           type="text"
           name="name"
           id="settings_name"
-          value="{{ifpresent [settings:name]}}[settings:name]{{endif}}"
           required
         />
       </div>
@@ -122,7 +125,6 @@
           type="tel"
           name="telephone"
           id="settings_telephone"
-          value="{{ifpresent [settings:telephone]}}[settings:telephone]{{endif}}"
           placeholder="+31"
           required
         />
@@ -136,7 +138,6 @@
           type="text"
           name="address"
           id="settings_address"
-          value="{{ifpresent [settings:address]}}[settings:address]{{endif}}"
           required
         />
       </div>
@@ -146,7 +147,6 @@
           type="text"
           name="postalCode"
           id="settings_postalCode"
-          value="{{ifpresent [settings:postalCode]}}[settings:postalCode]{{endif}}"
           required
         />
       </div>
@@ -156,7 +156,6 @@
           type="text"
           name="city"
           id="settings_city"
-          value="{{ifpresent [settings:city]}}[settings:city]{{endif}}"
           required
         />
       </div>
@@ -166,7 +165,6 @@
           type="text"
           name="country"
           id="settings_country"
-          value="{{ifpresent [settings:country]}}[settings:country]{{endif}}"
           placeholder="NL"
           required
         />
@@ -182,14 +180,12 @@
           type="text"
           name="vat"
           id="settings_vat"
-          value="{{ifpresent [settings:vat]}}[settings:vat]{{endif}}"
           required
         />
       </div>
       <div>
-        <label for="settings_kvk"
-          ><abbr title="Chamber of commerce">KvK</abbr> number*</label
-        >
+          <label for="settings_kvk">
+            <abbr title="Chamber of commerce">KvK</abbr> number*</label>
         <input
           type="text"
           name="kvk"
@@ -198,13 +194,13 @@
           required
         />
       </div>
+      </div>
       <div>
         <label for="settings_invoiceprefix">Invoice prefix*</label>
         <input
           type="text"
           name="invoiceprefix"
           id="settings_invoiceprefix"
-          value="{{ifpresent [settings:invoiceprefix]}}[settings:invoiceprefix]{{endif}}"
           required
         />
       </div>
@@ -217,7 +213,6 @@
           type="text"
           name="bank"
           id="settings_bank"
-          value="{{ifpresent [settings:bank]}}[settings:bank]{{endif}}"
           required
         />
       </div>
@@ -227,7 +222,6 @@
           type="text"
           name="bankAccount"
           id="settings_bankAccount"
-          value="{{ifpresent [settings:bankAccount]}}[settings:bankAccount]{{endif}}"
           required
         />
       </div>
@@ -237,7 +231,6 @@
           type="text"
           name="bankCity"
           id="settings_bankCity"
-          value="{{ifpresent [settings:bankCity]}}[settings:bankCity]{{endif}}"
           required
         />
       </div>

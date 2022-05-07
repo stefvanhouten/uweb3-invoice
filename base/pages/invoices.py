@@ -45,6 +45,25 @@ class ProductsCollectionSchema(Schema):
   products = fields.Nested(ProductSchema, many=True, required=True)
 
 
+class CompanyDetailsSchema(Schema):
+
+  class Meta:
+    unknown = EXCLUDE
+
+  name = fields.Str(required=True, allow_none=False)
+  telephone = fields.Str(required=True, allow_none=False)
+  address = fields.Str(required=True, allow_none=False)
+  postalCode = fields.Str(required=True, allow_none=False)
+  city = fields.Str(required=True, allow_none=False)
+  country = fields.Str(required=True, allow_none=False)
+  vat = fields.Str(required=True, allow_none=False)
+  kvk = fields.Str(required=True, allow_none=False)
+  bankAccount = fields.Str(required=True, allow_none=False)
+  bank = fields.Str(required=True, allow_none=False)
+  bankCity = fields.Str(required=True, allow_none=False)
+  invoiceprefix = fields.Str(required=True, allow_none=False)
+
+
 class PageMaker:
 
   @uweb3.decorators.loggedin

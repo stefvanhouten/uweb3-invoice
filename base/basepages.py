@@ -1,5 +1,7 @@
 from http import HTTPStatus
 import time
+
+import marshmallow
 import uweb3
 from base.pages import clients, invoices
 from base.model import model
@@ -186,13 +188,11 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
         'password_confirm' in self.post and self.post.getfirst('password')
         == self.post.getfirst('password_confirm')):
       try:
-        newsettings = {
-            key: self.post.getfirst(key, '')
-            for key in list(self.post.keys())
-            if key not in ('xsrf', 'email', 'password', 'password_confirm',
-                           'apikey', 'warehouse_api', 'hostname', 'locale')
+        fieldstorage_to_dict = {
+            key: self.post.getfirst(key, '') for key in list(self.post.keys())
         }
-        model.Companydetails.Create(self.connection, newsettings)
+        settings = invoices.CompanyDetailsSchema().load(fieldstorage_to_dict)
+        model.Companydetails.Create(self.connection, settings)
         user = model.User.Create(self.connection, {
             'ID': 1,
             'email': self.post.getfirst('email'),
@@ -201,7 +201,13 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
         },
                                  generate_password_hash=True)
       except ValueError:
-        return {'error': 'Password too short, 8 characters minimal.'}
+        return {
+            'errors': {
+                'password': ['Password too short, 8 characters minimal.']
+            }
+        }
+      except marshmallow.exceptions.ValidationError as error:
+        return {'errors': error.messages}
 
       self.config.Update('general', 'host', self.post.getfirst('hostname'))
       self.config.Update('general', 'locale',

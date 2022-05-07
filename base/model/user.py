@@ -15,6 +15,8 @@ class User(model.Record):
   @classmethod
   def Create(cls, connection, record, generate_password_hash=False):
     if generate_password_hash:
+      if len(record['password']) < 8:
+        raise ValueError('password too short, 8 characters minimal.')
       record['password'] = pbkdf2_sha256.hash(record['password'])
     return super().Create(connection, record)
 
