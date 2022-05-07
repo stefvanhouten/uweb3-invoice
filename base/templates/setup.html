@@ -29,6 +29,7 @@
           placeholder="example@email.com"
           minlength="4"
           maxlength="255"
+          value="{{ ifpresent [postdata:email] }}[postdata:email]{{endif}}"
         />
       </div>
       <div>
@@ -72,6 +73,7 @@
           placeholder="myserver.com"
           minlength="4"
           maxlength="255"
+          value="{{ ifpresent [postdata:hostname] }}[postdata:hostname]{{endif}}"
         />
       </div>
       <div>
@@ -84,6 +86,7 @@
           placeholder="en_GB"
           minlength="5"
           maxlength="10"
+          value="{{ ifpresent [postdata:locale] }}[postdata:locale]{{endif}}"
         />
       </div>
       <p>
@@ -99,13 +102,14 @@
         name="warehouse_api"
         id="warehouse_api"
         type="url"
-        required
         minlength="10"
+        value="{{ ifpresent [postdata:warehouse_api] }}[postdata:warehouse_api]{{endif}}"
+        required
       />
     </div>
     <div>
       <label for="warehouse_api">API key</label
-      ><input name="apikey" id="apikey" type="text" required />
+      ><input name="apikey" id="apikey" type="text" value="{{ ifpresent [postdata:apikey] }}[postdata:apikey]{{endif}}" required />
     </div>
     </fieldset>
     <fieldset>
@@ -117,6 +121,7 @@
           name="name"
           id="settings_name"
           required
+          value="{{ ifpresent [postdata:name] }}[postdata:name]{{endif}}"
         />
       </div>
       <div>
@@ -127,6 +132,7 @@
           id="settings_telephone"
           placeholder="+31"
           required
+          value="{{ ifpresent [postdata:telephone] }}[postdata:telephone]{{endif}}"
         />
       </div>
     </fieldset>
@@ -139,6 +145,7 @@
           name="address"
           id="settings_address"
           required
+          value="{{ ifpresent [postdata:address] }}[postdata:address]{{endif}}"
         />
       </div>
       <div>
@@ -148,6 +155,7 @@
           name="postalCode"
           id="settings_postalCode"
           required
+          value="{{ ifpresent [postdata:postalCode] }}[postdata:postalCode]{{endif}}"
         />
       </div>
       <div>
@@ -157,6 +165,7 @@
           name="city"
           id="settings_city"
           required
+          value="{{ ifpresent [postdata:city] }}[postdata:city]{{endif}}"
         />
       </div>
       <div>
@@ -167,6 +176,7 @@
           id="settings_country"
           placeholder="NL"
           required
+          value="{{ ifpresent [postdata:country] }}[postdata:country]{{endif}}"
         />
       </div>
     </fieldset>
@@ -181,6 +191,7 @@
           name="vat"
           id="settings_vat"
           required
+          value="{{ ifpresent [postdata:vat] }}[postdata:vat]{{endif}}"
         />
       </div>
       <div>
@@ -190,8 +201,8 @@
           type="text"
           name="kvk"
           id="settings_kvk"
-          value="{{ifpresent [settings:kvk]}}[settings:kvk]{{endif}}"
           required
+          value="{{ ifpresent [postdata:kvk] }}[postdata:kvk]{{endif}}"
         />
       </div>
       </div>
@@ -202,6 +213,7 @@
           name="invoiceprefix"
           id="settings_invoiceprefix"
           required
+          value="{{ ifpresent [postdata:invoiceprefix] }}[postdata:invoiceprefix]{{endif}}"
         />
       </div>
     </fieldset>
@@ -214,6 +226,7 @@
           name="bank"
           id="settings_bank"
           required
+          value="{{ ifpresent [postdata:bank] }}[postdata:bank]{{endif}}"
         />
       </div>
       <div>
@@ -223,6 +236,7 @@
           name="bankAccount"
           id="settings_bankAccount"
           required
+          value="{{ ifpresent [postdata:bankAccount] }}[postdata:bankAccount]{{endif}}"
         />
       </div>
       <div>
@@ -232,6 +246,7 @@
           name="bankCity"
           id="settings_bankCity"
           required
+          value="{{ ifpresent [postdata:bankCity] }}[postdata:bankCity]{{endif}}"
         />
       </div>
     </fieldset>

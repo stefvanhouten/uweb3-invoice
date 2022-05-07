@@ -6,7 +6,7 @@ from itertools import zip_longest
 from multiprocessing.sharedctypes import Value
 import marshmallow
 import requests
-from marshmallow import Schema, fields, EXCLUDE
+from marshmallow import Schema, fields, EXCLUDE, validate
 from base.model.invoice import InvoiceProduct
 
 # uweb modules
@@ -53,7 +53,12 @@ class CompanyDetailsSchema(Schema):
   name = fields.Str(required=True, allow_none=False)
   telephone = fields.Str(required=True, allow_none=False)
   address = fields.Str(required=True, allow_none=False)
-  postalCode = fields.Str(required=True, allow_none=False)
+  postalCode = fields.Str(
+      required=True,
+      allow_none=False,
+      validate=validate.Regexp(
+          r"^[1-9][0-9]{3} ?(?!sa|sd|ss|SA|SD|SS)[A-Za-z]{2}$",
+          error="Should be 4 numbers and 2 letters"))
   city = fields.Str(required=True, allow_none=False)
   country = fields.Str(required=True, allow_none=False)
   vat = fields.Str(required=True, allow_none=False)

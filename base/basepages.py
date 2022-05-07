@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from re import X
 import time
 
 import marshmallow
@@ -187,10 +188,12 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
     if ('email' in self.post and 'password' in self.post and
         'password_confirm' in self.post and self.post.getfirst('password')
         == self.post.getfirst('password_confirm')):
+
+      # We do this because marshmallow only validates dicts. Calling dict(self.post) does not work propperly because the values of the dict will be indexfield.
+      fieldstorage_to_dict = {
+          key: self.post.getfirst(key, '') for key in list(self.post.keys())
+      }
       try:
-        fieldstorage_to_dict = {
-            key: self.post.getfirst(key, '') for key in list(self.post.keys())
-        }
         settings = invoices.CompanyDetailsSchema().load(fieldstorage_to_dict)
         model.Companydetails.Create(self.connection, settings)
         user = model.User.Create(self.connection, {
@@ -204,10 +207,11 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
         return {
             'errors': {
                 'password': ['Password too short, 8 characters minimal.']
-            }
+            },
+            'postdata': fieldstorage_to_dict
         }
       except marshmallow.exceptions.ValidationError as error:
-        return {'errors': error.messages}
+        return {'errors': error.messages, 'postdata': fieldstorage_to_dict}
 
       self.config.Update('general', 'host', self.post.getfirst('hostname'))
       self.config.Update('general', 'locale',
@@ -217,9 +221,6 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
       self.config.Update('general', 'apikey', self.post.getfirst('apikey'))
       model.Session.Create(self.connection, int(user), path="/")
       return self.req.Redirect('/', httpcode=301)
-    if self.post:
-      return {'error': 'Not all fields are properly filled out.'}
-    return
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.TemplateParser('settings.html')
@@ -264,6 +265,7 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
       settings.Create(self.connection, newsettings)
     else:
       model.Companydetails.Create(self.connection, newsettings)
+
     return self.RequestSettings()
 
   def RequestInvalidcommand(self, command=None, error=None, httpcode=404):
