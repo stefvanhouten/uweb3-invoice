@@ -101,10 +101,8 @@
       margin: 3em 0 2em 0;
     }
   </style>
-  {{ comment }}
   <title>[invoice:companydetails:name], Factuurnummer: {{if [invoice:companydetails:invoiceprefix]
     }}[invoice:companydetails:invoiceprefix]{{ endif }}[invoice:sequenceNumber] – [invoice:description]</title>
-  {{ endcomment }}
 </head>
 
 <body>
@@ -118,17 +116,16 @@
       <td><strong>KvK-nummer:</strong> [invoice:companydetails:kvk]</td>
     </tr>
     <tr>
-      <td><strong>Woonplaats:</strong> [invoice:companydetails:city]</td>
+      <td><strong>Postcode:</strong> [invoice:companydetails:postalCode]</td>
+      <td><strong>Bank:</strong> [invoice:companydetails:bank]</td>
       <td><strong>BTW-nummer:</strong> [invoice:companydetails:vat]</td>
     </tr>
     <tr>
-      <td><strong>Postcode:</strong> [invoice:companydetails:postalCode]</td>
-      <td><strong>Tel.</strong> [invoice:companydetails:telephone]</td>
-      <td><strong>Bankrekeningnummer:</strong> [invoice:companydetails:bankAccount] te [invoice:companydetails:bankCity]
-      </td>
+      <td><strong>Woonplaats:</strong> [invoice:companydetails:city]</td>
+      <td><strong>Bankrekeningnummer:</strong> [invoice:companydetails:bankAccount] te [invoice:companydetails:bankCity]</td>
     </tr>
     <tr>
-      <td><strong>Bank:</strong> [invoice:companydetails:bank]</td>
+      <td><strong>Tel.</strong> [invoice:companydetails:telephone]</td>
     </tr>
   </table>
 
