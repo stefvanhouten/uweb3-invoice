@@ -18,6 +18,7 @@
             <th>Inc. VAT</th>
             <th>Status</th>
             <th>Reservation</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -33,6 +34,11 @@
             <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
             <td>[invoice:status]</td>
             <td>{{ if [invoice:reservation] }} yes {{ endif }}</td>
+            <td>
+              {{ if [invoice:status] == "new" and not [invoice:reservation] }}
+                {{ inline invoices/parts/invoice_change_state.html }}
+              {{ endif }}
+            </td>
           </tr>
           {{ endfor }}
         </tbody>

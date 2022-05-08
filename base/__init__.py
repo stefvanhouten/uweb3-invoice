@@ -49,6 +49,7 @@ def main():
           ('/invoices', 'RequestInvoicesPage', 'GET'),
           ('/invoices/new', 'RequestNewInvoicePage', 'GET'),
           ('/invoices/new', 'RequestCreateNewInvoicePage', 'POST'),
+          ('/invoices/settopayed', 'RequestInvoicePayed', 'POST'),
 
           # API routes
           (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),

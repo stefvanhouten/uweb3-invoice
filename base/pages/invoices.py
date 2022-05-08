@@ -132,6 +132,17 @@ class PageMaker:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
     return self.req.Redirect('/invoices', httpcode=303)
 
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  def RequestInvoicePayed(self):
+    """Sets the given invoice to paid."""
+    invoice = self.post.getfirst('invoice')
+    invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
+    invoice['status'] = 'paid'
+    invoice.Save()
+    return self.req.Redirect('/invoices', httpcode=303)
+
   @uweb3.decorators.ContentType('application/json')
   @json_error_wrapper
   def RequestInvoices(self):
