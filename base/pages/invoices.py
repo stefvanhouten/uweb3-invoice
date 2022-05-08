@@ -3,6 +3,7 @@
 
 # standard modules
 from email.policy import default
+from http import HTTPStatus
 from itertools import zip_longest
 from multiprocessing.sharedctypes import Value
 import marshmallow
@@ -89,12 +90,21 @@ class PageMaker:
     api_url = self.config.options['general']['warehouse_api']
     apikey = self.config.options['general']['apikey']
     response = requests.get(f'{api_url}/products?apikey={apikey}')
+    json_response = response.json()
     if response.status_code != 200:
+      if response.status_code == HTTPStatus.NOT_FOUND:
+        return self.Error(
+            f"Warehouse API at url '{api_url}' could not be found.")
+      if response.status_code == HTTPStatus.FORBIDDEN:
+        error = json_response.get(
+            'error',
+            'Not allowed to access this page. Are you using a valid apikey?')
+        return self.Error(error)
       return self.Error("Something went wrong!")
 
     return {
         'clients': list(model.Client.List(self.connection)),
-        'products': response.json()['products'],
+        'products': json_response['products'],
         'errors': errors,
         'api_url': api_url,
         'apikey': apikey,
