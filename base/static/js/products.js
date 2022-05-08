@@ -1,5 +1,8 @@
 (function () {
   'use strict';
+  if(APIKEY === "[apikey]" || API_URL === "[api_url]"){
+    throw Error("APIKEY or API_URL was not set propperly. This page will not function.");
+  }
   var tableEls = document.querySelectorAll('table.products');
   var productsTable = {
     el: null,
@@ -67,7 +70,7 @@
         return;
       }
       fetch(
-        `http://127.0.0.1:8002/api/v1/search_product/${ioEls[0].value}?apikey=6435e79d8b1f6d9ef1cf35fd458bcd5e`,
+        `${API_URL}/search_product/${ioEls[0].value}?apikey=${APIKEY}`,
         {
           mode: "cors",
           method: "GET",

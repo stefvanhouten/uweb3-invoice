@@ -87,8 +87,8 @@ class PageMaker:
   @uweb3.decorators.TemplateParser('invoices/create.html')
   def RequestNewInvoicePage(self, errors=[]):
     api_url = self.config.options['general']['warehouse_api']
-    api_key = self.config.options['general']['apikey']
-    response = requests.get(f'{api_url}/products?apikey={api_key}')
+    apikey = self.config.options['general']['apikey']
+    response = requests.get(f'{api_url}/products?apikey={apikey}')
     if response.status_code != 200:
       return self.Error("Something went wrong!")
 
@@ -96,6 +96,8 @@ class PageMaker:
         'clients': list(model.Client.List(self.connection)),
         'products': response.json()['products'],
         'errors': errors,
+        'api_url': api_url,
+        'apikey': apikey,
         'scripts': ['/js/invoice.js']
     }
 
