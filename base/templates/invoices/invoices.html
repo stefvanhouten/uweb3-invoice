@@ -17,6 +17,7 @@
             <th>Ex. VAT</th>
             <th>Inc. VAT</th>
             <th>Status</th>
+            <th>Reservation</th>
           </tr>
         </thead>
         <tbody>
@@ -31,6 +32,7 @@
             <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
             <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
             <td>[invoice:status]</td>
+            <td>{{ if [invoice:reservation] }} yes {{ endif }}</td>
           </tr>
           {{ endfor }}
         </tbody>

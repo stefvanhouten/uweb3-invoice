@@ -2,6 +2,7 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
+from email.policy import default
 from itertools import zip_longest
 from multiprocessing.sharedctypes import Value
 import marshmallow
@@ -28,6 +29,7 @@ class InvoiceSchema(Schema):
   client = fields.Int(required=True, allow_none=False)
   title = fields.Str(required=True, allow_none=False)
   description = fields.Str(required=True, allow_none=False)
+  reservation = fields.Bool(required=True, allow_none=False)
 
 
 class ProductSchema(Schema):
@@ -118,7 +120,8 @@ class PageMaker:
       sanitized_invoice = InvoiceSchema().load({
           'client': client['ID'],
           'title': self.post.getfirst('title'),
-          'description': self.post.getfirst('description')
+          'description': self.post.getfirst('description'),
+          'reservation': self.post.getfirst('reservation', False)
       })
       products = ProductsCollectionSchema().load({'products': products})
       self._handle_create(sanitized_invoice, products)

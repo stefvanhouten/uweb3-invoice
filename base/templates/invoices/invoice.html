@@ -100,6 +100,14 @@
     .payment {
       margin: 3em 0 2em 0;
     }
+
+    .warning {
+      color: red
+    }
+
+    body {
+      padding: 4em 5em;
+    }
   </style>
   <title>[invoice:companydetails:name], Factuurnummer: {{if [invoice:companydetails:invoiceprefix]
     }}[invoice:companydetails:invoiceprefix]{{ endif }}[invoice:sequenceNumber] – [invoice:description]</title>
@@ -128,7 +136,6 @@
       <td><strong>Tel.</strong> [invoice:companydetails:telephone]</td>
     </tr>
   </table>
-
   <table class="leader">
     <tr>
       <td width="80%" class="address">
@@ -149,6 +156,9 @@
     <p class="welcome">Geachte heer / mevrouw, <br><br>
       Bij dezen uw factuur voor de volgende zaken:<br><br>
       <i>[invoice:description]</i>
+        {{ if [invoice:reservation] }}
+          <p class="warning"> Dit is een voorlopige factuur voor uw reservering</p>
+        {{ endif }}
     </p>
 
     <table class="products" cellpadding="3" cellspacing="0">
