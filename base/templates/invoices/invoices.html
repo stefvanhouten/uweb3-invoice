@@ -35,7 +35,7 @@
             <td>[invoice:status]</td>
             <td>{{ if [invoice:reservation] }} yes {{ endif }}</td>
             <td>
-              {{ if [invoice:status] == "new" and not [invoice:reservation] }}
+              {{ if ([invoice:status] == "new" or [invoice:status] == "sent") and not [invoice:reservation] }}
                 {{ inline invoices/parts/invoice_change_state.html }}
               {{ endif }}
             </td>
