@@ -34,6 +34,7 @@ def main():
           # Settings
           ('/settings', 'RequestSettings', 'GET'),
           ('/settings', 'RequestSettingsSave', 'POST'),
+          ('/warehousesettings', 'RequestWarehouseSettingsSave', 'POST'),
 
           # Clients
           ('/clients', 'RequestClientsPage', 'GET'),
