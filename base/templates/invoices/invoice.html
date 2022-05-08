@@ -16,7 +16,6 @@
         height: 1cm;
       }
     }
-
     * {
       font-size: 12px;
       font-family: verdana, sans-serif;
@@ -34,7 +33,7 @@
     }
 
     .products {
-      width: 80%;
+      width: 100%;
       margin: 0 auto;
       border-width: 1px;
       border-color: rgb(48, 45, 45);
@@ -90,7 +89,19 @@
 
     .invoice {
       margin-bottom: 5em;
+      padding-left: 0em;
     }
+
+    @media screen and (max-width: 650px) {
+      body {
+          padding: 2em;
+        }
+
+      .details {
+        flex-direction: column;
+      }
+    }
+
   </style>
   <title>[invoice:companydetails:name], Factuurnummer: {{if [invoice:companydetails:invoiceprefix]
     }}[invoice:companydetails:invoiceprefix]{{ endif }}[invoice:sequenceNumber] – [invoice:description]</title>
