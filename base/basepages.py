@@ -1,3 +1,4 @@
+import datetime
 from http import HTTPStatus
 from re import X
 import time
@@ -29,6 +30,8 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
     self.validatexsrf()
     self.parser.RegisterFunction('CentRound', CentRound)
     self.parser.RegisterFunction('items', lambda x: x.items())
+    self.parser.RegisterFunction('AddDays',
+                                 lambda x: x + datetime.timedelta(days=7))
     self.parser.RegisterFunction('DateOnly', lambda x: str(x)[0:10])
     self.parser.RegisterTag('year', time.strftime('%Y'))
     self.parser.RegisterTag(

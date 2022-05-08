@@ -22,20 +22,6 @@
       font-family: verdana, sans-serif;
     }
 
-    .header td:first-child {
-      padding-left: .5em;
-    }
-
-    .header {
-      width: 100%;
-      padding-bottom: 1em;
-      border-bottom: 1px solid #000;
-    }
-
-    .header td {
-      vertical-align: bottom;
-    }
-
     span .logo {
       display: block;
     }
@@ -47,38 +33,11 @@
       padding-left: 0 !important;
     }
 
-    .leader {
-      margin: 2em 0;
-      width: 100%;
-    }
-
-    .leader td {
-      vertical-align: top;
-    }
-
-    .address>* {
-      float: left;
-      display: block;
-      margin-right: 1em;
-    }
-
-    .address td {
-      vertical-align: top;
-    }
-
-    .invoice {
-      padding-left: 5em;
-    }
-
-    .welcome {
-      padding-bottom: 1.5em;
-    }
-
     .products {
       width: 80%;
       margin: 0 auto;
       border-width: 1px;
-      border-color: #000;
+      border-color: rgb(48, 45, 45);
       border-collapse: collapse;
     }
 
@@ -97,8 +56,9 @@
       font-face: verdana, sans-serif
     }
 
-    .payment {
-      margin: 3em 0 2em 0;
+    footer {
+      text-align: center;
+      margin: 0.5em 0 2em 0;
     }
 
     .warning {
@@ -106,7 +66,30 @@
     }
 
     body {
-      padding: 4em 5em;
+      padding: 3em 10em;
+    }
+
+    h1 {
+      font-size: 18px;
+    }
+
+    h1, h2 {
+      color: rgb(48, 45, 45);
+    }
+
+    .details {
+      display: flex;
+      justify-content: space-between;
+    }
+    .details p {
+      line-height: 0.5em;
+    }
+    .details strong {
+      color: rgb(48, 45, 45);
+    }
+
+    .invoice {
+      margin-bottom: 5em;
     }
   </style>
   <title>[invoice:companydetails:name], Factuurnummer: {{if [invoice:companydetails:invoiceprefix]
@@ -114,53 +97,37 @@
 </head>
 
 <body>
-  <table class="header">
-    <tr>
-      <td class="logo"></td>
-    </tr>
-    <tr>
-      <td><strong>Adres:</strong> [invoice:companydetails:address]</td>
-      <td><strong>Factuurnummer:</strong> [invoice:sequenceNumber]</td>
-      <td><strong>KvK-nummer:</strong> [invoice:companydetails:kvk]</td>
-    </tr>
-    <tr>
-      <td><strong>Postcode:</strong> [invoice:companydetails:postalCode]</td>
-      <td><strong>Bank:</strong> [invoice:companydetails:bank]</td>
-      <td><strong>BTW-nummer:</strong> [invoice:companydetails:vat]</td>
-    </tr>
-    <tr>
-      <td><strong>Woonplaats:</strong> [invoice:companydetails:city]</td>
-      <td><strong>Bankrekeningnummer:</strong> [invoice:companydetails:bankAccount] te [invoice:companydetails:bankCity]</td>
-    </tr>
-    <tr>
-      <td><strong>Tel.</strong> [invoice:companydetails:telephone]</td>
-    </tr>
-  </table>
-  <table class="leader">
-    <tr>
-      <td width="80%" class="address">
-        <strong>Aan:</strong>
-        <div>
-          [invoice:client:name]<br>
-          [invoice:client:address]<br>
-          [invoice:client:postalCode] [invoice:client:city]
-        </div>
-      </td>
-      <td width="20%">
-        <strong>Factuurdatum:</strong><br>[invoice:dateCreated|DateOnly|html]
-      </td>
-    </tr>
-  </table>
+  <section>
+    <h1>[invoice:companydetails:name]</h1>
+  </section>
 
+  <section class="details">
+    <div>
+        <p><strong>[invoice:companydetails:address]</strong></p>
+        <p><strong>[invoice:companydetails:postalCode], [invoice:companydetails:city]</strong></p>
+        <p><strong>[invoice:companydetails:telephone]</strong></p>
+        <p><strong>Nederland</strong></p>
+        <br>
+        <p><strong>[invoice:client:name]</strong></p>
+        <p> [invoice:client:address]</p>
+        <p>[invoice:client:postalCode], [invoice:client:city]</p>
+    </div>
+    <div class="overig">
+      <p><strong>Bank:</strong> [invoice:companydetails:bank]</p>
+      <p><strong>IBAN:</strong> [invoice:companydetails:bankAccount] te [invoice:companydetails:bankCity]</p>
+      <p><strong>KVK-nummer:</strong> [invoice:companydetails:kvk]</p>
+      <p><strong>BTW-nummer:</strong> [invoice:companydetails:vat]</p>
+      <br>
+      <p><strong>Factuurnummer:</strong> [invoice:sequenceNumber]</p>
+      <p><strong>Factuurdatum:</strong> [invoice:dateCreated|DateOnly|html]</p>
+    </div>
+  </section>
+  <hr>
+  <section class="description">
+    <h2>Omschrijving</h2>
+    <p>[invoice:description]</p>
+  </section>
   <section class="invoice">
-    <p class="welcome">Geachte heer / mevrouw, <br><br>
-      Bij dezen uw factuur voor de volgende zaken:<br><br>
-      <i>[invoice:description]</i>
-        {{ if [invoice:reservation] }}
-          <p class="warning"> Dit is een voorlopige factuur voor uw reservering</p>
-        {{ endif }}
-    </p>
-
     <table class="products" cellpadding="3" cellspacing="0">
       <thead>
         <tr>
@@ -211,21 +178,16 @@
         </tr>
       </tfoot>
     </table>
-
-    <div class="payment">
-      <p>
-        Wij verzoeken u vriendelijk om het bedrag van <strong>&euro;&nbsp;[totals:total_price|CentRound|html]</strong>
-        binnen 7 dagen over te maken op bankrekeningnummer<br>
-        <strong>[invoice:companydetails:bankAccount] [invoice:companydetails:bank]</strong> te
-        <strong>[invoice:companydetails:bankCity]</strong>.<br>
-        Vermeld het factuurnummer <strong>[invoice:sequenceNumber]</strong> bij de betaling.
-      </p>
-    </div>
   </section>
+  <hr>
   <footer>
-    <p>Vriendelijke groeten,
-      <span class="logo">[invoice:companydetails:name]</span>
-    </p>
+    {{ if [invoice:reservation] }}
+      <strong class="warning" g>Dit is een voorlopige factuur voor uw reservering</strong>
+    {{ else }}
+      <p>Gelieve te betalen binnen 7 dagen (voor [invoice:dateCreated|AddDays|DateOnly]) op rekeningnummer <br><strong>[invoice:companydetails:bankAccount]</strong>
+        onder vermelding van het factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
+      </p>
+    {{ endif }}
   </footer>
 </body>
 
