@@ -85,26 +85,61 @@ class Invoice(RichModel):
     Returns:
       Invoice: the newly created invoice.
     """
-    record.setdefault('sequenceNumber', cls.NextNumber(connection))
+    status = record.get('status', None)
+    if status and status == 'reservation':
+      record.setdefault('sequenceNumber', cls.NextProFormaNumber(connection))
+    else:
+      record.setdefault('sequenceNumber', cls.NextNumber(connection))
     record.setdefault('companyDetails',
                       Companydetails.HighestNumber(connection))
     record.setdefault('dateDue', cls.CalculateDateDue())
     return super(Invoice, cls).Create(connection, record)
 
+  def ProFormaToRealInvoice(self):
+    """Changes a pro forma invoice to an actual invoice.
+    This changes the status to new, calculates a new date for when the invoice is due and generates a new sequencenumber.
+    """
+    self['sequenceNumber'] = self.NextNumber(self.connection)
+    self['status'] = 'new'
+    self['dateDue'] = self.CalculateDateDue()
+    self.Save()
+
   @classmethod
   def NextNumber(cls, connection):
     """Returns the sequenceNumber for the next invoice to create."""
     with connection as cursor:
-      current_max = cursor.Select(table=cls.TableName(),
-                                  fields='sequenceNumber',
-                                  conditions='YEAR(dateCreated) = YEAR(NOW())',
-                                  limit=1,
-                                  order=[('sequenceNumber', True)],
-                                  escape=False)
+      current_max = cursor.Select(
+          table=cls.TableName(),
+          fields='sequenceNumber',
+          conditions=[
+              'YEAR(dateCreated) = YEAR(NOW())',
+              'status not in ("reservation", "canceled")'
+          ],
+          limit=1,
+          order=[('sequenceNumber', True)],
+          escape=False)
     if current_max:
       year, sequence = current_max[0][0].split('-')
       return '%s-%03d' % (year, int(sequence) + 1)
     return '%s-%03d' % (time.strftime('%Y'), 1)
+
+  @classmethod
+  def NextProFormaNumber(cls, connection):
+    """Returns the sequenceNumber for the next invoice to create."""
+    with connection as cursor:
+      current_max = cursor.Select(table=cls.TableName(),
+                                  fields='sequenceNumber',
+                                  conditions=[
+                                      'YEAR(dateCreated) = YEAR(NOW())',
+                                      'status in ("reservation", "canceled")'
+                                  ],
+                                  limit=1,
+                                  order=[('sequenceNumber', True)],
+                                  escape=False)
+    if current_max:
+      prefix, year, sequence = current_max[0][0].split('-')
+      return '%s-%s-%03d' % (prefix, year, int(sequence) + 1)
+    return 'PF-%s-%03d' % (time.strftime('%Y'), 1)
 
   @classmethod
   def List(cls, *args, **kwds):

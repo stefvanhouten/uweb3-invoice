@@ -139,6 +139,9 @@
   </section>
   <hr>
   <section class="description">
+    {{ if [invoice:status] == 'reservation' }}
+      <h1 class="warning">Pro forma factuur</h1>
+    {{ endif }}
     <h2>Omschrijving</h2>
     <p>[invoice:description]</p>
   </section>
@@ -197,7 +200,9 @@
   <hr>
   <footer>
     {{ if [invoice:status] == 'reservation' }}
-      <p class="warning" g>Dit is een voorlopige factuur van uw reservering met factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
+      <p class="warning" g>Dit is een pro forma factuur van uw reservering met factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
+    {{ elif [invoice:status] == 'canceled' }}
+      <p class="warning">Deze factuur is geannuleerd.</p>
     {{ else }}
       <p>Gelieve te betalen binnen 14 dagen (voor [invoice:dateDue|DateOnly]) op rekeningnummer <br><strong>[invoice:companydetails:bankAccount]</strong>
         onder vermelding van het factuurnummer <strong>[invoice:sequenceNumber]</strong></p>

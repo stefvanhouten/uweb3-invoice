@@ -193,7 +193,8 @@ class PageMaker(APIPages):
   @uweb3.decorators.TemplateParser('invoices/invoices.html')
   def RequestInvoicesPage(self):
     return {
-        'invoices': list(model.Invoice.List(self.connection)),
+        'invoices':
+            list(model.Invoice.List(self.connection, order=['sequenceNumber'])),
     }
 
   @uweb3.decorators.loggedin
@@ -298,9 +299,7 @@ class PageMaker(APIPages):
     """Sets the given invoice to paid."""
     invoice = self.post.getfirst('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-    invoice['status'] = 'new'
-    invoice['dateDue'] = invoice.CalculateDateDue()
-    invoice.Save()
+    invoice.ProFormaToRealInvoice()
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.loggedin
