@@ -3,6 +3,8 @@
 """Underdark uWeb PageMaker Mixins for mollie.com payment/callback purposes."""
 from __future__ import with_statement
 
+import simplejson
+
 __author__ = 'Arjen Pander <arjen@underdark.nl>'
 __version__ = '0.1'
 
@@ -116,33 +118,31 @@ class MolliePaymentGateway(object):
   def CreateTransaction(self, order, user, total, description):
     """Store the transaction into the database and fetch the unique transaction
     id"""
-    self.orderdata['amount'] = float(total)
     self.orderdata['description'] = description
-    # self.orderdata['description'] = base64.encodestring(
-    #     _GzipString(description)).strip()
     self.user = user
     self.order = order
     transaction = {
         'amount': {
             'currency': 'EUR',
-            'value': self.orderdata['amount'] * 100,
+            'value': str(total),
         },
         'status': 'open',
-        'description': '',
-        'order': self.order.get('key')
+        'description': description,
+        'order': self.order.get('sequenceNumber')
     }
     # transactionID = MollieTransaction.Create(self.uweb.connection, transaction)
     transactionID = 1  # TODO: Fix this
     mollietransaction = {
         'amount': {
             'currency': 'EUR',
-            'value': '1.00',  # TODO: set value
+            'value': str(total),  # TODO: set value
         },
-        'description': self.orderdata['description'],
+        'description': description,
         'metadata': {
-            'order': self.order.get('key')
+            'order': self.order.get('sequenceNumber')
         },
-        'redirectUrl': 'https://webshop.example.org/payments/webhook/',
+        'redirectUrl':
+            'https://webshop.example.org/payments/webhook/',  # TODO: Redirect to page
         # 'https://api.coolmoo.se/mollie/redirect/%d/%s' %
         # (transactionID, self.order['secret']),
         'method': 'ideal'

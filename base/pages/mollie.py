@@ -30,6 +30,10 @@ class PageMaker(mollie.MollieMixin):
   def RequestPaymentFormMollie(self):
     sequence_number = self.post.get('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
+    molliedata = self.RequestMollie(invoice)
+    return molliedata
+
+  def RequestMollie(self, invoice):
     totals = invoice.Totals()['total_price']
     cents = decimal.Decimal('0.01')
 
@@ -39,17 +43,12 @@ class PageMaker(mollie.MollieMixin):
     # TODO: Secret
 
     mollie = self.NewMolliePaymentGateway()
-    molliedata = mollie.GetForm(
-        {
-            'key': 1,
-            'secret': 'very secret'
-        },
+    return mollie.GetForm(
+        invoice,
         client_email,
-        price,  # Mollie expects amounts in euros
+        price,  # Mollie expects amounts in euros  # TODO: (Jan) How should the currency be handled? Currently using a Decimal which is then converted to a string for mollie
         description,
     )
-    return molliedata
-    # return self.JsonCorsResponse(uweb.model.MakeJson(molliedata))
 
   def RequestLabel(self, order, secret):
     return uweb3.Response('pass', content_type='application/pdf')

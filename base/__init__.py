@@ -55,10 +55,10 @@ def main():
           ('/pdfinvoice/(.*)', 'RequestPDFInvoice'),
 
           # API routes
-          (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),
-          (f'{basepages.API_VERSION}/invoices', 'RequestNewInvoice', 'POST'),
-          (f'{basepages.API_VERSION}/invoice/(.*)', 'RequestInvoiceDetailsJSON',
-           'GET'),
+          # (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),
+          # (f'{basepages.API_VERSION}/invoices', 'RequestNewInvoice', 'POST'),
+          # (f'{basepages.API_VERSION}/invoice/(.*)', 'RequestInvoiceDetailsJSON',
+          #  'GET'),
           (f'{basepages.API_VERSION}/client/([0-9]+)', 'RequestClient'),
           (f'{basepages.API_VERSION}/clients', 'RequestClients', 'GET'),
           (f'{basepages.API_VERSION}/clients', 'RequestNewClient', 'POST'),
