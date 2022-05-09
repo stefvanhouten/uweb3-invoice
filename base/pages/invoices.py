@@ -8,7 +8,7 @@ from itertools import zip_longest
 from multiprocessing.sharedctypes import Value
 import marshmallow
 import requests
-from marshmallow import Schema, fields, EXCLUDE, validate
+from marshmallow import Schema, fields, EXCLUDE, missing, post_load, validate
 from base.model.invoice import InvoiceProduct
 
 from weasyprint import HTML
@@ -28,6 +28,31 @@ def ToPDF(html):
   return result.getvalue()
 
 
+def CreateCleanProductList(products, negative_abs=False):
+  """Create a simple list containing {name: value, quantity: x} pairs.
+
+  Arguments:
+    % negative_abs: Change the quantity to an absolute value or leave as is.
+                    This is used when adding stock or decrementing stock.
+  """
+  items = []
+  for product in products:
+    # Check if a product was entered multiple times, if so update quantity of said product.
+    target = list(filter(lambda item: item['name'] == product['name'], items))
+    if len(target) > 0:
+      target[0]['quantity'] += -abs(
+          product['quantity']) if negative_abs else product['quantity']
+      continue
+    # If product not yet in items, add it.
+    items.append({
+        'name':
+            product['name'],
+        'quantity':
+            -abs(product['quantity']) if negative_abs else product['quantity']
+    })
+  return items
+
+
 class WarehouseAPIException(Exception):
   """Error that was raised during an API call to warehouse."""
 
@@ -40,7 +65,17 @@ class InvoiceSchema(Schema):
   client = fields.Int(required=True, allow_none=False)
   title = fields.Str(required=True, allow_none=False)
   description = fields.Str(required=True, allow_none=False)
-  reservation = fields.Bool(required=True, allow_none=False)
+  status = fields.Str(
+      missing='new')  # Default status to new when field is missing.
+
+  @post_load
+  def no_status(self, item, *args, **kwargs):
+    """When an empty string is provided set status to new."""
+    if not item['status'] or item['status'] == '':
+      item['status'] = 'new'
+    if item['status'] == 'on':  # This is for when the checkbox value is passed.
+      item['status'] = 'reservation'
+    return item
 
 
 class ProductSchema(Schema):
@@ -82,7 +117,76 @@ class CompanyDetailsSchema(Schema):
   invoiceprefix = fields.Str(required=True, allow_none=False)
 
 
-class PageMaker:
+class APIPages:
+
+  @uweb3.decorators.ContentType('application/json')
+  @json_error_wrapper
+  def RequestInvoices(self):
+    return {
+        ' invoices': list(model.Invoice.List(self.connection)),
+    }
+
+  @uweb3.decorators.ContentType('application/json')
+  @json_error_wrapper
+  def RequestNewInvoice(self):
+    client_number = RequestClientSchema().load(dict(self.post))
+    sanitized_invoice = InvoiceSchema().load(dict(self.post))
+    products = ProductsCollectionSchema().load(dict(self.post))
+
+    client = model.Client.FromPrimary(self.connection, client_number['client'])
+    sanitized_invoice['client'] = client['ID']
+
+    invoice = self._handle_create(sanitized_invoice, products['products'])
+    return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
+
+  @uweb3.decorators.ContentType('application/json')
+  @json_error_wrapper
+  def RequestInvoiceDetailsJSON(self, sequence_number):
+    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
+    companydetails = {'companydetails': self.options.get('companydetails')}
+    invoice.update(companydetails)
+    return {
+        'invoice': invoice,
+        'products': list(invoice.Products()),
+        'totals': invoice.Totals()
+    }
+
+  def _handle_create(self, sanitized_invoice, products):
+    api_url = self.config.options['general']['warehouse_api']
+    api_key = self.config.options['general']['apikey']
+
+    items = CreateCleanProductList(products, negative_abs=True)
+
+    try:
+      model.Client.autocommit(self.connection, False)
+      invoice = model.Invoice.Create(self.connection, sanitized_invoice)
+      for product in products:
+        product['invoice'] = invoice['ID']
+        InvoiceProduct.Create(self.connection, product)
+
+      reference = f"Buy order for invoice: {invoice['sequenceNumber']}"
+      if invoice['status'] == 'reservation':
+        reference = f"Reservation for invoice: {invoice['sequenceNumber']}"
+      response = requests.post(f'{api_url}/products/bulk_stock',
+                               json={
+                                   "apikey": api_key,
+                                   "products": items,
+                                   "reference": reference,
+                               })
+      if response.status_code == 200:
+        model.Client.commit(self.connection)
+      else:
+        model.Client.rollback(self.connection)
+        raise WarehouseAPIException(response.json())
+    except Exception:
+      model.Client.rollback(self.connection)
+      raise
+    finally:
+      model.Client.autocommit(self.connection, True)
+    return invoice
+
+
+class PageMaker(APIPages):
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
@@ -135,7 +239,6 @@ class PageMaker:
           'vat_percentage': vat,
           'quantity': quantity
       })
-
     client = model.Client.FromClientNumber(self.connection,
                                            int(self.post.getfirst('client')))
     try:
@@ -143,47 +246,16 @@ class PageMaker:
           'client': client['ID'],
           'title': self.post.getfirst('title'),
           'description': self.post.getfirst('description'),
-          'reservation': self.post.getfirst('reservation', False)
+          'status': self.post.getfirst('reservation', '')
       })
       products = ProductsCollectionSchema().load({'products': products})
-      self._handle_create(sanitized_invoice, products)
+      self._handle_create(sanitized_invoice, products['products'])
     except marshmallow.exceptions.ValidationError as error:
       return self.RequestNewInvoicePage(errors=[error.messages])
     except WarehouseAPIException as error:
       if 'errors' in error.args[0]:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
     return self.req.Redirect('/invoices', httpcode=303)
-
-  @uweb3.decorators.loggedin
-  @uweb3.decorators.checkxsrf
-  @NotExistsErrorCatcher
-  def RequestInvoicePayed(self):
-    """Sets the given invoice to paid."""
-    invoice = self.post.getfirst('invoice')
-    invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-    invoice['status'] = 'paid'
-    invoice.Save()
-    return self.req.Redirect('/invoices', httpcode=303)
-
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestInvoices(self):
-    return {
-        ' invoices': list(model.Invoice.List(self.connection)),
-    }
-
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestNewInvoice(self):
-    client_number = RequestClientSchema().load(dict(self.post))
-    sanitized_invoice = InvoiceSchema().load(dict(self.post))
-    products = ProductsCollectionSchema().load(dict(self.post))
-
-    client = model.Client.FromPrimary(self.connection, client_number['client'])
-    sanitized_invoice['client'] = client['ID']
-
-    invoice = self._handle_create(sanitized_invoice, products)
-    return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
 
   @uweb3.decorators.TemplateParser('invoices/invoice.html')
   @NotExistsErrorCatcher
@@ -192,18 +264,6 @@ class PageMaker:
     return {
         'invoice': invoice,
         'products': invoice.Products(),
-        'totals': invoice.Totals()
-    }
-
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestInvoiceDetailsJSON(self, sequence_number):
-    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-    companydetails = {'companydetails': self.options.get('companydetails')}
-    invoice.update(companydetails)
-    return {
-        'invoice': invoice,
-        'products': list(invoice.Products()),
         'totals': invoice.Totals()
     }
 
@@ -220,31 +280,50 @@ class PageMaker:
                             content_type='application/pdf')
     return requestedinvoice
 
-  def _handle_create(self, sanitized_invoice, products):
-    api_url = self.config.options['general']['warehouse_api']
-    api_key = self.config.options['general']['apikey']
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  def RequestInvoicePayed(self):
+    """Sets the given invoice to paid."""
+    invoice = self.post.getfirst('invoice')
+    invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
+    invoice['status'] = 'paid'
+    invoice.Save()
+    return self.req.Redirect('/invoices', httpcode=303)
 
-    try:
-      model.Client.autocommit(self.connection, False)
-      invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-      for product in products['products']:
-        product['invoice'] = invoice['ID']
-        InvoiceProduct.Create(self.connection, product)
-        response = requests.post(
-            f'{api_url}/product/{product["name"]}/stock',
-            json={
-                "amount": -abs(product['quantity']),
-                "reference": f"Invoice ID: {invoice['ID']}",
-                "apikey": api_key
-            })
-        if response.status_code == 200:
-          model.Client.commit(self.connection)
-        else:
-          model.Client.rollback(self.connection)
-          raise WarehouseAPIException(response.json())
-    except Exception:
-      model.Client.rollback(self.connection)
-      raise
-    finally:
-      model.Client.autocommit(self.connection, True)
-    return invoice
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  def RequestInvoiceReservationToNew(self):
+    """Sets the given invoice to paid."""
+    invoice = self.post.getfirst('invoice')
+    invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
+    invoice['status'] = 'new'
+    invoice['dateDue'] = invoice.CalculateDateDue()
+    invoice.Save()
+    return self.req.Redirect('/invoices', httpcode=303)
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  def RequestInvoiceCancel(self):
+    """Sets the given invoice to paid."""
+    api_url = self.config.options['general']['warehouse_api']
+    apikey = self.config.options['general']['apikey']
+
+    invoice = self.post.getfirst('invoice')
+    invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
+    products = invoice.Products()
+
+    items = CreateCleanProductList(products)
+    response = requests.post(
+        f'{api_url}/products/bulk_stock',
+        json={
+            "apikey": apikey,
+            "reference": f"Canceling reservation: {invoice['sequenceNumber']}",
+            "products": items
+        })
+    if response.status_code == 200:
+      invoice['status'] = 'canceled'
+      invoice.Save()
+    return self.req.Redirect('/invoices', httpcode=303)

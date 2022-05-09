@@ -58,6 +58,10 @@ class Invoice(RichModel):
     self['title'] = self['title'].strip(' ')[:80]
 
   @classmethod
+  def CalculateDateDue(self):
+    return datetime.date.today() + PAYMENT_PERIOD
+
+  @classmethod
   def FromSequenceNumber(cls, connection, seq_num):
     """Returns the invoice belonging to the given `sequence_number`."""
     safe_num = connection.EscapeValues(seq_num)
@@ -84,7 +88,7 @@ class Invoice(RichModel):
     record.setdefault('sequenceNumber', cls.NextNumber(connection))
     record.setdefault('companyDetails',
                       Companydetails.HighestNumber(connection))
-    record.setdefault('dateDue', datetime.date.today() + PAYMENT_PERIOD)
+    record.setdefault('dateDue', cls.CalculateDateDue())
     return super(Invoice, cls).Create(connection, record)
 
   @classmethod

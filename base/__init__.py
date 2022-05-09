@@ -50,6 +50,8 @@ def main():
           ('/invoices/new', 'RequestNewInvoicePage', 'GET'),
           ('/invoices/new', 'RequestCreateNewInvoicePage', 'POST'),
           ('/invoices/settopayed', 'RequestInvoicePayed', 'POST'),
+          ('/invoices/settonew', 'RequestInvoiceReservationToNew', 'POST'),
+          ('/invoices/cancel', 'RequestInvoiceCancel', 'POST'),
           ('/pdfinvoice/(.*)', 'RequestPDFInvoice'),
 
           # API routes
