@@ -7,19 +7,15 @@ __author__ = 'Arjen Pander <arjen@underdark.nl>'
 __version__ = '0.1'
 
 # Standard modules
-import datetime
-import base64
-import hmac
 from hashlib import sha1
-import StringIO
+import io as StringIO
 import gzip
 import time
 import json
 import requests
 
 # Package modules
-import uweb
-from uweb import model
+from uweb3 import model
 
 
 # ##############################################################################
@@ -100,7 +96,7 @@ class MolliePaymentGateway(object):
           self.allowedMethods = methods
         else:
           self.allowedMethods = self.uweb.options['mollie']['methods']
-    except KeyError, key:
+    except (KeyError, key):
       raise MollieConfigError(u'''Mollie config error: You need to supply a
           value for: %s in your µweb config under the header mollie''' % key)
 
@@ -121,40 +117,45 @@ class MolliePaymentGateway(object):
     """Store the transaction into the database and fetch the unique transaction
     id"""
     self.orderdata['amount'] = float(total)
-    self.orderdata['description'] = base64.encodestring(
-        _GzipString(description)).strip()
+    self.orderdata['description'] = description
+    # self.orderdata['description'] = base64.encodestring(
+    #     _GzipString(description)).strip()
     self.user = user
     self.order = order
     transaction = {
-        'amount': self.orderdata['amount'] * 100,
+        'amount': {
+            'currency': 'EUR',
+            'value': self.orderdata['amount'] * 100,
+        },
         'status': 'open',
         'description': '',
-        'order': self.order.key
+        'order': self.order.get('key')
     }
-    transactionID = MollieTransaction.Create(self.uweb.connection, transaction)
+    # transactionID = MollieTransaction.Create(self.uweb.connection, transaction)
+    transactionID = 1  # TODO: Fix this
     mollietransaction = {
-        'amount':
-            self.orderdata['amount'],
-        'description':
-            self.orderdata['description'],
-        'metadata': {
-            'order': self.order.key
+        'amount': {
+            'currency': 'EUR',
+            'value': '1.00',  # TODO: set value
         },
-        'redirectUrl':
-            'http://api.coolmoo.se/mollie/redirect/%d/%s' %
-            (transactionID, self.order['secret']),
-        'method':
-            'ideal'
+        'description': self.orderdata['description'],
+        'metadata': {
+            'order': self.order.get('key')
+        },
+        'redirectUrl': 'https://webshop.example.org/payments/webhook/',
+        # 'https://api.coolmoo.se/mollie/redirect/%d/%s' %
+        # (transactionID, self.order['secret']),
+        'method': 'ideal'
     }  #TODO make this requestable by the client
     paymentdata = requests.request(
         'POST',
-        'https://api.mollie.nl/v1/payments',
+        'https://api.mollie.nl/v2/payments',
         headers={'Authorization': 'Bearer ' + self.apikey},
         data=json.dumps(mollietransaction))
     response = json.loads(paymentdata.text)
-    transactionID['description'] = response[u'id']
-    transactionID.Save()
-    return response[u'links'][u'paymentUrl']
+    # transactionID['description'] = response[u'id']
+    # transactionID.Save()
+    return response['_links']['checkout']
 
   def _UpdateTransaction(self, transaction, payment):
     """Update the transaction in the database and trigger a succesfull payment
@@ -216,7 +217,7 @@ class MollieMixin(object):
         return self._MollieHandleSuccessfulpayment(transaction)
       else:
         return self._MollieHandleSuccessfulNotification(transaction)
-    except MollieError, error:
+    except (MollieError, error):
       return self._MollieHandleUnsuccessfulNotification(transaction, error)
     except MollieTransaction.NotExistError:
       return self._MollieHandleUnsuccessfulNotification(

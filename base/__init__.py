@@ -63,7 +63,14 @@ def main():
           (f'{basepages.API_VERSION}/clients', 'RequestClients', 'GET'),
           (f'{basepages.API_VERSION}/clients', 'RequestNewClient', 'POST'),
           (f'{basepages.API_VERSION}/clients/save', 'RequestSaveClient'),
-          (f'{basepages.API_VERSION}(.*)', 'FourOhFour', 'POST'),
+
+          ## Mollie routes
+          (f'{basepages.API_VERSION}/payment', 'RequestPaymentFormMollie',
+           'POST'),
+          (f'{basepages.API_VERSION}/mollie/notification',
+           '_Mollie_HookPaymentReturn'),
+          (f'{basepages.API_VERSION}/mollie/redirect/(\d+)/([\w\-\.]+)',
+           'Mollie_Redirect'),
 
           # Helper files
           ('(/styles/.*)', 'Static'),
