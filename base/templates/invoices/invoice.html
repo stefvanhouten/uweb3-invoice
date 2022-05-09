@@ -196,10 +196,10 @@
   </section>
   <hr>
   <footer>
-    {{ if [invoice:reservation] }}
-      <strong class="warning" g>Dit is een voorlopige factuur voor uw reservering</strong>
+    {{ if [invoice:status] == 'reservation' }}
+      <p class="warning" g>Dit is een voorlopige factuur van uw reservering met factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
     {{ else }}
-      <p>Gelieve te betalen binnen 7 dagen (voor [invoice:dateCreated|AddDays|DateOnly]) op rekeningnummer <br><strong>[invoice:companydetails:bankAccount]</strong>
+      <p>Gelieve te betalen binnen 14 dagen (voor [invoice:dateDue|DateOnly]) op rekeningnummer <br><strong>[invoice:companydetails:bankAccount]</strong>
         onder vermelding van het factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
       </p>
     {{ endif }}

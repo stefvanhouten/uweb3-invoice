@@ -12,31 +12,30 @@
             <th>Client</th>
             <th>Title</th>
             <th>PDF</th>
-            <th>UBL</th>
             <th>Date created</th>
             <th>Ex. VAT</th>
             <th>Inc. VAT</th>
             <th>Status</th>
-            <th>Reservation</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {{ for invoice in [invoices] }}
-          <tr class="[invoice:overdue]">
+          <tr class="{{ if [invoice:status] == 'canceled' }}canceled{{ endif }} [invoice:overdue]">
             <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
             <td><a href="/client/[invoice:client:clientNumber]">[invoice:client:name]</a></td>
             <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:title]</a></td>
             <td><a href="/pdfinvoice/[invoice:sequenceNumber]">PDF</a></td>
-            <td><a href="/ublinvoice/[invoice:sequenceNumber]">UBL</a></td>
             <td>[invoice:dateCreated|DateOnly|html]</td>
             <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
             <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
             <td>[invoice:status]</td>
-            <td>{{ if [invoice:reservation] }} yes {{ endif }}</td>
             <td>
-              {{ if ([invoice:status] == "new" or [invoice:status] == "sent") and not [invoice:reservation] }}
-                {{ inline invoices/parts/invoice_change_state.html }}
+              {{ if ([invoice:status] == "new" or [invoice:status] == "sent")}}
+                {{ inline invoices/parts/set_invoice_paid.html }}
+              {{ elif [invoice:status] == "reservation" }}
+                {{ inline invoices/parts/set_invoice_new.html }}
+                {{ inline invoices/parts/cancel_reservation.html }}
               {{ endif }}
             </td>
           </tr>
