@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.28, for Linux (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.29, for Linux (x86_64)
 --
 -- Host: 127.0.0.1    Database: invoices
 -- ------------------------------------------------------
--- Server version	8.0.28-0ubuntu0.20.04.3
+-- Server version	8.0.29-0ubuntu0.20.04.3
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -25,27 +25,42 @@ DROP TABLE IF EXISTS `client`;
 CREATE TABLE `client` (
   `ID` mediumint unsigned NOT NULL AUTO_INCREMENT,
   `clientNumber` mediumint unsigned NOT NULL,
-  `name` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `city` varchar(45) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `postalCode` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `email` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `telephone` varchar(30) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `address` varchar(45) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `city` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `postalCode` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `telephone` varchar(30) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
+  `address` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `ID_UNIQUE` (`ID`),
   KEY `clientnumber` (`clientNumber`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `client`
+-- Table structure for table `companydetails`
 --
 
-LOCK TABLES `client` WRITE;
-/*!40000 ALTER TABLE `client` DISABLE KEYS */;
-INSERT INTO `client` VALUES (19,1,'test','test','test','test','test','test'),(20,2,'test','test','test','test','test','test'),(21,3,'test','test','test','test','test','test'),(22,1,'test123','test','test','test','test','test'),(23,1,'peer','test','test','test','test','test');
-/*!40000 ALTER TABLE `client` ENABLE KEYS */;
-UNLOCK TABLES;
+DROP TABLE IF EXISTS `companydetails`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `companydetails` (
+  `ID` tinyint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `telephone` varchar(30) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `address` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `postalCode` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `city` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `country` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `vat` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `kvk` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `bankAccount` varchar(25) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `bank` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `bankCity` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `invoiceprefix` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `invoice`
@@ -56,31 +71,42 @@ DROP TABLE IF EXISTS `invoice`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `invoice` (
   `ID` int unsigned NOT NULL AUTO_INCREMENT,
-  `sequenceNumber` char(8) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+  `sequenceNumber` char(11) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+  `companydetails` tinyint unsigned NOT NULL,
   `dateCreated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `dateDue` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `title` varchar(80) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
-  `description` text CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `title` varchar(80) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `client` mediumint unsigned NOT NULL,
-  `status` enum('new','sent','paid') CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
-  `reservation` tinyint NOT NULL DEFAULT '0',
+  `status` enum('new','sent','paid','reservation','canceled') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'new',
   PRIMARY KEY (`ID`),
   UNIQUE KEY `sequenceNumber` (`sequenceNumber`),
   KEY `status` (`status`),
   KEY `fk_invoice_1_idx` (`client`),
-  CONSTRAINT `fk_invoice_1` FOREIGN KEY (`client`) REFERENCES `client` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `companyDetails` (`companydetails`),
+  CONSTRAINT `fk_invoice_1` FOREIGN KEY (`client`) REFERENCES `client` (`ID`),
+  CONSTRAINT `invoice_ibfk_2` FOREIGN KEY (`companydetails`) REFERENCES `companydetails` (`ID`)
+) ENGINE=InnoDB AUTO_INCREMENT=229 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `invoice`
---
-
-LOCK TABLES `invoice` WRITE;
-/*!40000 ALTER TABLE `invoice` DISABLE KEYS */;
-INSERT INTO `invoice` VALUES (70,'2022-001','2022-05-03 12:29:46','2022-05-16 22:00:00','Een mooie invoice','Invoice omschrijving',19,'new',0),(71,'2022-002','2022-05-03 12:30:24','2022-05-16 22:00:00','Een mooie invoice','Invoice omschrijving',19,'new',0),(72,'2022-003','2022-05-03 12:49:22','2022-05-16 22:00:00','Een mooie invoice','Invoice omschrijving',19,'new',0);
-/*!40000 ALTER TABLE `invoice` ENABLE KEYS */;
-UNLOCK TABLES;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`stef`@`localhost`*/ /*!50003 TRIGGER `invoice_BEFORE_INSERT` BEFORE INSERT ON `invoice` FOR EACH ROW BEGIN
+	IF new.status = 'reservation' AND SUBSTRING(new.sequenceNumber, 1, 2) != 'PF'
+    THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A pro forma invoice sequencenumber must start with a PF prefix.';
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `invoiceProduct`
@@ -94,23 +120,32 @@ CREATE TABLE `invoiceProduct` (
   `invoice` int unsigned NOT NULL,
   `price` decimal(8,2) NOT NULL,
   `vat_percentage` smallint NOT NULL,
-  `name` varchar(45) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `name` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `quantity` mediumint NOT NULL,
   PRIMARY KEY (`ID`),
   KEY `invoice` (`invoice`),
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `invoiceProduct`
+-- Table structure for table `user`
 --
 
-LOCK TABLES `invoiceProduct` WRITE;
-/*!40000 ALTER TABLE `invoiceProduct` DISABLE KEYS */;
-INSERT INTO `invoiceProduct` VALUES (27,70,100.00,21,'product_name',7),(28,71,100.00,21,'product_name',7),(29,72,100.00,21,'product_name',7),(30,72,50.00,21,'Something',3),(31,72,12.00,21,'Apple',1000);
-/*!40000 ALTER TABLE `invoiceProduct` ENABLE KEYS */;
-UNLOCK TABLES;
+DROP TABLE IF EXISTS `user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user` (
+  `ID` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `password` char(100) NOT NULL,
+  `active` enum('true','false') NOT NULL DEFAULT 'true',
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `email` (`email`),
+  KEY `login` (`email`,`password`,`active`),
+  KEY `active` (`active`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping events for database 'invoices'
@@ -129,4 +164,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-05-03 14:52:00
+-- Dump completed on 2022-05-09 14:18:19
