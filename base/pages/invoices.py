@@ -11,11 +11,21 @@ import requests
 from marshmallow import Schema, fields, EXCLUDE, validate
 from base.model.invoice import InvoiceProduct
 
+from weasyprint import HTML
+from io import BytesIO
+
 # uweb modules
 import uweb3
 from base.decorators import NotExistsErrorCatcher, RequestWrapper, json_error_wrapper
 from base.model import model
 from base.pages.clients import RequestClientSchema
+
+
+def ToPDF(html):
+  """Returns a PDF based on the given HTML."""
+  result = BytesIO()
+  HTML(string=html).write_pdf(result)
+  return result.getvalue()
 
 
 class WarehouseAPIException(Exception):
@@ -164,16 +174,6 @@ class PageMaker:
 
   @uweb3.decorators.ContentType('application/json')
   @json_error_wrapper
-  def RequestInvoiceDetails(self, sequence_number):
-    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-    return {
-        'invoice': invoice,
-        'products': invoice.Products(),
-        'totals': invoice.Totals()
-    }
-
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
   def RequestNewInvoice(self):
     client_number = RequestClientSchema().load(dict(self.post))
     sanitized_invoice = InvoiceSchema().load(dict(self.post))
@@ -206,6 +206,19 @@ class PageMaker:
         'products': list(invoice.Products()),
         'totals': invoice.Totals()
     }
+
+  @uweb3.decorators.loggedin
+  def RequestPDFInvoice(self, invoice):
+    """Returns the invoice as a pdf file.
+
+    Takes:
+      invoice: int or str
+    """
+    requestedinvoice = self.RequestInvoiceDetails(invoice)
+    if type(requestedinvoice) != uweb3.response.Redirect:
+      return uweb3.Response(ToPDF(requestedinvoice),
+                            content_type='application/pdf')
+    return requestedinvoice
 
   def _handle_create(self, sanitized_invoice, products):
     api_url = self.config.options['general']['warehouse_api']
