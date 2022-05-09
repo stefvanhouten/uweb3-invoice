@@ -1,0 +1,16 @@
+/* table */
+tbody tr.overdue td {
+  color: hsl(0, 43%, 51%);
+  background-color: hsl(0, 43%, 92%);
+}
+tbody tr.overdue:nth-child(odd) td {
+  background-color: hsl(0, 43%, 90%);
+}
+
+tbody tr.canceled td {
+  color: hsl(0, 73%, 18%);
+    background-color: hsl(6, 69%, 74%);
+}
+tbody tr.canceled:nth-child(odd) td {
+  background-color: hsl(6, 69%, 76%);
+}
