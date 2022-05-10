@@ -10,8 +10,6 @@ __version__ = '0.1'
 
 # Standard modules
 from hashlib import sha1
-import io as StringIO
-import gzip
 import time
 import json
 import requests
@@ -27,6 +25,10 @@ from uweb3 import model
 # pylint: disable=R0904
 class MollieError(Exception):
   """Raises a mollie specific error"""
+
+
+class MollieTransactionFailed(MollieError):
+  """Raised when a transaction status gets set to failed"""
 
 
 class MollieConfigError(MollieError):
@@ -46,6 +48,8 @@ class MollieTransaction(model.Record):
 
   def SetState(self, status):
     if self['status'] not in ('open'):
+      if self['status'] == 'paid' and status == 'paid':
+        raise model.PermissionError("Mollie transaction is already paid for.")
       raise model.PermissionError(
           'Cannot update transaction, current state is %r new state %r' %
           (self['status'], status))
@@ -122,39 +126,35 @@ class MolliePaymentGateway(object):
     self.user = user
     self.order = order
     transaction = {
-        'amount': {
-            'currency': 'EUR',
-            'value': str(total),
-        },
+        'amount': str(total),
         'status': 'open',
         'description': description,
-        'order': self.order.get('sequenceNumber')
+        'invoice': self.order.get('ID')
     }
-    # transactionID = MollieTransaction.Create(self.uweb.connection, transaction)
-    transactionID = 1  # TODO: Fix this
+    transaction = MollieTransaction.Create(self.uweb.connection, transaction)
     mollietransaction = {
         'amount': {
             'currency': 'EUR',
             'value': str(total),  # TODO: set value
         },
-        'description': description,
+        'description':
+            description,
         'metadata': {
             'order': self.order.get('sequenceNumber')
         },
         'redirectUrl':
-            'https://webshop.example.org/payments/webhook/',  # TODO: Redirect to page
-        # 'https://api.coolmoo.se/mollie/redirect/%d/%s' %
-        # (transactionID, self.order['secret']),
-        'method': 'ideal'
-    }  #TODO make this requestable by the client
+            f'http://127.0.0.1:8001/api/v1/mollie/redirect/{transaction["ID"]}',
+        'method':
+            'ideal'
+    }
     paymentdata = requests.request(
         'POST',
         'https://api.mollie.nl/v2/payments',
         headers={'Authorization': 'Bearer ' + self.apikey},
         data=json.dumps(mollietransaction))
     response = json.loads(paymentdata.text)
-    # transactionID['description'] = response[u'id']
-    # transactionID.Save()
+    transaction['description'] = response['id']
+    transaction.Save()
     return response['_links']['checkout']
 
   def _UpdateTransaction(self, transaction, payment):
@@ -167,10 +167,12 @@ class MolliePaymentGateway(object):
     """
     transaction = MollieTransaction.FromDescription(self.uweb.connection,
                                                     transaction)
-    change = transaction.SetState(payment[u'status'])
-    if (change and payment[u'status'] == 'paid' and
-        (payment[u'amount'] * 100) == transaction['amount']):
+    change = transaction.SetState(payment['status'])
+    if (change and payment['status'] == 'paid' and
+        (payment['amount']['value']) == transaction['amount']):
       return True
+    if change and payment['status'] == 'failed':
+      raise MollieTransactionFailed("Mollie payment failed")
     return False
 
   def GetForm(self, order, user, total, description):
@@ -185,7 +187,7 @@ class MolliePaymentGateway(object):
 
   def GetPayment(self, transaction):
     data = requests.request('GET',
-                            'https://api.mollie.nl/v1/payments/%s' %
+                            'https://api.mollie.nl/v2/payments/%s' %
                             transaction,
                             headers={'Authorization': 'Bearer ' + self.apikey})
     payment = json.loads(data.text)
@@ -204,10 +206,9 @@ class MolliePaymentGateway(object):
 class MollieMixin(object):
   """Provides the Mollie Framework for uWeb."""
 
-  def _Mollie_HookPaymentReturn(self):
+  def _Mollie_HookPaymentReturn(self, transaction):
     """Handles a notification from Mollie, either by a server to server call or
     a client returning to our notification url"""
-    transaction = self.post.getfirst('id', None)
     if not transaction:
       return self._MollieHandleUnsuccessfulNotification(
           transaction, 'invalid transaction ID')
@@ -217,11 +218,13 @@ class MollieMixin(object):
         return self._MollieHandleSuccessfulpayment(transaction)
       else:
         return self._MollieHandleSuccessfulNotification(transaction)
-    except (MollieError, error):
-      return self._MollieHandleUnsuccessfulNotification(transaction, error)
     except MollieTransaction.NotExistError:
       return self._MollieHandleUnsuccessfulNotification(
           transaction, 'invalid transaction ID')
+    except MollieTransactionFailed as e:
+      return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
+    except (MollieError, model.PermissionError, Exception) as e:
+      return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
 
   def NewMolliePaymentGateway(self):
     """Overwrite this to implement an MolliePaymentGateway instance with non
@@ -245,12 +248,3 @@ class MollieMixin(object):
     """This method gets called when the transaction could not be updated
     because the signature was wrong or some other error occured"""
     raise NotImplementedError
-
-
-def _GzipString(string):
-  """Gzip a string"""
-  out = StringIO.StringIO()
-  f = gzip.GzipFile(fileobj=out, mode='w')
-  f.write(string)
-  f.close()
-  return out.getvalue()

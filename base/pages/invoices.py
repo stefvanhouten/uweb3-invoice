@@ -22,10 +22,13 @@ from base.pages.clients import RequestClientSchema
 from uweb3.libs.mail import MailSender
 
 
-def ToPDF(html):
+def ToPDF(html, filename=None):
   """Returns a PDF based on the given HTML."""
   result = BytesIO()
   HTML(string=html).write_pdf(result)
+  if filename:
+    result.filename = filename
+    return result
   return result.getvalue()
 
 
@@ -260,15 +263,17 @@ class PageMaker(APIPages):
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
 
     if invoice and invoice['status'] == 'new':
-      pdf = ToPDF(self.RequestInvoiceDetails(invoice['sequenceNumber']))
+      # Generate the PDF for newly created invoice
+      pdf = ToPDF(self.RequestInvoiceDetails(invoice['sequenceNumber']),
+                  filename='invoice.pdf')
+      # Create a mollie payment request
       data = self.RequestMollie(invoice)
-      # content = self.parser.Parse('email/test.txt')
-      recipients = invoice['client']['email']
-      subject = 'Your invoice'
       with MailSender() as send_mail:
-        send_mail.Attachments(recipients,
-                              subject,
-                              data['url']['href'],
+        send_mail.Attachments(recipients=invoice['client']['email'],
+                              subject='Your invoice',
+                              content=self.parser.Parse(
+                                  'email/invoice.txt',
+                                  **{'mollie': data['url']['href']}),
                               attachments=(pdf,))
     return self.req.Redirect('/invoices', httpcode=303)
 

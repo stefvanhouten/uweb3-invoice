@@ -67,10 +67,9 @@ def main():
           ## Mollie routes
           (f'{basepages.API_VERSION}/payment', 'RequestPaymentFormMollie',
            'POST'),
-          (f'{basepages.API_VERSION}/mollie/notification',
+          (f'{basepages.API_VERSION}/mollie/redirect/(\d+)', 'Mollie_Redirect'),
+          (f'{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)',
            '_Mollie_HookPaymentReturn'),
-          (f'{basepages.API_VERSION}/mollie/redirect/(\d+)/([\w\-\.]+)',
-           'Mollie_Redirect'),
 
           # Helper files
           ('(/styles/.*)', 'Static'),

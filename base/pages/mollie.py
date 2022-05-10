@@ -16,9 +16,6 @@ class PageMaker(mollie.MollieMixin):
 
   Each page as a separate method.
   """
-  # PUBLIC_DIR = 'static'
-  # TEMPLATE_DIR = 'templates/api'
-  # TEMPLATE_DIR_MAIL = 'templates/mails'
 
   @uweb3.decorators.ContentType("application/json")
   def RequestPaymentInfoMollieIdeal(self):
@@ -53,27 +50,28 @@ class PageMaker(mollie.MollieMixin):
   def RequestLabel(self, order, secret):
     return uweb3.Response('pass', content_type='application/pdf')
 
+  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   def _MollieHandleSuccessfulpayment(self, transaction):
-    return 'ok'
+    try:
+      transaction = mollie.MollieTransaction.FromDescription(
+          self.connection, transaction)
+      invoice = model.Invoice.FromPrimary(self.connection,
+                                          transaction['invoice'])
+      invoice['status'] = 'paid'
+      invoice.Save()
+    except uweb3.model.NotExistError:
+      pass
+    return
 
   def _MollieHandleSuccessfulNotification(self, transaction):
     return 'ok'
 
+  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   def _MollieHandleUnsuccessfulNotification(self, transaction, error):
-    return 'ok'
+    return self.Error(error)
 
-  def Mollie_Redirect(self, transactionID, secret):
+  def Mollie_Redirect(self, transactionID):
     transaction = mollie.MollieTransaction.FromPrimary(self.connection,
                                                        int(transactionID))
-    redirecturl = '%s?change=%s&transaction=%d' % (
-        transaction['order']['shop']['updateurl'], transaction['status'],
-        transaction['ID'])
+    redirecturl = f"/api/v1/mollie/notification/{transaction['description']}"
     return uweb3.Redirect(redirecturl, httpcode=301)
-
-  def JsonCorsResponse(self, json):
-    return uweb3.Response(json,
-                          content_type='application/json',
-                          headers={
-                              'Access-Control-Allow-Origin': '*',
-                              'Cache-Control': 'no-cache, must-revalidate'
-                          })
