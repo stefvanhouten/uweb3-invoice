@@ -1,0 +1,2 @@
+
+Betaling via mollie: [mollie]
