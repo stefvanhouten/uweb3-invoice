@@ -95,30 +95,35 @@ class MollieTransaction(model.Record):
 
 class MolliePaymentGateway(object):
 
-  def __init__(self, uweb, test=None, apikey=None, methods=None):
-    """Init the mollie object and set its values"""
-    self.apikey = apikey
-    self.test = test
+  def __init__(self, uweb, apikey=None, redirect_url=None, webhook_url=None):
+    """Init the mollie object and set its values
+
+    Arguments:
+      % apikey: str
+        The apikey used to query mollie
+      % redirect_url: str
+        The URL your customer will be redirected to after the payment process.
+      % webhook_url: str
+        Set the webhook URL, where we will send payment status updates to.
+    """
     self.uweb = uweb
+    self.apikey = apikey
+    self.redirect_url = redirect_url
+    self.webhook_url = webhook_url
 
     # try to fill missing values from the uweb config
     try:
-      if not test:
-        self.test = self.uweb.options['mollie']['test'] in ('True', 'true', 1)
-
       if not apikey:
         self.apikey = self.uweb.options['mollie']['apikey']
 
-      try:
-        self.allowedMethods = ','.join(methods)
-      except TypeError:
-        if methods:
-          self.allowedMethods = methods
-        else:
-          self.allowedMethods = self.uweb.options['mollie']['methods']
-    except (KeyError, key):
-      raise MollieConfigError(u'''Mollie config error: You need to supply a
-          value for: %s in your µweb config under the header mollie''' % key)
+      if not redirect_url:
+        self.redirect_url = self.uweb.options['mollie']['redirect_url']
+
+      if not webhook_url:
+        self.webhook_url = self.uweb.options['mollie']['webhook_url']
+    except KeyError as e:
+      raise MollieConfigError(f'''Mollie config error: You need to supply a
+          value for: {e.args[0]} in your µweb config under the header mollie''')
 
   def GetIdealBanks(self):
     directorydata = requests.request(
@@ -159,15 +164,13 @@ class MolliePaymentGateway(object):
             'currency': 'EUR',
             'value': str(total),
         },
-        'description':
-            description,
+        'description': description,
         'metadata': {
             'order': referenceID
         },
-        'redirectUrl':
-            f'http://127.0.0.1:8001/api/v1/mollie/redirect/{transaction["ID"]}',
-        'method':
-            'ideal'
+        'redirectUrl': f'{self.redirect_url}/{transaction["ID"]}',
+        'webhookUrl': f'{self.webhook_url}/{transaction["ID"]}',
+        'method': 'ideal'
     }
     paymentdata = requests.request(
         'POST',
