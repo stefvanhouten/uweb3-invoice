@@ -262,19 +262,9 @@ class PageMaker(APIPages):
       if 'errors' in error.args[0]:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
 
-    if invoice and invoice['status'] == 'new':
-      # Generate the PDF for newly created invoice
-      pdf = ToPDF(self.RequestInvoiceDetails(invoice['sequenceNumber']),
-                  filename='invoice.pdf')
-      # Create a mollie payment request
-      data = self.RequestMollie(invoice)
-      with MailSender() as send_mail:
-        send_mail.Attachments(recipients=invoice['client']['email'],
-                              subject='Your invoice',
-                              content=self.parser.Parse(
-                                  'email/invoice.txt',
-                                  **{'mollie': data['url']['href']}),
-                              attachments=(pdf,))
+    if invoice:
+      self.mail_invoice(invoice,
+                        self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.TemplateParser('invoices/invoice.html')
@@ -319,6 +309,8 @@ class PageMaker(APIPages):
     invoice = self.post.getfirst('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
     invoice.ProFormaToRealInvoice()
+    self.mail_invoice(invoice,
+                      self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.loggedin
@@ -345,3 +337,19 @@ class PageMaker(APIPages):
       invoice['status'] = 'canceled'
       invoice.Save()
     return self.req.Redirect('/invoices', httpcode=303)
+
+  def mail_invoice(self, invoice, details):
+    # Generate the PDF for newly created invoice
+    pdf = ToPDF(details, filename='invoice.pdf')
+    # Create a mollie payment request
+    if invoice['status'] == 'new':
+      content = self.parser.Parse(
+          'email/invoice.txt',
+          **{'mollie': self.RequestMollie(invoice)['url']['href']})
+    else:
+      content = self.parser.Parse('email/invoice.txt')
+    with MailSender() as send_mail:
+      send_mail.Attachments(recipients=invoice['client']['email'],
+                            subject='Your invoice',
+                            content=content,
+                            attachments=(pdf,))

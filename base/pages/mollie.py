@@ -5,10 +5,16 @@ __author__ = 'Jan Klopper <janklopper@underdark.nl>'
 __version__ = '0.1'
 
 import decimal
+from base import decorators
 import uweb3
 from base.libs import mollie
 from base.model import model
 from base.decorators import json_error_wrapper
+
+
+def round_price(d: decimal.Decimal):
+  cents = decimal.Decimal('0.01')
+  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 class PageMaker(mollie.MollieMixin):
@@ -31,11 +37,8 @@ class PageMaker(mollie.MollieMixin):
     return molliedata
 
   def RequestMollie(self, invoice):
-    totals = invoice.Totals()['total_price']
-    cents = decimal.Decimal('0.01')
-
     client_email = invoice['client'].get('email')
-    price = totals.quantize(cents, decimal.ROUND_HALF_UP)
+    price = round_price(invoice.Totals()['total_price'])
     description = invoice.get('description')
     # TODO: Secret
 
@@ -51,17 +54,20 @@ class PageMaker(mollie.MollieMixin):
     return uweb3.Response('pass', content_type='application/pdf')
 
   @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
+  @decorators.NotExistsErrorCatcher
   def _MollieHandleSuccessfulpayment(self, transaction):
-    try:
-      transaction = mollie.MollieTransaction.FromDescription(
-          self.connection, transaction)
-      invoice = model.Invoice.FromPrimary(self.connection,
-                                          transaction['invoice'])
-      invoice['status'] = 'paid'
-      invoice.Save()
-    except uweb3.model.NotExistError:
-      pass
-    return
+    transaction = mollie.MollieTransaction.FromDescription(
+        self.connection, transaction)
+    invoice = model.Invoice.FromPrimary(self.connection, transaction['invoice'])
+    if transaction['status'] == 'paid':
+      if round_price(decimal.Decimal(transaction['amount'])) == round_price(
+          invoice.Totals()['total_price']):
+        invoice['status'] = 'paid'
+        invoice.Save()
+      else:
+        self.Error(
+            "Amount paid does not match the price for the invoice. Please contact your seller."
+        )
 
   def _MollieHandleSuccessfulNotification(self, transaction):
     return 'ok'
