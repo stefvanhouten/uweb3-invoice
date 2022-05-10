@@ -37,18 +37,16 @@ class PageMaker(mollie.MollieMixin):
     return molliedata
 
   def RequestMollie(self, invoice):
-    client_email = invoice['client'].get('email')
     price = round_price(invoice.Totals()['total_price'])
     description = invoice.get('description')
     # TODO: Secret
 
     mollie = self.NewMolliePaymentGateway()
     return mollie.GetForm(
-        invoice,
-        client_email,
+        invoice['ID'],
         price,  # Mollie expects amounts in euros  # TODO: (Jan) How should the currency be handled? Currently using a Decimal which is then converted to a string for mollie
         description,
-    )
+        invoice['sequenceNumber'])
 
   def RequestLabel(self, order, secret):
     return uweb3.Response('pass', content_type='application/pdf')
