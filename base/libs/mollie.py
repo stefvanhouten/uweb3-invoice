@@ -155,7 +155,6 @@ class MolliePaymentGateway(object):
     transaction = {
         'amount': str(total),
         'status': MollieStatus.OPEN.value,
-        'description': description,
         'invoice': invoiceID
     }
     transaction = MollieTransaction.Create(self.uweb.connection, transaction)
@@ -169,15 +168,19 @@ class MolliePaymentGateway(object):
             'order': referenceID
         },
         'redirectUrl': f'{self.redirect_url}/{transaction["ID"]}',
-        'webhookUrl': f'{self.webhook_url}/{transaction["ID"]}',
+        'webhookUrl':
+            f'{self.webhook_url}/{transaction["ID"]}',  # TODO: Add secret key
         'method': 'ideal'
     }
-    paymentdata = requests.request(
-        'POST',
+    paymentdata = requests.post(
         f'{MOLLIE_API}/payments',
         headers={'Authorization': 'Bearer ' + self.apikey},
         data=json.dumps(mollietransaction))
     response = json.loads(paymentdata.text)
+
+    if paymentdata.status_code >= 300:
+      raise Exception(response['detail'])  # TODO:Better API exceptions
+
     transaction['description'] = response['id']
     transaction.Save()
     return response['_links']['checkout']

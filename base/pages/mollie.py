@@ -51,11 +51,16 @@ class PageMaker(mollie.MollieMixin):
   def RequestLabel(self, order, secret):
     return uweb3.Response('pass', content_type='application/pdf')
 
-  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   @decorators.NotExistsErrorCatcher
-  def _MollieHandleSuccessfulpayment(self, transaction):
-    transaction = mollie.MollieTransaction.FromDescription(
-        self.connection, transaction)
+  def _Mollie_HookPaymentReturn(self, transaction):
+    """This is the webhook that mollie calls when that transaction is updated."""
+    transaction = mollie.MollieTransaction.FromPrimary(self.connection,
+                                                       transaction)
+    result = super()._Mollie_HookPaymentReturn(transaction['description'])
+
+    # Refresh the transaction, the hook might have changed the transaction status.
+    transaction = mollie.MollieTransaction.FromPrimary(self.connection,
+                                                       transaction)
     invoice = model.Invoice.FromPrimary(self.connection, transaction['invoice'])
     if transaction['status'] == 'paid':
       if round_price(decimal.Decimal(transaction['amount'])) == round_price(
@@ -63,9 +68,11 @@ class PageMaker(mollie.MollieMixin):
         invoice['status'] = 'paid'
         invoice.Save()
       else:
-        self.Error(
-            "Amount paid does not match the price for the invoice. Please contact your seller."
-        )
+        pass  # XXX: This route is called by Mollie, what should we do when the amounts do not match?
+    return result
+
+  def _MollieHandleSuccessfulpayment(self, transaction):
+    return 'ok'
 
   def _MollieHandleSuccessfulNotification(self, transaction):
     return 'ok'
@@ -74,8 +81,7 @@ class PageMaker(mollie.MollieMixin):
   def _MollieHandleUnsuccessfulNotification(self, transaction, error):
     return self.Error(error)
 
+  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
+  @decorators.NotExistsErrorCatcher
   def Mollie_Redirect(self, transactionID):
-    transaction = mollie.MollieTransaction.FromPrimary(self.connection,
-                                                       int(transactionID))
-    redirecturl = f"/api/v1/mollie/notification/{transaction['description']}"
-    return uweb3.Redirect(redirecturl, httpcode=301)
+    return
