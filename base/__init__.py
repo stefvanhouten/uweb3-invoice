@@ -65,8 +65,8 @@ def main():
           (f'{basepages.API_VERSION}/clients/save', 'RequestSaveClient'),
 
           ## Mollie routes
-          (f'{basepages.API_VERSION}/payment', 'RequestPaymentFormMollie',
-           'POST'),
+          # (f'{basepages.API_VERSION}/payment', 'RequestPaymentFormMollie',
+          #  'POST'),
           (f'{basepages.API_VERSION}/mollie/redirect/(\d+)', 'Mollie_Redirect'),
           (f'{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)',
            '_Mollie_HookPaymentReturn'),

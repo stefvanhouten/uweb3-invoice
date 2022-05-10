@@ -23,18 +23,21 @@ class PageMaker(mollie.MollieMixin):
   Each page as a separate method.
   """
 
-  @uweb3.decorators.ContentType("application/json")
-  def RequestPaymentInfoMollieIdeal(self):
-    mollie = self.NewMolliePaymentGateway()
-    return {'issuers': mollie.GetIdealBanks()}
+  # @uweb3.decorators.ContentType("application/json")
+  # def RequestPaymentInfoMollieIdeal(self):
+  #   mollie = self.NewMolliePaymentGateway()
+  #   return {'issuers': mollie.GetIdealBanks()}
 
-  @uweb3.decorators.ContentType("application/json")
-  @json_error_wrapper
-  def RequestPaymentFormMollie(self):
-    sequence_number = self.post.get('invoice')
-    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-    molliedata = self.RequestMollie(invoice)
-    return molliedata
+  # @uweb3.decorators.ContentType("application/json")
+  # @json_error_wrapper
+  # def RequestPaymentFormMollie(self):
+  #   sequence_number = self.post.get('invoice')
+  #   invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
+  #   molliedata = self.RequestMollie(invoice)
+  #   return molliedata
+
+  # def RequestLabel(self, order, secret):
+  #   return uweb3.Response('pass', content_type='application/pdf')
 
   def RequestMollie(self, invoice):
     price = round_price(invoice.Totals()['total_price'])
@@ -47,9 +50,6 @@ class PageMaker(mollie.MollieMixin):
         price,  # Mollie expects amounts in euros  # TODO: (Jan) How should the currency be handled? Currently using a Decimal which is then converted to a string for mollie
         description,
         invoice['sequenceNumber'])
-
-  def RequestLabel(self, order, secret):
-    return uweb3.Response('pass', content_type='application/pdf')
 
   @decorators.NotExistsErrorCatcher
   def _Mollie_HookPaymentReturn(self, transaction):
@@ -77,9 +77,9 @@ class PageMaker(mollie.MollieMixin):
   def _MollieHandleSuccessfulNotification(self, transaction):
     return 'ok'
 
-  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   def _MollieHandleUnsuccessfulNotification(self, transaction, error):
-    return self.Error(error)
+    return 'ok'
+    # return self.Error(error)
 
   @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   @decorators.NotExistsErrorCatcher
