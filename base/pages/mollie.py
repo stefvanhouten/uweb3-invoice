@@ -51,14 +51,20 @@ class PageMaker(mollie.MollieMixin):
         description,
         invoice['sequenceNumber'])
 
-  @decorators.NotExistsErrorCatcher
   def _Mollie_HookPaymentReturn(self, transaction):
     """This is the webhook that mollie calls when that transaction is updated."""
     # This route is used to receive updates from mollie about the transaction status.
     # If the transaction status is changed to paid a trigger will also change the invoice to paid.
-    transaction = mollie.MollieTransaction.FromPrimary(self.connection,
-                                                       transaction)
-    return super()._Mollie_HookPaymentReturn(transaction['description'])
+    try:
+      transaction = mollie.MollieTransaction.FromPrimary(
+          self.connection, transaction)
+      return super()._Mollie_HookPaymentReturn(transaction['description'])
+    except (uweb3.model.NotExistError, Exception) as e:
+      # Prevent leaking data about transactions.
+      uweb3.logging.error(
+          f'Error triggered while processing mollie notification for transaction: {transaction} {e}'
+      )
+      return 'ok'
 
   def _MollieHandleSuccessfulpayment(self, transaction):
     return 'ok'
