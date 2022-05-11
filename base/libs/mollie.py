@@ -21,15 +21,16 @@ MOLLIE_API = 'https://api.mollie.nl/v2'
 
 
 class MollieStatus(str, Enum):
-  CANCELED = 'canceled'
-  CHARGEBACK = 'chargeback'
-  EXPIRED = 'expired'
+  PAID = 'paid'  # https://docs.mollie.com/overview/webhooks#payments-api
+  EXPIRED = 'expired'  # These are the states the payments API can send us.
   FAILED = 'failed'
+  CANCELED = 'canceled'
   OPEN = 'open'
-  PAID = 'paid'
-  SETTLED = 'settled'
   PENDING = 'pending'
   REFUNDED = 'refunded'
+
+  CHARGEBACK = 'chargeback'  # These are states that we currently do not use.
+  SETTLED = 'settled'
   PARTIALLY_REFUNDED = 'partially_refunded'
   AUTHORIZED = 'authorized'
 

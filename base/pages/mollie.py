@@ -54,22 +54,11 @@ class PageMaker(mollie.MollieMixin):
   @decorators.NotExistsErrorCatcher
   def _Mollie_HookPaymentReturn(self, transaction):
     """This is the webhook that mollie calls when that transaction is updated."""
+    # This route is used to receive updates from mollie about the transaction status.
+    # If the transaction status is changed to paid a trigger will also change the invoice to paid.
     transaction = mollie.MollieTransaction.FromPrimary(self.connection,
                                                        transaction)
-    result = super()._Mollie_HookPaymentReturn(transaction['description'])
-
-    # Refresh the transaction, the hook might have changed the transaction status.
-    transaction = mollie.MollieTransaction.FromPrimary(self.connection,
-                                                       transaction)
-    invoice = model.Invoice.FromPrimary(self.connection, transaction['invoice'])
-    if transaction['status'] == 'paid':
-      if round_price(decimal.Decimal(transaction['amount'])) == round_price(
-          invoice.Totals()['total_price']):
-        invoice['status'] = 'paid'
-        invoice.Save()
-      else:
-        pass  # XXX: This route is called by Mollie, what should we do when the amounts do not match?
-    return result
+    return super()._Mollie_HookPaymentReturn(transaction['description'])
 
   def _MollieHandleSuccessfulpayment(self, transaction):
     return 'ok'
@@ -79,9 +68,8 @@ class PageMaker(mollie.MollieMixin):
 
   def _MollieHandleUnsuccessfulNotification(self, transaction, error):
     return 'ok'
-    # return self.Error(error)
 
-  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   @decorators.NotExistsErrorCatcher
+  @uweb3.decorators.TemplateParser('mollie/payment_ok.html')
   def Mollie_Redirect(self, transactionID):
     return
