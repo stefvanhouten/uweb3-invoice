@@ -19,12 +19,16 @@ import uweb3
 from base.decorators import NotExistsErrorCatcher, RequestWrapper, json_error_wrapper
 from base.model import model
 from base.pages.clients import RequestClientSchema
+from uweb3.libs.mail import MailSender
 
 
-def ToPDF(html):
+def ToPDF(html, filename=None):
   """Returns a PDF based on the given HTML."""
   result = BytesIO()
   HTML(string=html).write_pdf(result)
+  if filename:
+    result.filename = filename
+    return result
   return result.getvalue()
 
 
@@ -119,37 +123,37 @@ class CompanyDetailsSchema(Schema):
 
 class APIPages:
 
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestInvoices(self):
-    return {
-        ' invoices': list(model.Invoice.List(self.connection)),
-    }
+  # @uweb3.decorators.ContentType('application/json')
+  # @json_error_wrapper
+  # def RequestInvoices(self):
+  #   return {
+  #       ' invoices': list(model.Invoice.List(self.connection)),
+  #   }
 
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestNewInvoice(self):
-    client_number = RequestClientSchema().load(dict(self.post))
-    sanitized_invoice = InvoiceSchema().load(dict(self.post))
-    products = ProductsCollectionSchema().load(dict(self.post))
+  # @uweb3.decorators.ContentType('application/json')
+  # @json_error_wrapper
+  # def RequestNewInvoice(self):
+  #   client_number = RequestClientSchema().load(dict(self.post))
+  #   sanitized_invoice = InvoiceSchema().load(dict(self.post))
+  #   products = ProductsCollectionSchema().load(dict(self.post))
 
-    client = model.Client.FromPrimary(self.connection, client_number['client'])
-    sanitized_invoice['client'] = client['ID']
+  #   client = model.Client.FromPrimary(self.connection, client_number['client'])
+  #   sanitized_invoice['client'] = client['ID']
 
-    invoice = self._handle_create(sanitized_invoice, products['products'])
-    return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
+  #   invoice = self._handle_create(sanitized_invoice, products['products'])
+  #   return self.RequestInvoiceDetailsJSON(invoice['sequenceNumber'])
 
-  @uweb3.decorators.ContentType('application/json')
-  @json_error_wrapper
-  def RequestInvoiceDetailsJSON(self, sequence_number):
-    invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-    companydetails = {'companydetails': self.options.get('companydetails')}
-    invoice.update(companydetails)
-    return {
-        'invoice': invoice,
-        'products': list(invoice.Products()),
-        'totals': invoice.Totals()
-    }
+  # @uweb3.decorators.ContentType('application/json')
+  # @json_error_wrapper
+  # def RequestInvoiceDetailsJSON(self, sequence_number):
+  #   invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
+  #   companydetails = {'companydetails': self.options.get('companydetails')}
+  #   invoice.update(companydetails)
+  #   return {
+  #       'invoice': invoice,
+  #       'products': list(invoice.Products()),
+  #       'totals': invoice.Totals()
+  #   }
 
   def _handle_create(self, sanitized_invoice, products):
     api_url = self.config.options['general']['warehouse_api']
@@ -240,6 +244,7 @@ class PageMaker(APIPages):
           'vat_percentage': vat,
           'quantity': quantity
       })
+    invoice = None
     client = model.Client.FromClientNumber(self.connection,
                                            int(self.post.getfirst('client')))
     try:
@@ -250,12 +255,16 @@ class PageMaker(APIPages):
           'status': self.post.getfirst('reservation', '')
       })
       products = ProductsCollectionSchema().load({'products': products})
-      self._handle_create(sanitized_invoice, products['products'])
+      invoice = self._handle_create(sanitized_invoice, products['products'])
     except marshmallow.exceptions.ValidationError as error:
       return self.RequestNewInvoicePage(errors=[error.messages])
     except WarehouseAPIException as error:
       if 'errors' in error.args[0]:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
+
+    if invoice:
+      self.mail_invoice(invoice,
+                        self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.TemplateParser('invoices/invoice.html')
@@ -300,6 +309,8 @@ class PageMaker(APIPages):
     invoice = self.post.getfirst('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
     invoice.ProFormaToRealInvoice()
+    self.mail_invoice(invoice,
+                      self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
 
   @uweb3.decorators.loggedin
@@ -326,3 +337,17 @@ class PageMaker(APIPages):
       invoice['status'] = 'canceled'
       invoice.Save()
     return self.req.Redirect('/invoices', httpcode=303)
+
+  def mail_invoice(self, invoice, details):
+    # Generate the PDF for newly created invoice
+    pdf = ToPDF(details, filename='invoice.pdf')
+    # Create a mollie payment request
+    content = self.parser.Parse(
+        'email/invoice.txt',
+        **{'mollie': self.RequestMollie(invoice)['url']['href']})
+
+    with MailSender() as send_mail:
+      send_mail.Attachments(recipients=invoice['client']['email'],
+                            subject='Your invoice',
+                            content=content,
+                            attachments=(pdf,))

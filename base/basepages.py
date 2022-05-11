@@ -5,7 +5,7 @@ import time
 
 import marshmallow
 import uweb3
-from base.pages import clients, invoices, settings
+from base.pages import clients, invoices, settings, mollie
 from base.model import model
 
 API_VERSION = '/api/v1'
@@ -18,7 +18,7 @@ def CentRound(monies):
 
 
 class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
-                invoices.PageMaker, settings.PageMaker):
+                invoices.PageMaker, settings.PageMaker, mollie.PageMaker):
   """Holds all the request handlers for the application"""
 
   def __init__(self, *args, **kwds):

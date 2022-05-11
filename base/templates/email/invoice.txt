@@ -1,0 +1,6 @@
+
+{{ ifpresent [mollie] }}
+  Betaling via mollie: [mollie]
+{{ else }}
+  Hierbij uw pro forma factuur.
+{{ endif }}
