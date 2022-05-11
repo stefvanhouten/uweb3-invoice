@@ -6,10 +6,11 @@ __version__ = '0.1'
 
 import decimal
 from base import decorators
+from base.model.invoice import PRO_FORMA_PREFIX
+
 import uweb3
 from base.libs import mollie
 from base.model import model
-from base.decorators import json_error_wrapper
 
 
 def round_price(d: decimal.Decimal):
@@ -58,6 +59,7 @@ class PageMaker(mollie.MollieMixin):
 
       updated_transaction = mollie.MollieTransaction.FromPrimary(
           self.connection, transaction)
+
       #  If the updated transactions status is paid and the status of the transaction was changed since the beginning of this route
       if updated_transaction[
           'status'] == mollie.MollieStatus.PAID and transaction[
@@ -65,10 +67,11 @@ class PageMaker(mollie.MollieMixin):
         invoice = model.Invoice.FromPrimary(self.connection,
                                             transaction['invoice'])
         # check if the invoice is a pro forma invoice, if so change it to an actual invoice and set it to paid.
-        if invoice['sequenceNumber'][:2] == 'PF':
+        if invoice['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
           invoice.ProFormaToPaidInvoice()
         else:
           invoice.SetPayed()
+
     except (uweb3.model.NotExistError, Exception) as e:
       # Prevent leaking data about transactions.
       uweb3.logging.error(

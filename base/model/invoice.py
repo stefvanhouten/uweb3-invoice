@@ -11,6 +11,7 @@ from base.model.model import RichModel, Client
 from base.libs import modelcache
 
 PAYMENT_PERIOD = datetime.timedelta(14)
+PRO_FORMA_PREFIX = 'PF'
 
 
 class Companydetails(modelcache.Record):
@@ -149,7 +150,7 @@ class Invoice(RichModel):
     if current_max:
       prefix, year, sequence = current_max[0][0].split('-')
       return '%s-%s-%03d' % (prefix, year, int(sequence) + 1)
-    return 'PF-%s-%03d' % (time.strftime('%Y'), 1)
+    return '%s-%s-%03d' % (PRO_FORMA_PREFIX, time.strftime('%Y'), 1)
 
   @classmethod
   def List(cls, *args, **kwds):
