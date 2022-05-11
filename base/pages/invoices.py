@@ -342,12 +342,10 @@ class PageMaker(APIPages):
     # Generate the PDF for newly created invoice
     pdf = ToPDF(details, filename='invoice.pdf')
     # Create a mollie payment request
-    if invoice['status'] == 'new':
-      content = self.parser.Parse(
-          'email/invoice.txt',
-          **{'mollie': self.RequestMollie(invoice)['url']['href']})
-    else:
-      content = self.parser.Parse('email/invoice.txt')
+    content = self.parser.Parse(
+        'email/invoice.txt',
+        **{'mollie': self.RequestMollie(invoice)['url']['href']})
+
     with MailSender() as send_mail:
       send_mail.Attachments(recipients=invoice['client']['email'],
                             subject='Your invoice',
