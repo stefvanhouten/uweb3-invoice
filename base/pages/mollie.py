@@ -36,9 +36,6 @@ class PageMaker(mollie.MollieMixin):
   #   molliedata = self.RequestMollie(invoice)
   #   return molliedata
 
-  # def RequestLabel(self, order, secret):
-  #   return uweb3.Response('pass', content_type='application/pdf')
-
   def RequestMollie(self, invoice):
     price = round_price(invoice.Totals()['total_price'])
     description = invoice.get('description')
@@ -54,16 +51,30 @@ class PageMaker(mollie.MollieMixin):
   def _Mollie_HookPaymentReturn(self, transaction):
     """This is the webhook that mollie calls when that transaction is updated."""
     # This route is used to receive updates from mollie about the transaction status.
-    # If the transaction status is changed to paid a trigger will also change the invoice to paid.
     try:
       transaction = mollie.MollieTransaction.FromPrimary(
           self.connection, transaction)
-      return super()._Mollie_HookPaymentReturn(transaction['description'])
+      super()._Mollie_HookPaymentReturn(transaction['description'])
+
+      updated_transaction = mollie.MollieTransaction.FromPrimary(
+          self.connection, transaction)
+      #  If the updated transactions status is paid and the status of the transaction was changed since the beginning of this route
+      if updated_transaction[
+          'status'] == mollie.MollieStatus.PAID and transaction[
+              'status'] != updated_transaction['status']:
+        invoice = model.Invoice.FromPrimary(self.connection,
+                                            transaction['invoice'])
+        # check if the invoice is a pro forma invoice, if so change it to an actual invoice and set it to paid.
+        if invoice['sequenceNumber'][:2] == 'PF':
+          invoice.ProFormaToPaidInvoice()
+        else:
+          invoice.SetPayed()
     except (uweb3.model.NotExistError, Exception) as e:
       # Prevent leaking data about transactions.
       uweb3.logging.error(
           f'Error triggered while processing mollie notification for transaction: {transaction} {e}'
       )
+    finally:
       return 'ok'
 
   def _MollieHandleSuccessfulpayment(self, transaction):

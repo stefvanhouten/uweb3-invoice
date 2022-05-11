@@ -1,5 +1,4 @@
 # uweb3-invoice
-The mollieTransaction.status column should have a trigger that updates the corresponding invoice to paid whenever a mollie transaction is set to paid.
 
 ## config.ini example
 [mysql]
