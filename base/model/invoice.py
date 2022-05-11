@@ -104,6 +104,16 @@ class Invoice(RichModel):
     self['dateDue'] = self.CalculateDateDue()
     self.Save()
 
+  def SetPayed(self):
+    """Sets the current invoice status to paid. """
+    self['status'] = 'paid'
+    self.Save()
+
+  def ProFormaToPaidInvoice(self):
+    """Change a pro forma invoice to an actual invoice. This replaces the PF- sequenceNumber with the next in line number for a real invoice."""
+    self.ProFormaToRealInvoice()
+    self.SetPayed()
+
   @classmethod
   def NextNumber(cls, connection):
     """Returns the sequenceNumber for the next invoice to create."""
