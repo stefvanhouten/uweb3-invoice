@@ -68,6 +68,18 @@ def companydetails_object(request, connection):
   return companydetails
 
 
+@pytest.fixture
+def simple_invoice_dict(client_object, companydetails_object):
+  # Even though companydetails_object is not used the fixture is called and creates a record that we need.
+  return {
+      'ID': 1,
+      'title': 'test invoice',
+      'description': 'test',
+      'client': client_object['ID'],
+      'status': 'new'
+  }
+
+
 class TestClass:
 
   def test_validate_payment_period(self):
@@ -91,4 +103,23 @@ class TestClass:
             'client': client_object['ID'],
             'status': 'new'
         })
+    assert inv['ID'] == 1
+
+  def test_invoice_sequence_number(self, connection, simple_invoice_dict):
+    inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     assert inv['sequenceNumber'] == f'{date.today().year}-001'
+
+  def test_correct_invoice_sequence_number(self, connection,
+                                           simple_invoice_dict):
+    inv1, inv2, inv3 = simple_invoice_dict.copy(), simple_invoice_dict.copy(
+    ), simple_invoice_dict.copy()
+    inv1['ID'] = 1
+    inv2['ID'] = 2
+    inv3['ID'] = 3
+
+    inv1 = invoice.Invoice.Create(connection, inv1)
+    inv2 = invoice.Invoice.Create(connection, inv2)
+    inv3 = invoice.Invoice.Create(connection, inv3)
+    assert inv1['sequenceNumber'] == f'{date.today().year}-001'
+    assert inv2['sequenceNumber'] == f'{date.today().year}-002'
+    assert inv3['sequenceNumber'] == f'{date.today().year}-003'
