@@ -9,7 +9,7 @@ from uweb3.libs.sqltalk import mysql
 current_year = date.today().year
 
 
-@pytest.fixture()
+@pytest.fixture
 def connection():
   connection = mysql.Connect(host='localhost',
                              user='test_invoices',
@@ -20,8 +20,8 @@ def connection():
   yield connection
 
 
-@pytest.fixture(scope='function')
-def client_object(request, connection):
+@pytest.fixture
+def client_object(connection):
   client = invoice.Client.Create(
       connection, {
           'ID': 1,
@@ -47,8 +47,8 @@ def run_before_and_after_tests(connection):
     cursor.Execute("SET FOREIGN_KEY_CHECKS=0;")
 
 
-@pytest.fixture(scope='function')
-def companydetails_object(request, connection):
+@pytest.fixture
+def companydetails_object(connection):
   companydetails = invoice.Companydetails.Create(
       connection, {
           'ID': 1,
@@ -80,6 +80,21 @@ def simple_invoice_dict(client_object, companydetails_object):
   }
 
 
+@pytest.fixture
+def create_invoice_object(connection, client_object):
+
+  def create(status='new'):
+    return invoice.Invoice.Create(
+        connection, {
+            'title': 'test invoice',
+            'description': 'test',
+            'client': client_object['ID'],
+            'status': status
+        })
+
+  return create
+
+
 class TestClass:
 
   def test_validate_payment_period(self):
@@ -109,8 +124,7 @@ class TestClass:
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     assert inv['sequenceNumber'] == f'{date.today().year}-001'
 
-  def test_correct_invoice_sequence_number(self, connection,
-                                           simple_invoice_dict):
+  def test_invoice_sequence_number(self, connection, simple_invoice_dict):
     inv1, inv2, inv3 = simple_invoice_dict.copy(), simple_invoice_dict.copy(
     ), simple_invoice_dict.copy()
     inv1['ID'] = 1
@@ -123,3 +137,36 @@ class TestClass:
     assert inv1['sequenceNumber'] == f'{date.today().year}-001'
     assert inv2['sequenceNumber'] == f'{date.today().year}-002'
     assert inv3['sequenceNumber'] == f'{date.today().year}-003'
+
+  def test_pro_forma_invoice_sequence_number(self, connection, client_object,
+                                             companydetails_object):
+    pro_forma = invoice.Invoice.Create(
+        connection, {
+            'ID': 1,
+            'title': 'test invoice',
+            'description': 'test',
+            'client': client_object['ID'],
+            'status': 'reservation'
+        })
+    assert pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
+
+  def test_invoice_and_pro_forma_mix_sequence_number(self, connection,
+                                                     client_object,
+                                                     companydetails_object,
+                                                     create_invoice_object):
+    real_invoice = create_invoice_object(status='new')
+    pro_forma = create_invoice_object(status='reservation')
+    second_real_invoice = create_invoice_object(status='new')
+    second_pro_forma = create_invoice_object(status='reservation')
+
+    assert real_invoice['sequenceNumber'] == f'{date.today().year}-001'
+    assert pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
+    assert second_real_invoice['sequenceNumber'] == f'{date.today().year}-002'
+    assert second_pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-002'
+
+  def test(self):
+    """Empty test to ensure that all data is truncated from the database."""
+    pass
