@@ -1,6 +1,6 @@
 import requests
 from http import HTTPStatus
-from base.model import model
+from invoices.base.model import model
 from marshmallow import ValidationError
 
 import uweb3

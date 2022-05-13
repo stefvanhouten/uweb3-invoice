@@ -6,8 +6,8 @@ from marshmallow import Schema, fields, EXCLUDE
 
 # uweb modules
 import uweb3
-from base.model import model
-from base.decorators import NotExistsErrorCatcher, json_error_wrapper
+from invoices.base.model import model
+from invoices.base.decorators import NotExistsErrorCatcher, json_error_wrapper
 
 
 class RequestClientSchema(Schema):

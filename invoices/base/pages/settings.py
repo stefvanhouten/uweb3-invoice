@@ -3,8 +3,8 @@ import marshmallow
 
 # uweb modules
 import uweb3
-from base.model import model
-from base.pages.invoices import CompanyDetailsSchema
+from invoices.base.model import model
+from invoices.base.pages.invoices import CompanyDetailsSchema
 
 
 class PageMaker:

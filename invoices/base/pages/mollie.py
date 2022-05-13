@@ -5,12 +5,12 @@ __author__ = 'Jan Klopper <janklopper@underdark.nl>'
 __version__ = '0.1'
 
 import decimal
-from base import decorators
-from base.model.invoice import PRO_FORMA_PREFIX
+from invoices.base import decorators
+from invoices.base.model.invoice import PRO_FORMA_PREFIX
 
 import uweb3
-from base.libs import mollie
-from base.model import model
+from invoices.base.libs import mollie
+from invoices.base.model import model
 
 
 def round_price(d: decimal.Decimal):
@@ -38,7 +38,7 @@ class PageMaker(mollie.MollieMixin):
   #   return molliedata
 
   def RequestMollie(self, invoice):
-    price = round_price(invoice.Totals()['total_price'])
+    price = invoice.Totals()['total_price']
     description = invoice.get('description')
     # TODO: Secret
 
@@ -66,11 +66,7 @@ class PageMaker(mollie.MollieMixin):
               'status'] != updated_transaction['status']:
         invoice = model.Invoice.FromPrimary(self.connection,
                                             transaction['invoice'])
-        # check if the invoice is a pro forma invoice, if so change it to an actual invoice and set it to paid.
-        if invoice['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
-          invoice.ProFormaToPaidInvoice()
-        else:
-          invoice.SetPayed()
+        invoice.SetPayed()
 
     except (uweb3.model.NotExistError, Exception) as e:
       # Prevent leaking data about transactions.
