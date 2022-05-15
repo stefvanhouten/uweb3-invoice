@@ -8,6 +8,11 @@ from uweb3.libs.sqltalk import mysql
 
 current_year = date.today().year
 
+# XXX: Some parameters might seem like they are unused.
+# However since they are pytest fixtures they are used to create a databaserecord
+# that is needed for that specific test. Removing these paramters will fail the test
+# as the record that is needed in the test database is no longer there.
+
 
 @pytest.fixture
 def connection():
@@ -21,7 +26,7 @@ def connection():
 
 
 @pytest.fixture
-def client_object(connection):
+def client_object(connection) -> invoice.Client:
   client = invoice.Client.Create(
       connection, {
           'ID': 1,
@@ -48,7 +53,7 @@ def run_before_and_after_tests(connection):
 
 
 @pytest.fixture
-def companydetails_object(connection):
+def companydetails_object(connection) -> invoice.Companydetails:
   companydetails = invoice.Companydetails.Create(
       connection, {
           'ID': 1,
@@ -69,8 +74,7 @@ def companydetails_object(connection):
 
 
 @pytest.fixture
-def simple_invoice_dict(client_object, companydetails_object):
-  # Even though companydetails_object is not used the fixture is called and creates a record that we need.
+def simple_invoice_dict(client_object, companydetails_object) -> dict:
   return {
       'ID': 1,
       'title': 'test invoice',
@@ -81,9 +85,9 @@ def simple_invoice_dict(client_object, companydetails_object):
 
 
 @pytest.fixture
-def create_invoice_object(connection, client_object):
+def create_invoice_object(connection, client_object, companydetails_object):
 
-  def create(status='new'):
+  def create(status='new') -> invoice.Invoice:
     return invoice.Invoice.Create(
         connection, {
             'title': 'test invoice',
@@ -93,6 +97,10 @@ def create_invoice_object(connection, client_object):
         })
 
   return create
+
+
+def calc_due_date():
+  return datetime.date.today() + invoice.PAYMENT_PERIOD
 
 
 class TestClass:
@@ -153,7 +161,6 @@ class TestClass:
 
   def test_invoice_and_pro_forma_mix_sequence_number(self, connection,
                                                      client_object,
-                                                     companydetails_object,
                                                      create_invoice_object):
     real_invoice = create_invoice_object(status='new')
     pro_forma = create_invoice_object(status='reservation')
@@ -166,6 +173,37 @@ class TestClass:
     assert second_real_invoice['sequenceNumber'] == f'{date.today().year}-002'
     assert second_pro_forma[
         'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-002'
+
+  def test_datedue(self):
+    assert calc_due_date() == invoice.Invoice.CalculateDateDue()
+
+  def test_pro_forma_to_real_invoice(self, create_invoice_object):
+    pro_forma = create_invoice_object(status='reservation')
+    assert pro_forma['status'] == 'reservation'
+
+    pro_forma.ProFormaToRealInvoice()
+
+    assert pro_forma['status'] == 'new'
+    assert pro_forma['dateDue'] == calc_due_date()
+
+  def test_invoice_to_paid(self, create_invoice_object):
+    inv = create_invoice_object(status='new')
+    assert inv['status'] == 'new'
+
+    inv.SetPayed()
+
+    assert inv['status'] == 'paid'
+    assert inv['dateDue'] == calc_due_date()
+
+  def test_pro_forma_to_paid(self, create_invoice_object):
+    pro_forma = create_invoice_object(status='reservation')
+    assert pro_forma['status'] == 'reservation'
+
+    pro_forma.SetPayed()
+
+    assert pro_forma['sequenceNumber'] == f'{date.today().year}-001'
+    assert pro_forma['status'] == 'paid'
+    assert pro_forma['dateDue'] == calc_due_date()
 
   def test(self):
     """Empty test to ensure that all data is truncated from the database."""
