@@ -3,6 +3,7 @@
 
 import datetime
 import decimal
+from enum import Enum
 import time
 
 import pytz
@@ -13,6 +14,14 @@ from invoices.base.libs import modelcache
 
 PAYMENT_PERIOD = datetime.timedelta(14)
 PRO_FORMA_PREFIX = 'PF'
+
+
+class InvoiceStatus(Enum):
+  NEW = 'new'
+  SENT = 'sent'
+  PAID = 'paid'
+  RESERVATION = 'reservation'
+  CANCELED = 'canceled'
 
 
 def round_price(d):
@@ -107,7 +116,7 @@ class Invoice(RichModel):
     This changes the status to new, calculates a new date for when the invoice is due and generates a new sequencenumber.
     """
     self['sequenceNumber'] = self.NextNumber(self.connection)
-    self['status'] = 'new'
+    self['status'] = InvoiceStatus.NEW.value
     self['dateDue'] = self.CalculateDateDue()
     self.Save()
 
@@ -115,7 +124,7 @@ class Invoice(RichModel):
     """Sets the current invoice status to paid. """
     if self['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
       self.ProFormaToRealInvoice()
-    self['status'] = 'paid'
+    self['status'] = InvoiceStatus.PAID.value
     self.Save()
 
   @classmethod
