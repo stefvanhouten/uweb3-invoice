@@ -16,7 +16,7 @@ PAYMENT_PERIOD = datetime.timedelta(14)
 PRO_FORMA_PREFIX = 'PF'
 
 
-class InvoiceStatus(Enum):
+class InvoiceStatus(str, Enum):
   NEW = 'new'
   SENT = 'sent'
   PAID = 'paid'
