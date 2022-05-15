@@ -101,8 +101,8 @@ class Invoice(RichModel):
     Returns:
       Invoice: the newly created invoice.
     """
-    status = record.get('status', None)
-    if status and status == 'reservation':
+    status = record.get('status', InvoiceStatus.NEW.value)
+    if status and status == InvoiceStatus.RESERVATION:
       record.setdefault('sequenceNumber', cls.NextProFormaNumber(connection))
     else:
       record.setdefault('sequenceNumber', cls.NextNumber(connection))
