@@ -1,6 +1,3 @@
-from io import StringIO
-import pytest
-
 from invoices.base.pages import invoices
 
 
