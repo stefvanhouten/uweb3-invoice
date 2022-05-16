@@ -117,6 +117,14 @@ class TestClass:
     assert str(invoice.round_price(Decimal(12.26))) == '12.26'
     assert str(invoice.round_price(Decimal(12.22))) == '12.22'
 
+  def test_determine_invoice_type(self, create_invoice_object):
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    real_inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+
+    assert pro_forma._isProForma() == True
+    assert real_inv._isProForma() == False
+
   def test_create_invoice(self, connection, client_object,
                           companydetails_object):
     inv = invoice.Invoice.Create(
