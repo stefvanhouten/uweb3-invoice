@@ -112,9 +112,7 @@ class PageMaker:
       invoice = self._create_invoice_and_products(sanitized_invoice,
                                                   products['products'])
     except WarehouseAPIException as error:
-      if 'errors' in error.args[0]:
-        return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
-      return self.RequestNewInvoicePage(errors='Something went wrong')
+      return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
 
     if invoice and self.post.getfirst('shouldmail'):
       self.mail_invoice(invoice,
