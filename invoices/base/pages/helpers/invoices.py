@@ -86,6 +86,14 @@ def get_and_zip_products(product_names, product_prices, product_vat,
 
 
 def decide_reference_message(status, sequenceNumber):
+  """Determines the reference message that is send to the warehouse API.
+
+  Arguments:
+    @ status: str
+      The status of the invoice
+    @ sequenceNumber:
+      The sequenceNumber of the invoice
+  """
   if status == InvoiceStatus.RESERVATION:
     reference = f"Reservation for invoice: {sequenceNumber}"
   else:
@@ -100,8 +108,10 @@ class MT940_processor:
     self.files = files
 
   def process_files(self):
+    """Processes the contents of all MT-940 files."""
     results = []
     for f in self.files:
+      # XXX: The content of an MT-940 file should be str. uweb3 handles this, but should we also check this?
       results.extend(self._regex_search(f['content']))
     return results
 
@@ -173,6 +183,9 @@ class MT940_invoice_handler:
     self.invoice_pairs = invoice_pairs
 
   def process(self):
+    """Process all InvoicePairs and keep track of which invoice was processed successfully and which was not.
+    If an invoice is processed the status in the database will be updated accordingly.
+    """
     for pair in self.invoice_pairs:
       self.current_pair = pair
       if self.current_pair.costs_match():
@@ -192,6 +205,7 @@ class MT940_invoice_handler:
 class InvoicePair:
 
   def __init__(self, invoice, reference):
+    """"""
     self.invoice = invoice
     self.reference = reference
     self.target_price = self.invoice.Totals()['total_price']
@@ -199,14 +213,17 @@ class InvoicePair:
         decimal.Decimal(self.reference['amount']))
 
   def costs_match(self):
+    """Compare the price that was mentioned in the mt940 file with the price that we have stored in the database."""
     return self.reference['amount'] == self.target_price
 
   def ok(self):
+    """Sets the current invoice to paid and adds previous_state to the object so that it can be displayed on the page."""
     previous_status = self.invoice['status']
     self.invoice.SetPayed()
     self.invoice['previous_status'] = previous_status
 
   def failed(self):
+    """Add a few values to the invoice object for extra information as of why the invoice was not processed propperly."""
     self.invoice['actual_amount'] = self.target_price
     self.invoice['expected_amount'] = self.reference['amount']
     self.invoice['diff'] = self.reference['amount'] - self.target_price

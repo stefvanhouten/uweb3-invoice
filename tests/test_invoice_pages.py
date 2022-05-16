@@ -108,4 +108,6 @@ class TestClass:
         'content': data
     }]
     results = invoices.MT940_processor(io_files).process_files()
-    assert results == [*mt940_result, *mt940_result, *mt940_result]
+    assert results == [
+        *mt940_result, *mt940_result, *mt940_result
+    ]  # Parsing the same file 3 times should return into the same results 3 times.
