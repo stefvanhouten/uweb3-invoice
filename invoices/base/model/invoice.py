@@ -122,10 +122,20 @@ class Invoice(RichModel):
 
   def SetPayed(self):
     """Sets the current invoice status to paid. """
-    if self['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
+    if self._isProForma():
       self.ProFormaToRealInvoice()
     self['status'] = InvoiceStatus.PAID.value
     self.Save()
+
+  def CancelProFormaInvoice(self):
+    """Cancels a pro forma invoice"""
+    if not self._isProForma():
+      raise ValueError("Only pro forma invoices can be canceled.")
+    self['status'] = InvoiceStatus.CANCELED.value
+    self.Save()
+
+  def _isProForma(self):
+    return self['sequenceNumber'][:2] == PRO_FORMA_PREFIX
 
   @classmethod
   def NextNumber(cls, connection):
