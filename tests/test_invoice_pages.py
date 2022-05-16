@@ -1,7 +1,24 @@
-from io import StringIO
 import pytest
-
 from invoices.base.pages import invoices
+
+
+@pytest.fixture
+def mt940_result():
+  return [
+      {
+          'invoice':
+              'PF-2022-001',  # First pro forma invoice that was referenced in .sta
+          'amount': '100.76'
+      },
+      {
+          'invoice': '2022-001',  # Fist actual invoice that was referenced
+          'amount': '65.20'
+      },
+      {
+          'invoice': '2022-002',  # Second invoice
+          'amount': '952.10'
+      }
+  ]
 
 
 class TestClass:
@@ -68,24 +85,29 @@ class TestClass:
         },
     ] == results
 
-  def test_mt940_regex_search(self):
+  def test_mt940_processing(self, mt940_result):
     data = None
     with open('tests/test_mt940.sta', 'r') as f:
       data = f.read()
-    io_file = StringIO(data)
-    results = invoices.regex_search(io_file, invoices.INVOICE_REGEX_PATTERN)
-    assert [
-        {
-            'invoice':
-                'PF-2022-001',  # First pro forma invoice that was referenced in .sta
-            'amount': '100.76'
-        },
-        {
-            'invoice': '2022-001',  # Fist actual invoice that was referenced
-            'amount': '65.20'
-        },
-        {
-            'invoice': '2022-002',  # Second invoice
-            'amount': '952.10'
-        }
-    ] == results
+    io_files = [{'filename': 'test', 'content': data}]
+    results = invoices.MT940_processor(io_files).process_files()
+    assert mt940_result == results
+
+  def test_mt940_processing_multi_file(self, mt940_result):
+    data = None
+    with open('tests/test_mt940.sta', 'r') as f:
+      data = f.read()
+    io_files = [{
+        'filename': 'test',
+        'content': data
+    }, {
+        'filename': 'test',
+        'content': data
+    }, {
+        'filename': 'test',
+        'content': data
+    }]
+    results = invoices.MT940_processor(io_files).process_files()
+    assert results == [
+        *mt940_result, *mt940_result, *mt940_result
+    ]  # Parsing the same file 3 times should return into the same results 3 times.

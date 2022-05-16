@@ -2,33 +2,12 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
-from marshmallow import Schema, fields, EXCLUDE
 
 # uweb modules
 import uweb3
+from invoices.base.pages.helpers.schemas import ClientSchema, RequestClientSchema
 from invoices.base.model import model
 from invoices.base.decorators import NotExistsErrorCatcher, json_error_wrapper
-
-
-class RequestClientSchema(Schema):
-
-  class Meta:
-    unknown = EXCLUDE
-
-  client = fields.Int(required=True, allow_none=False)
-
-
-class ClientSchema(Schema):
-
-  class Meta:
-    unknown = EXCLUDE
-
-  name = fields.Str(required=True, allow_none=False)
-  city = fields.Str(required=True, allow_none=False)
-  postalCode = fields.Str(required=True, allow_none=False)
-  email = fields.Str(required=True, allow_none=False)
-  telephone = fields.Str(required=True, allow_none=False)
-  address = fields.Str(required=True, allow_none=False)
 
 
 class PageMaker:

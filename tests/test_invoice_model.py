@@ -87,7 +87,7 @@ def simple_invoice_dict(client_object, companydetails_object) -> dict:
 @pytest.fixture
 def create_invoice_object(connection, client_object, companydetails_object):
 
-  def create(status='new') -> invoice.Invoice:
+  def create(status=invoice.InvoiceStatus.NEW.value) -> invoice.Invoice:
     return invoice.Invoice.Create(
         connection, {
             'title': 'test invoice',
@@ -115,6 +115,14 @@ class TestClass:
     assert str(invoice.round_price(Decimal(12.255))) == '12.26'
     assert str(invoice.round_price(Decimal(12.26))) == '12.26'
     assert str(invoice.round_price(Decimal(12.22))) == '12.22'
+
+  def test_determine_invoice_type(self, create_invoice_object):
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    real_inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+
+    assert pro_forma._isProForma() == True
+    assert real_inv._isProForma() == False
 
   def test_create_invoice(self, connection, client_object,
                           companydetails_object):
@@ -162,10 +170,13 @@ class TestClass:
   def test_invoice_and_pro_forma_mix_sequence_number(self, connection,
                                                      client_object,
                                                      create_invoice_object):
-    real_invoice = create_invoice_object(status='new')
-    pro_forma = create_invoice_object(status='reservation')
-    second_real_invoice = create_invoice_object(status='new')
-    second_pro_forma = create_invoice_object(status='reservation')
+    real_invoice = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    second_real_invoice = create_invoice_object(
+        status=invoice.InvoiceStatus.NEW.value)
+    second_pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
 
     assert real_invoice['sequenceNumber'] == f'{date.today().year}-001'
     assert pro_forma[
@@ -178,53 +189,87 @@ class TestClass:
     assert calc_due_date() == invoice.Invoice.CalculateDateDue()
 
   def test_pro_forma_to_real_invoice(self, create_invoice_object):
-    pro_forma = create_invoice_object(status='reservation')
-    assert pro_forma['status'] == 'reservation'
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    assert pro_forma['status'] == invoice.InvoiceStatus.RESERVATION
 
     pro_forma.ProFormaToRealInvoice()
 
-    assert pro_forma['status'] == 'new'
+    assert pro_forma['status'] == invoice.InvoiceStatus.NEW
     assert pro_forma['dateDue'] == calc_due_date()
 
   def test_invoice_to_paid(self, create_invoice_object):
-    inv = create_invoice_object(status='new')
-    assert inv['status'] == 'new'
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    assert inv['status'] == invoice.InvoiceStatus.NEW
 
     inv.SetPayed()
 
-    assert inv['status'] == 'paid'
+    assert inv['status'] == invoice.InvoiceStatus.PAID
     assert inv['dateDue'] == calc_due_date()
 
   def test_pro_forma_to_paid(self, create_invoice_object):
-    pro_forma = create_invoice_object(status='reservation')
-    assert pro_forma['status'] == 'reservation'
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    assert pro_forma['status'] == invoice.InvoiceStatus.RESERVATION
 
     pro_forma.SetPayed()
 
     assert pro_forma['sequenceNumber'] == f'{date.today().year}-001'
-    assert pro_forma['status'] == 'paid'
+    assert pro_forma['status'] == invoice.InvoiceStatus.PAID
     assert pro_forma['dateDue'] == calc_due_date()
 
-  def test_invoice_with_products(self, connection, simple_invoice_dict):
-    inv = invoice.Invoice.Create(connection, simple_invoice_dict)
-    products = [
+  def test_pro_forma_to_canceled(self, create_invoice_object):
+    pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    pro_forma.CancelProFormaInvoice()
+
+    assert pro_forma['status'] == invoice.InvoiceStatus.CANCELED
+    # Make sure the sequenceNumber is still a pro forma sequenceNumber
+    assert pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
+
+  def test_real_invoice_to_canceled(self, create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    with pytest.raises(ValueError) as excinfo:
+      inv.CancelProFormaInvoice()
+    assert "Only pro forma invoices can be canceled" in str(excinfo)
+
+  def test_add_invoice_products(self, create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    inv.AddProducts([
         {
-            'invoice': inv['ID'],
             'name': 'dakpan',
             'price': 10,
             'vat_percentage': 100,
             'quantity': 2
         },
         {
-            'invoice': inv['ID'],
+            'name': 'paneel',
+            'price': 5,
+            'vat_percentage': 100,
+            'quantity': 10
+        },
+    ])
+    products = list(inv.Products())
+    assert len(products) == 2
+
+  def test_invoice_with_products(self, connection, simple_invoice_dict):
+    inv = invoice.Invoice.Create(connection, simple_invoice_dict)
+    products = [
+        {
+            'name': 'dakpan',
+            'price': 10,
+            'vat_percentage': 100,
+            'quantity': 2
+        },
+        {
             'name': 'paneel',
             'price': 5,
             'vat_percentage': 100,
             'quantity': 10
         },
     ]
-    for product in products:
-      invoice.InvoiceProduct.Create(connection, product)
+    inv.AddProducts(products)
 
     result = inv.Totals()
     assert result['total_price_without_vat'] == 70  # 2*10 + 5*10
@@ -235,22 +280,19 @@ class TestClass:
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     products = [
         {
-            'invoice': inv['ID'],
             'name': 'dakpan',
             'price': 100.34,
             'vat_percentage': 20,
             'quantity': 10  # 1204.08
         },
         {
-            'invoice': inv['ID'],
             'name': 'paneel',
             'price': 12.25,
             'vat_percentage': 10,
             'quantity': 10  # 134.75
         },
     ]
-    for product in products:
-      invoice.InvoiceProduct.Create(connection, product)
+    inv.AddProducts(products)
 
     result = inv.Totals()
     assert result['total_price_without_vat'] == invoice.round_price(

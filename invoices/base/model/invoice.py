@@ -11,6 +11,7 @@ import pytz
 # Custom modules
 from invoices.base.model.model import RichModel, Client
 from invoices.base.libs import modelcache
+from invoices.base.pages.helpers.general import round_price
 
 PAYMENT_PERIOD = datetime.timedelta(14)
 PRO_FORMA_PREFIX = 'PF'
@@ -22,11 +23,6 @@ class InvoiceStatus(str, Enum):
   PAID = 'paid'
   RESERVATION = 'reservation'
   CANCELED = 'canceled'
-
-
-def round_price(d):
-  cents = decimal.Decimal('0.01')
-  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 class Companydetails(modelcache.Record):
@@ -122,10 +118,20 @@ class Invoice(RichModel):
 
   def SetPayed(self):
     """Sets the current invoice status to paid. """
-    if self['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
+    if self._isProForma():
       self.ProFormaToRealInvoice()
     self['status'] = InvoiceStatus.PAID.value
     self.Save()
+
+  def CancelProFormaInvoice(self):
+    """Cancels a pro forma invoice"""
+    if not self._isProForma():
+      raise ValueError("Only pro forma invoices can be canceled.")
+    self['status'] = InvoiceStatus.CANCELED.value
+    self.Save()
+
+  def _isProForma(self):
+    return self['sequenceNumber'][:2] == PRO_FORMA_PREFIX
 
   @classmethod
   def NextNumber(cls, connection):
@@ -228,3 +234,20 @@ class Invoice(RichModel):
       product['index'] = index
       index = index + 1  # TODO implement loop indices in the template parser
       yield product
+
+  def AddProducts(self, products):
+    """Add multiple InvoiceProducts to an invoice.
+
+    Arguments:
+      @ products: [
+                    { price: The price of the product,
+                      vat_percentage: The amount of VAT that has to be paid over said product,
+                      name: The name of the product
+                      quantity: The amount of products
+                    }
+                  ]
+    """
+    for product in products:
+      product['invoice'] = self[
+          'ID']  # Set the product to the current invoice ID.
+      InvoiceProduct.Create(self.connection, product)
