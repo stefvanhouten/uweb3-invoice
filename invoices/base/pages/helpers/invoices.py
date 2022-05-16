@@ -2,18 +2,20 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
+import decimal
 import re
 import mt940
 from itertools import zip_longest
 
 from weasyprint import HTML
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from invoices.base.model.invoice import InvoiceStatus
+from invoices.base.pages.helpers.general import round_price
 
 __all__ = [
-    'ToPDF', 'CreateCleanProductList', 'regex_search', 'get_and_zip_products',
-    'decide_reference_message'
+    'ToPDF', 'CreateCleanProductList', 'MT940_processor',
+    'get_and_zip_products', 'decide_reference_message', 'MT940_invoice_handler'
 ]
 
 
@@ -50,22 +52,6 @@ def CreateCleanProductList(products, negative_abs=False):
             -abs(product['quantity']) if negative_abs else product['quantity']
     })
   return items
-
-
-def regex_search(file, regex):
-  """Parse a StringIO object"""
-  transactions = mt940.models.Transactions(processors=dict(pre_statement=[
-      mt940.processors.add_currency_pre_processor('EUR'),
-  ],))
-  data = file.read()
-  transactions.parse(data)
-  results = []
-  for transaction in transactions:
-    matches = re.finditer(regex, transaction.data['transaction_details'],
-                          re.MULTILINE)
-    amount = str(transaction.data['amount'].amount)
-    results.extend([{"invoice": x.group(), "amount": amount} for x in matches])
-  return results
 
 
 def get_and_zip_products(product_names, product_prices, product_vat,
@@ -105,3 +91,94 @@ def decide_reference_message(status, sequenceNumber):
   else:
     reference = f"Buy order for invoice: {sequenceNumber}"
   return reference
+
+
+class MT940_processor:
+  INVOICE_REGEX_PATTERN = r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})"
+
+  def __init__(self, files):
+    self.files = files
+
+  def _create_io_file(self, f):
+    return StringIO(f)
+
+  def process_files(self):
+    results = []
+    for f in self.files:
+      io_file = self._create_io_file(f['content'])
+      results.extend(self.regex_search(io_file))
+    return results
+
+  def regex_search(self, current_file):
+    """Parse a StringIO object"""
+    transactions = mt940.models.Transactions(processors=dict(pre_statement=[
+        mt940.processors.add_currency_pre_processor('EUR'),
+    ],))
+    data = current_file.read()
+    transactions.parse(data)
+    results = []
+    for transaction in transactions:
+      matches = re.finditer(self.INVOICE_REGEX_PATTERN,
+                            transaction.data['transaction_details'],
+                            re.MULTILINE)
+      amount = str(transaction.data['amount'].amount)
+      results.extend([{
+          "invoice": x.group(),
+          "amount": amount
+      } for x in matches])
+    return results
+
+
+class MT940_invoice_handler:
+
+  def __init__(self, invoice_pairs):
+    """Processes a list of InvoicePairs and updates the database for found results.
+
+    Arguments:
+      @ invoice_pairs: list(InvoicePair)
+        A list containing the actual invoice and the found reference from the MT940 file.
+    """
+    self.processed_invoices = [
+    ]  # The invoices that have been processed successfully
+    self.failed_invoices = []  # The invoices that have failed
+    self.invoice_pairs = invoice_pairs
+
+  def process(self):
+    for pair in self.invoice_pairs:
+      self.current_pair = pair
+      if self.current_pair.costs_match():
+        self.handleSuccess()
+      else:
+        self.handleFailed()
+
+  def handleSuccess(self):
+    self.current_pair.ok()
+    self.processed_invoices.append(self.current_pair.current_invoice)
+
+  def handleFailed(self):
+    self.current_pair.failed()
+    self.failed_invoices.append(self.current_pair.current_invoice)
+
+
+class InvoicePair:
+
+  def __init__(self, current_invoice, current_reference):
+    self.current_invoice = current_invoice
+    self.current_reference = current_reference
+    self.target_price = self.current_invoice.Totals()['total_price']
+    self.current_reference['amount'] = round_price(
+        decimal.Decimal(self.current_reference['amount']))
+
+  def costs_match(self):
+    return self.current_reference['amount'] == self.target_price
+
+  def ok(self):
+    previous_status = self.current_invoice['status']
+    self.current_invoice.SetPayed()
+    self.current_invoice['previous_status'] = previous_status
+
+  def failed(self):
+    self.current_invoice['actual_amount'] = self.target_price
+    self.current_invoice['expected_amount'] = self.current_reference['amount']
+    self.current_invoice[
+        'diff'] = self.current_reference['amount'] - self.target_price
