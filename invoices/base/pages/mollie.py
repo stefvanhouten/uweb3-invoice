@@ -4,18 +4,11 @@
 __author__ = 'Jan Klopper <janklopper@underdark.nl>'
 __version__ = '0.1'
 
-import decimal
 from invoices.base import decorators
-from invoices.base.model.invoice import PRO_FORMA_PREFIX
 
 import uweb3
 from invoices.base.libs import mollie
 from invoices.base.model import model
-
-
-def round_price(d: decimal.Decimal):
-  cents = decimal.Decimal('0.01')
-  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 class PageMaker(mollie.MollieMixin):
@@ -23,19 +16,6 @@ class PageMaker(mollie.MollieMixin):
 
   Each page as a separate method.
   """
-
-  # @uweb3.decorators.ContentType("application/json")
-  # def RequestPaymentInfoMollieIdeal(self):
-  #   mollie = self.NewMolliePaymentGateway()
-  #   return {'issuers': mollie.GetIdealBanks()}
-
-  # @uweb3.decorators.ContentType("application/json")
-  # @json_error_wrapper
-  # def RequestPaymentFormMollie(self):
-  #   sequence_number = self.post.get('invoice')
-  #   invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
-  #   molliedata = self.RequestMollie(invoice)
-  #   return molliedata
 
   def RequestMollie(self, invoice):
     price = invoice.Totals()['total_price']
