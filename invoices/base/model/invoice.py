@@ -11,6 +11,7 @@ import pytz
 # Custom modules
 from invoices.base.model.model import RichModel, Client
 from invoices.base.libs import modelcache
+from invoices.base.pages.helpers.general import round_price
 
 PAYMENT_PERIOD = datetime.timedelta(14)
 PRO_FORMA_PREFIX = 'PF'
@@ -22,11 +23,6 @@ class InvoiceStatus(str, Enum):
   PAID = 'paid'
   RESERVATION = 'reservation'
   CANCELED = 'canceled'
-
-
-def round_price(d):
-  cents = decimal.Decimal('0.01')
-  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 class Companydetails(modelcache.Record):

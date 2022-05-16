@@ -1,4 +1,10 @@
 from contextlib import contextmanager
+import decimal
+
+
+def round_price(d):
+  cents = decimal.Decimal('0.01')
+  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 @contextmanager
