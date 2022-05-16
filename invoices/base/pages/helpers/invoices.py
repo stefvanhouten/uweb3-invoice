@@ -9,8 +9,11 @@ from itertools import zip_longest
 from weasyprint import HTML
 from io import BytesIO
 
+from invoices.base.model.invoice import InvoiceStatus
+
 __all__ = [
-    'ToPDF', 'CreateCleanProductList', 'regex_search', 'get_and_zip_products'
+    'ToPDF', 'CreateCleanProductList', 'regex_search', 'get_and_zip_products',
+    'decide_reference_message'
 ]
 
 
@@ -94,3 +97,11 @@ def get_and_zip_products(product_names, product_prices, product_vat,
         'quantity': quantity
     })
   return products
+
+
+def decide_reference_message(status, sequenceNumber):
+  if status == InvoiceStatus.RESERVATION:
+    reference = f"Reservation for invoice: {sequenceNumber}"
+  else:
+    reference = f"Buy order for invoice: {sequenceNumber}"
+  return reference
