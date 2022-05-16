@@ -6,6 +6,7 @@ import decimal
 import requests
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
+from invoices.base.model.invoice import InvoiceStatus
 from invoices.base.pages.helpers.general import transaction
 from invoices.base.pages.helpers.invoices import *
 
@@ -209,9 +210,10 @@ class PageMaker:
             "reference": f"Canceling reservation: {invoice['sequenceNumber']}",
             "products": items
         })
-    if response.status_code == 200:
-      invoice['status'] = 'canceled'
-      invoice.Save()
+    if response.status_code != 200:
+      return self._handle_api_status_error(response)
+
+    invoice.CancelProFormaInvoice()
     return self.req.Redirect('/invoices', httpcode=303)
 
   def mail_invoice(self, invoice, details):
