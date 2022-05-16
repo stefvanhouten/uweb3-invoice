@@ -72,8 +72,8 @@ class TestClass:
     data = None
     with open('tests/test_mt940.sta', 'r') as f:
       data = f.read()
-    io_file = StringIO(data)
-    results = invoices.regex_search(io_file, invoices.INVOICE_REGEX_PATTERN)
+    io_files = [{'filename': 'test', 'content': data}]
+    results = invoices.MT940_processor(io_files).process_files()
     assert [
         {
             'invoice':
