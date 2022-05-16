@@ -1,6 +1,6 @@
 import requests
 from http import HTTPStatus
-from base.model import model
+from invoices.base.model import model
 from marshmallow import ValidationError
 
 import uweb3
@@ -24,6 +24,11 @@ def RequestWrapper(f):
     try:
       return f(*args, **kwargs)
     except requests.exceptions.ConnectionError as error:
+      return args[0].Error(
+          error=
+          "Could not connect to warehouse API, is the warehouse service running?"
+      )
+    except requests.exceptions.RequestException as error:
       return args[0].Error(error=error)
 
   return wrapper

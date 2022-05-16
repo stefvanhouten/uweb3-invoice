@@ -1,0 +1,41 @@
+[header]
+<main>
+  <div>
+    <section>
+      <header>
+        <h1>Upload mt-940 file</h1>
+      </header>
+      <form action="/invoices/upload" method="post" enctype="multipart/form-data">
+        <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]">
+        <label for="files">Select files:</label>
+        <input type="file" id="fileupload" name="fileupload" multiple>
+        <input type="submit" value="upload">
+      </form>
+    </section>
+  </div>
+    <div>
+    <section>
+      <header>
+        <h1>Status changed</h1>
+      </header>
+      {{ if len([invoices]) == 0 }}
+        <p>No invoices changed</p>
+      {{ else}}
+        <h2>Successfully changed invoices</h2>
+        <p> When the previous status is coloured red this means that the previous status is equal to the current state.
+          This indicates that the invoice has already been paid, meaning that this could be a duplicate payment.
+        </p>
+        {{ inline invoices/parts/invoices_table.html }}
+      {{ endif }}
+
+       {{ if len([failed_invoices]) == 0 }}
+        <p>No failed invoices</p>
+      {{ else}}
+        <h2>Failed invoices</h2>
+        <p class="error">These invoices failed</p>
+          {{ inline invoices/parts/failed_invoices_table.html }}
+      {{ endif }}
+    </section>
+  </div>
+</main>
+[footer]

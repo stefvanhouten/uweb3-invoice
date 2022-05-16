@@ -9,7 +9,7 @@ import re
 
 # Custom modules
 from uweb3 import model
-from base.libs import modelcache
+from invoices.base.libs import modelcache
 
 NOTDELETEDDATE = '1000-01-01 00:00:00'
 NOTDELETED = 'dateDeleted = "%s"' % NOTDELETEDDATE
@@ -320,7 +320,7 @@ class Session(model.SecureCookie):
   """Provides a model to request the secure cookie named 'session'"""
 
 
-from base.model.invoice import Invoice, Companydetails
-from base.model.user import User, Session
+from invoices.base.model.invoice import Invoice, Companydetails
+from invoices.base.model.user import User, Session
 
 NotExistError = model.NotExistError

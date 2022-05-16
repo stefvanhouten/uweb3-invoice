@@ -3,8 +3,6 @@
 """Underdark uWeb PageMaker Mixins for mollie.com payment/callback purposes."""
 from __future__ import with_statement
 
-import simplejson
-
 __author__ = 'Arjen Pander <arjen@underdark.nl>'
 __version__ = '0.1'
 

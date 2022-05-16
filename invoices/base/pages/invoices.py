@@ -2,24 +2,27 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
-from email.policy import default
+from http.client import FORBIDDEN
+import re
+import mt940
+import decimal
+import requests
+import marshmallow
 from http import HTTPStatus
 from itertools import zip_longest
-from multiprocessing.sharedctypes import Value
-import marshmallow
-import requests
-from marshmallow import Schema, fields, EXCLUDE, missing, post_load, validate
-from base.model.invoice import InvoiceProduct
+from marshmallow import Schema, fields, EXCLUDE, post_load, validate
+from invoices.base.model.invoice import InvoiceProduct
 
 from weasyprint import HTML
-from io import BytesIO
+from io import BytesIO, StringIO
 
 # uweb modules
 import uweb3
-from base.decorators import NotExistsErrorCatcher, RequestWrapper, json_error_wrapper
-from base.model import model
-from base.pages.clients import RequestClientSchema
+from invoices.base.model import model
 from uweb3.libs.mail import MailSender
+from invoices.base.decorators import NotExistsErrorCatcher, RequestWrapper
+
+INVOICE_REGEX_PATTERN = r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})"
 
 
 def ToPDF(html, filename=None):
@@ -55,6 +58,53 @@ def CreateCleanProductList(products, negative_abs=False):
             -abs(product['quantity']) if negative_abs else product['quantity']
     })
   return items
+
+
+def regex_search(file, regex):
+  """Parse a StringIO object"""
+  transactions = mt940.models.Transactions(processors=dict(pre_statement=[
+      mt940.processors.add_currency_pre_processor('EUR'),
+  ],))
+  data = file.read()
+  transactions.parse(data)
+  results = []
+  for transaction in transactions:
+    matches = re.finditer(regex, transaction.data['transaction_details'],
+                          re.MULTILINE)
+    amount = str(transaction.data['amount'].amount)
+    results.extend([{"invoice": x.group(), "amount": amount} for x in matches])
+  return results
+
+
+def get_and_zip_products(products, product_prices, product_vat,
+                         product_quantity):
+  """Transform invoice products post data to a list of dictionaries.
+  This function uses zip_longest, so any missing data will be filled with None.
+
+  Arguments:
+    @ products: list
+    @ product_prices: list
+    @ product_vat: list
+    @ product_quantity: list
+
+  Returns: [
+      { name: The name of the product,
+        price: The price of the product,
+        vat_percentage: specified vat percentage of a given product,
+        quantity: The amount of products that were specified
+      }]
+  """
+  products = []
+  for product, price, vat, quantity in zip_longest(products, product_prices,
+                                                   product_vat,
+                                                   product_quantity):
+    products.append({
+        'name': product,
+        'price': price,
+        'vat_percentage': vat,
+        'quantity': quantity
+    })
+  return products
 
 
 class WarehouseAPIException(Exception):
@@ -122,7 +172,6 @@ class CompanyDetailsSchema(Schema):
 
 
 class APIPages:
-
   # @uweb3.decorators.ContentType('application/json')
   # @json_error_wrapper
   # def RequestInvoices(self):
@@ -208,19 +257,13 @@ class PageMaker(APIPages):
   def RequestNewInvoicePage(self, errors=[]):
     api_url = self.config.options['general']['warehouse_api']
     apikey = self.config.options['general']['apikey']
-    response = requests.get(f'{api_url}/products?apikey={apikey}')
-    json_response = response.json()
-    if response.status_code != 200:
-      if response.status_code == HTTPStatus.NOT_FOUND:
-        return self.Error(
-            f"Warehouse API at url '{api_url}' could not be found.")
-      if response.status_code == HTTPStatus.FORBIDDEN:
-        error = json_response.get(
-            'error',
-            'Not allowed to access this page. Are you using a valid apikey?')
-        return self.Error(error)
-      return self.Error("Something went wrong!")
 
+    response = requests.get(f'{api_url}/products?apikey={apikey}')
+
+    if response.status_code != 200:
+      return self._hadle_api_status_error(response)
+
+    json_response = response.json()
     return {
         'clients': list(model.Client.List(self.connection)),
         'products': json_response['products'],
@@ -230,21 +273,25 @@ class PageMaker(APIPages):
         'scripts': ['/js/invoice.js']
     }
 
+  def _hadle_api_status_error(self, response):
+    json_response = response.json()
+    if response.status_code == HTTPStatus.NOT_FOUND:
+      return self.Error(f"Warehouse API at url '{api_url}' could not be found.")
+    elif response.status_code == HTTPStatus.FORBIDDEN:
+      error = json_response.get(
+          'error',
+          'Not allowed to access this page. Are you using a valid apikey?')
+      return self.Error(error)
+    return self.Error("Something went wrong!")
+
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
   def RequestCreateNewInvoicePage(self):
     # TODO: Handle validation errors
-    products = []
-    for product, price, vat, quantity in zip_longest(
-        self.post.getlist('products'), self.post.getlist('invoice_prices'),
-        self.post.getlist('invoice_vat'), self.post.getlist('quantity')):
-      products.append({
-          'name': product,
-          'price': price,
-          'vat_percentage': vat,
-          'quantity': quantity
-      })
-    invoice = None
+    products = get_and_zip_products(self.post.getlist('products'),
+                                    self.post.getlist('invoice_prices'),
+                                    self.post.getlist('invoice_vat'),
+                                    self.post.getlist('quantity'))
     client = model.Client.FromClientNumber(self.connection,
                                            int(self.post.getfirst('client')))
     try:
@@ -261,6 +308,7 @@ class PageMaker(APIPages):
     except WarehouseAPIException as error:
       if 'errors' in error.args[0]:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
+      return self.RequestNewInvoicePage(errors='Something went wrong')
 
     if invoice:
       self.mail_invoice(invoice,
@@ -351,3 +399,48 @@ class PageMaker(APIPages):
                             subject='Your invoice',
                             content=content,
                             attachments=(pdf,))
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @uweb3.decorators.TemplateParser('invoices/mt940.html')
+  def RequestMt940(self, changed_invoices=[], failed_invoices=[]):
+    return {
+        'invoices': changed_invoices,
+        'failed_invoices': failed_invoices,
+        'mt940_preview': True,
+    }
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  def RequestUploadMt940(self):
+    # TODO: File validation.
+    changed_invoices = []
+    failed_invoices = []
+    for posted_file in self.files.get('fileupload', []):
+      io_file = StringIO(posted_file['content'])
+      results = regex_search(io_file, INVOICE_REGEX_PATTERN)
+      for res in results:
+        try:
+          invoice = model.Invoice.FromSequenceNumber(self.connection,
+                                                     res['invoice'])
+          price = invoice.Totals()['total_price']
+          res['amount'] = decimal.Decimal(res['amount'])
+          if res['amount'] == price:
+            previous_status = invoice['status']
+            invoice.SetPayed()
+            invoice['previous_status'] = previous_status
+            changed_invoices.append(invoice)
+          else:
+            # XXX: These fields do not exist on a real invoice object. This is purely for the failed invoices table.
+            invoice['actual_amount'] = price
+            invoice['expected_amount'] = res['amount']
+            invoice['diff'] = res['amount'] - price
+            failed_invoices.append(invoice)
+        except (uweb3.model.NotExistError, Exception) as e:
+          # Invoice could not be found. This could mean two things,
+          # 1. The regex matched something that looks like an invoice sequence number, but its not part of our system.
+          # 2. The transaction contains a pro-forma invoice, but this invoice was already set to paid and thus changed to a real invoice.
+          # its also possible that there was a duplicate pro-forma invoice ID in the description, but since it was already processed no reference can be found to it anymore.
+          continue
+    return self.RequestMt940(changed_invoices=changed_invoices,
+                             failed_invoices=failed_invoices)

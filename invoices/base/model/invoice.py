@@ -2,16 +2,31 @@
 # Standard modules
 
 import datetime
+import decimal
+from enum import Enum
 import time
 
 import pytz
 
 # Custom modules
-from base.model.model import RichModel, Client
-from base.libs import modelcache
+from invoices.base.model.model import RichModel, Client
+from invoices.base.libs import modelcache
 
 PAYMENT_PERIOD = datetime.timedelta(14)
 PRO_FORMA_PREFIX = 'PF'
+
+
+class InvoiceStatus(str, Enum):
+  NEW = 'new'
+  SENT = 'sent'
+  PAID = 'paid'
+  RESERVATION = 'reservation'
+  CANCELED = 'canceled'
+
+
+def round_price(d):
+  cents = decimal.Decimal('0.01')
+  return d.quantize(cents, decimal.ROUND_HALF_UP)
 
 
 class Companydetails(modelcache.Record):
@@ -86,8 +101,8 @@ class Invoice(RichModel):
     Returns:
       Invoice: the newly created invoice.
     """
-    status = record.get('status', None)
-    if status and status == 'reservation':
+    status = record.get('status', InvoiceStatus.NEW.value)
+    if status and status == InvoiceStatus.RESERVATION:
       record.setdefault('sequenceNumber', cls.NextProFormaNumber(connection))
     else:
       record.setdefault('sequenceNumber', cls.NextNumber(connection))
@@ -101,19 +116,16 @@ class Invoice(RichModel):
     This changes the status to new, calculates a new date for when the invoice is due and generates a new sequencenumber.
     """
     self['sequenceNumber'] = self.NextNumber(self.connection)
-    self['status'] = 'new'
+    self['status'] = InvoiceStatus.NEW.value
     self['dateDue'] = self.CalculateDateDue()
     self.Save()
 
   def SetPayed(self):
     """Sets the current invoice status to paid. """
-    self['status'] = 'paid'
+    if self['sequenceNumber'][:2] == PRO_FORMA_PREFIX:
+      self.ProFormaToRealInvoice()
+    self['status'] = InvoiceStatus.PAID.value
     self.Save()
-
-  def ProFormaToPaidInvoice(self):
-    """Change a pro forma invoice to an actual invoice. This replaces the PF- sequenceNumber with the next in line number for a real invoice."""
-    self.ProFormaToRealInvoice()
-    self.SetPayed()
 
   @classmethod
   def NextNumber(cls, connection):
@@ -192,14 +204,14 @@ class Invoice(RichModel):
     for vat in vatgroup:
       total_vat = total_vat + vat['total']
       vatresults.append({
-          'amount': vat['total'],
-          'taxable': vat['taxable'],
+          'amount': round_price(vat['total']),
+          'taxable': round_price(vat['taxable']),
           'type': vat['vat_percentage']
       })
     return {
-        'total_price_without_vat': totals[0]['totalex'],
-        'total_price': totals[0]['total'],
-        'total_vat': total_vat,
+        'total_price_without_vat': round_price(totals[0]['totalex']),
+        'total_price': round_price(totals[0]['total']),
+        'total_vat': round_price(total_vat),
         'vat': vatresults
     }
 

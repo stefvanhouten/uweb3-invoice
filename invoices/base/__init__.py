@@ -53,6 +53,8 @@ def main():
           ('/invoices/settonew', 'RequestInvoiceReservationToNew', 'POST'),
           ('/invoices/cancel', 'RequestInvoiceCancel', 'POST'),
           ('/pdfinvoice/(.*)', 'RequestPDFInvoice'),
+          ('/invoices/mt940', 'RequestMt940', 'GET'),
+          ('/invoices/upload', 'RequestUploadMt940', 'POST'),
 
           # API routes
           # (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),
