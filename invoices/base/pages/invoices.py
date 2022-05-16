@@ -2,7 +2,6 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
-import decimal
 import requests
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
@@ -16,8 +15,6 @@ import uweb3
 from invoices.base.model import model
 from uweb3.libs.mail import MailSender
 from invoices.base.decorators import NotExistsErrorCatcher, RequestWrapper
-
-INVOICE_REGEX_PATTERN = r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})"
 
 
 class WarehouseAPIException(Exception):
