@@ -4,10 +4,10 @@
 # standard modules
 import decimal
 import requests
-import marshmallow
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
 from invoices.base.model.invoice import InvoiceProduct
+from invoices.base.pages.helpers.general import transaction
 from invoices.base.pages.helpers.invoices import *
 
 from io import StringIO
@@ -28,7 +28,9 @@ class WarehouseAPIException(Exception):
 
 class PageMaker:
 
-  def _get_warehouse_api_data(self):
+  def _get_warehouse_api_data(
+      self
+  ):  # XXX: This is used because the __init__ and _PostInit methods are not called because this PageMakers super class is object.
     """Reads the config for warehouse API data and sets:
     - self.warehouse_api_url: The warehouse url to access the API
     - self.warehouse_apikey: The apikey that is needed to access the warehouse API
@@ -69,6 +71,7 @@ class PageMaker:
 
   def _hadle_api_status_error(self, response):
     json_response = response.json()
+
     if response.status_code == HTTPStatus.NOT_FOUND:
       return self.Error(
           f"Warehouse API at url '{self.warehouse_api_url}' could not be found."
@@ -118,8 +121,7 @@ class PageMaker:
     self._get_warehouse_api_data()
     clean_products = CreateCleanProductList(invoice_products, negative_abs=True)
 
-    try:
-      model.Client.autocommit(self.connection, False)
+    with transaction(self.connection, model.Invoice):
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
       for product in invoice_products:  # Add a product to the current invoice
         product['invoice'] = invoice['ID']
@@ -141,11 +143,7 @@ class PageMaker:
       else:
         model.Client.rollback(self.connection)
         raise WarehouseAPIException(response.json())
-    except Exception:
-      model.Client.rollback(self.connection)
-      raise
-    finally:
-      model.Client.autocommit(self.connection, True)
+
     return invoice
 
   @uweb3.decorators.TemplateParser('invoices/invoice.html')
