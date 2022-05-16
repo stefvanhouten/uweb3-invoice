@@ -6,12 +6,9 @@ import decimal
 import requests
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
-from invoices.base.model.invoice import InvoiceStatus
-from invoices.base.pages.helpers.general import transaction
 from invoices.base.pages.helpers.invoices import *
-
-from io import StringIO
-from invoices.base.pages.helpers.invoices import decide_reference_message
+from invoices.base.pages.helpers.general import transaction
+from invoices.base.pages.helpers.invoices import InvoicePair
 from invoices.base.pages.helpers.schemas import InvoiceSchema, ProductsCollectionSchema
 
 # uweb modules
@@ -242,33 +239,22 @@ class PageMaker:
   @uweb3.decorators.checkxsrf
   def RequestUploadMt940(self):
     # TODO: File validation.
-    changed_invoices = []
-    failed_invoices = []
-    for posted_file in self.files.get('fileupload', []):
-      io_file = StringIO(posted_file['content'])
-      results = regex_search(io_file, INVOICE_REGEX_PATTERN)
-      for res in results:
-        try:
-          invoice = model.Invoice.FromSequenceNumber(self.connection,
-                                                     res['invoice'])
-          price = invoice.Totals()['total_price']
-          res['amount'] = decimal.Decimal(res['amount'])
-          if res['amount'] == price:
-            previous_status = invoice['status']
-            invoice.SetPayed()
-            invoice['previous_status'] = previous_status
-            changed_invoices.append(invoice)
-          else:
-            # XXX: These fields do not exist on a real invoice object. This is purely for the failed invoices table.
-            invoice['actual_amount'] = price
-            invoice['expected_amount'] = res['amount']
-            invoice['diff'] = res['amount'] - price
-            failed_invoices.append(invoice)
-        except (uweb3.model.NotExistError, Exception) as e:
-          # Invoice could not be found. This could mean two things,
-          # 1. The regex matched something that looks like an invoice sequence number, but its not part of our system.
-          # 2. The transaction contains a pro-forma invoice, but this invoice was already set to paid and thus changed to a real invoice.
-          # its also possible that there was a duplicate pro-forma invoice ID in the description, but since it was already processed no reference can be found to it anymore.
-          continue
-    return self.RequestMt940(changed_invoices=changed_invoices,
-                             failed_invoices=failed_invoices)
+    pairs = []
+    found_invoice_references = MT940_processor(self.files.get(
+        'fileupload', [])).process_files()
+    for invoice_ref in found_invoice_references:
+      try:
+        invoice = model.Invoice.FromSequenceNumber(self.connection,
+                                                   invoice_ref['invoice'])
+        pairs.append(InvoicePair(invoice, invoice_ref))
+      except (uweb3.model.NotExistError, Exception) as e:
+        # Invoice could not be found. This could mean two things,
+        # 1. The regex matched something that looks like an invoice sequence number, but its not part of our system.
+        # 2. The transaction contains a pro-forma invoice, but this invoice was already set to paid and thus changed to a real invoice.
+        # its also possible that there was a duplicate pro-forma invoice ID in the description, but since it was already processed no reference can be found to it anymore.
+        continue
+
+    handler = MT940_invoice_handler(pairs)
+    handler.process()
+    return self.RequestMt940(changed_invoices=handler.processed_invoices,
+                             failed_invoices=handler.failed_invoices)
