@@ -205,6 +205,59 @@ class TestClass:
     assert pro_forma['status'] == 'paid'
     assert pro_forma['dateDue'] == calc_due_date()
 
+  def test_invoice_with_products(self, connection, simple_invoice_dict):
+    inv = invoice.Invoice.Create(connection, simple_invoice_dict)
+    products = [
+        {
+            'invoice': inv['ID'],
+            'name': 'dakpan',
+            'price': 10,
+            'vat_percentage': 100,
+            'quantity': 2
+        },
+        {
+            'invoice': inv['ID'],
+            'name': 'paneel',
+            'price': 5,
+            'vat_percentage': 100,
+            'quantity': 10
+        },
+    ]
+    for product in products:
+      invoice.InvoiceProduct.Create(connection, product)
+
+    result = inv.Totals()
+    assert result['total_price_without_vat'] == 70  # 2*10 + 5*10
+    assert result['total_price'] == 140  # 2(2*10 + 5*10)
+    assert result['total_vat'] == 70
+
+  def test_invoice_with_products_decimal(self, connection, simple_invoice_dict):
+    inv = invoice.Invoice.Create(connection, simple_invoice_dict)
+    products = [
+        {
+            'invoice': inv['ID'],
+            'name': 'dakpan',
+            'price': 100.34,
+            'vat_percentage': 20,
+            'quantity': 10  # 1204.08
+        },
+        {
+            'invoice': inv['ID'],
+            'name': 'paneel',
+            'price': 12.25,
+            'vat_percentage': 10,
+            'quantity': 10  # 134.75
+        },
+    ]
+    for product in products:
+      invoice.InvoiceProduct.Create(connection, product)
+
+    result = inv.Totals()
+    assert result['total_price_without_vat'] == invoice.round_price(
+        Decimal(1125.90))
+    assert result['total_price'] == invoice.round_price(Decimal(1338.83))
+    assert result['total_vat'] == invoice.round_price(Decimal(212.93))
+
   def test(self):
     """Empty test to ensure that all data is truncated from the database."""
     pass
