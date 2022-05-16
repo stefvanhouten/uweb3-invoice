@@ -98,10 +98,6 @@ class MT940_processor:
 
   def __init__(self, files):
     self.files = files
-    self.transactions = mt940.models.Transactions(
-        processors=dict(pre_statement=[
-            mt940.processors.add_currency_pre_processor('EUR'),
-        ],))
 
   def _create_io_file(self, f):
     return StringIO(f)
@@ -130,9 +126,12 @@ class MT940_processor:
       ]
     """
     results = []
-    self.transactions.parse(data)
+    transactions = mt940.models.Transactions(processors=dict(pre_statement=[
+        mt940.processors.add_currency_pre_processor('EUR'),
+    ],))
+    transactions.parse(data)
 
-    for transaction in self.transactions:
+    for transaction in transactions:
       matches = re.finditer(self.INVOICE_REGEX_PATTERN,
                             transaction.data['transaction_details'],
                             re.MULTILINE)
