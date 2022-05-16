@@ -193,7 +193,7 @@ class PageMaker:
   @NotExistsErrorCatcher
   def RequestInvoiceCancel(self):
     """Sets the given invoice to paid."""
-    api_url, apikey = self._get_warehouse_api_data()
+    self._get_warehouse_api_data()
 
     invoice = self.post.getfirst('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
@@ -201,9 +201,9 @@ class PageMaker:
 
     items = CreateCleanProductList(products)
     response = requests.post(
-        f'{api_url}/products/bulk_stock',
+        f'{self.warehouse_api_url}/products/bulk_stock',
         json={
-            "apikey": apikey,
+            "apikey": self.warehouse_apikey,
             "reference": f"Canceling reservation: {invoice['sequenceNumber']}",
             "products": items
         })
