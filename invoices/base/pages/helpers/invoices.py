@@ -99,14 +99,10 @@ class MT940_processor:
   def __init__(self, files):
     self.files = files
 
-  def _create_io_file(self, f):
-    return StringIO(f)
-
   def process_files(self):
     results = []
     for f in self.files:
-      io_file = self._create_io_file(f['content'])
-      results.extend(self._regex_search(io_file.read()))
+      results.extend(self._regex_search(f['content']))
     return results
 
   def _regex_search(self, data):
