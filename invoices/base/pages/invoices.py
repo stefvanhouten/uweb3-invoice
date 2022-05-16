@@ -21,6 +21,8 @@ from invoices.base.model import model
 from uweb3.libs.mail import MailSender
 from invoices.base.decorators import NotExistsErrorCatcher, RequestWrapper
 
+INVOICE_REGEX_PATTERN = r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})"
+
 
 def ToPDF(html, filename=None):
   """Returns a PDF based on the given HTML."""
@@ -385,8 +387,7 @@ class PageMaker(APIPages):
     failed_invoices = []
     for posted_file in self.files.get('fileupload', []):
       io_file = StringIO(posted_file['content'])
-      results = regex_search(io_file,
-                             r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})")
+      results = regex_search(io_file, INVOICE_REGEX_PATTERN)
       for res in results:
         try:
           invoice = model.Invoice.FromSequenceNumber(self.connection,

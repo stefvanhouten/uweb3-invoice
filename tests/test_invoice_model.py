@@ -132,7 +132,7 @@ class TestClass:
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     assert inv['sequenceNumber'] == f'{date.today().year}-001'
 
-  def test_invoice_sequence_number(self, connection, simple_invoice_dict):
+  def test_invoice_sequence_numbers(self, connection, simple_invoice_dict):
     inv1, inv2, inv3 = simple_invoice_dict.copy(), simple_invoice_dict.copy(
     ), simple_invoice_dict.copy()
     inv1['ID'] = 1
