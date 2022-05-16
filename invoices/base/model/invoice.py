@@ -228,3 +228,20 @@ class Invoice(RichModel):
       product['index'] = index
       index = index + 1  # TODO implement loop indices in the template parser
       yield product
+
+  def AddProducts(self, products):
+    """Add multiple InvoiceProducts to an invoice.
+
+    Arguments:
+      @ products: [
+                    { price: The price of the product,
+                      vat_percentage: The amount of VAT that has to be paid over said product,
+                      name: The name of the product
+                      quantity: The amount of products
+                    }
+                  ]
+    """
+    for product in products:
+      product['invoice'] = self[
+          'ID']  # Set the product to the current invoice ID.
+      InvoiceProduct.Create(self.connection, product)
