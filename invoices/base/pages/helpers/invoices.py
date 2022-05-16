@@ -162,23 +162,22 @@ class MT940_invoice_handler:
 
 class InvoicePair:
 
-  def __init__(self, current_invoice, current_reference):
-    self.current_invoice = current_invoice
-    self.current_reference = current_reference
-    self.target_price = self.current_invoice.Totals()['total_price']
-    self.current_reference['amount'] = round_price(
-        decimal.Decimal(self.current_reference['amount']))
+  def __init__(self, invoice, reference):
+    self.invoice = invoice
+    self.reference = reference
+    self.target_price = self.invoice.Totals()['total_price']
+    self.reference['amount'] = round_price(
+        decimal.Decimal(self.reference['amount']))
 
   def costs_match(self):
-    return self.current_reference['amount'] == self.target_price
+    return self.reference['amount'] == self.target_price
 
   def ok(self):
-    previous_status = self.current_invoice['status']
-    self.current_invoice.SetPayed()
-    self.current_invoice['previous_status'] = previous_status
+    previous_status = self.invoice['status']
+    self.invoice.SetPayed()
+    self.invoice['previous_status'] = previous_status
 
   def failed(self):
-    self.current_invoice['actual_amount'] = self.target_price
-    self.current_invoice['expected_amount'] = self.current_reference['amount']
-    self.current_invoice[
-        'diff'] = self.current_reference['amount'] - self.target_price
+    self.invoice['actual_amount'] = self.target_price
+    self.invoice['expected_amount'] = self.reference['amount']
+    self.invoice['diff'] = self.reference['amount'] - self.target_price
