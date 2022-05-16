@@ -1,7 +1,6 @@
 import datetime
 from datetime import date
 from decimal import Decimal
-from multiprocessing.sharedctypes import Value
 import pytest
 
 from invoices.base.model import invoice, model
