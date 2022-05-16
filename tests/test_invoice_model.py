@@ -235,6 +235,25 @@ class TestClass:
       inv.CancelProFormaInvoice()
     assert "Only pro forma invoices can be canceled" in str(excinfo)
 
+  def test_add_invoice_products(self, create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    inv.AddProducts([
+        {
+            'name': 'dakpan',
+            'price': 10,
+            'vat_percentage': 100,
+            'quantity': 2
+        },
+        {
+            'name': 'paneel',
+            'price': 5,
+            'vat_percentage': 100,
+            'quantity': 10
+        },
+    ])
+    products = list(inv.Products())
+    assert len(products) == 2
+
   def test_invoice_with_products(self, connection, simple_invoice_dict):
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     products = [
