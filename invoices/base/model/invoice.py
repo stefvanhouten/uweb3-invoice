@@ -204,8 +204,8 @@ class Invoice(RichModel):
     for vat in vatgroup:
       total_vat = total_vat + vat['total']
       vatresults.append({
-          'amount': vat['total'],
-          'taxable': vat['taxable'],
+          'amount': round_price(vat['total']),
+          'taxable': round_price(vat['taxable']),
           'type': vat['vat_percentage']
       })
     return {
