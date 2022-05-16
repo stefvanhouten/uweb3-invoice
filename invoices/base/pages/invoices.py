@@ -6,11 +6,11 @@ import decimal
 import requests
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
-from invoices.base.model.invoice import InvoiceProduct
 from invoices.base.pages.helpers.general import transaction
 from invoices.base.pages.helpers.invoices import *
 
 from io import StringIO
+from invoices.base.pages.helpers.invoices import decide_reference_message
 from invoices.base.pages.helpers.schemas import InvoiceSchema, ProductsCollectionSchema
 
 # uweb modules
@@ -85,6 +85,7 @@ class PageMaker:
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
+  @RequestWrapper
   def RequestCreateNewInvoicePage(self):
     # TODO: Handle validation errors
     products = get_and_zip_products(self.post.getlist('products'),
@@ -123,20 +124,15 @@ class PageMaker:
 
     with transaction(self.connection, model.Invoice):
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-      for product in invoice_products:  # Add a product to the current invoice
-        product['invoice'] = invoice['ID']
-        InvoiceProduct.Create(self.connection, product)
-
-      if invoice['status'] == 'reservation':
-        reference = f"Reservation for invoice: {invoice['sequenceNumber']}"
-      else:
-        reference = f"Buy order for invoice: {invoice['sequenceNumber']}"
+      invoice.AddProducts(invoice_products)
+      reference_message = decide_reference_message(invoice['status'],
+                                                   invoice['sequenceNumber'])
 
       response = requests.post(f'{self.warehouse_api_url}/products/bulk_stock',
                                json={
                                    "apikey": self.warehouse_apikey,
                                    "products": clean_products,
-                                   "reference": reference,
+                                   "reference": reference_message,
                                })
       if response.status_code == 200:
         model.Client.commit(self.connection)
