@@ -239,22 +239,19 @@ class TestClass:
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     products = [
         {
-            'invoice': inv['ID'],
             'name': 'dakpan',
             'price': 10,
             'vat_percentage': 100,
             'quantity': 2
         },
         {
-            'invoice': inv['ID'],
             'name': 'paneel',
             'price': 5,
             'vat_percentage': 100,
             'quantity': 10
         },
     ]
-    for product in products:
-      invoice.InvoiceProduct.Create(connection, product)
+    inv.AddProducts(products)
 
     result = inv.Totals()
     assert result['total_price_without_vat'] == 70  # 2*10 + 5*10
@@ -265,22 +262,19 @@ class TestClass:
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
     products = [
         {
-            'invoice': inv['ID'],
             'name': 'dakpan',
             'price': 100.34,
             'vat_percentage': 20,
             'quantity': 10  # 1204.08
         },
         {
-            'invoice': inv['ID'],
             'name': 'paneel',
             'price': 12.25,
             'vat_percentage': 10,
             'quantity': 10  # 134.75
         },
     ]
-    for product in products:
-      invoice.InvoiceProduct.Create(connection, product)
+    inv.AddProducts(products)
 
     result = inv.Totals()
     assert result['total_price_without_vat'] == invoice.round_price(
