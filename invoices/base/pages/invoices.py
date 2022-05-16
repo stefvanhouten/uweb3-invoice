@@ -57,7 +57,7 @@ class PageMaker:
         f'{self.warehouse_api_url}/products?apikey={self.warehouse_apikey}')
 
     if response.status_code != 200:
-      return self._hadle_api_status_error(response)
+      return self._handle_api_status_error(response)
 
     json_response = response.json()
     return {
@@ -69,7 +69,7 @@ class PageMaker:
         'scripts': ['/js/invoice.js']
     }
 
-  def _hadle_api_status_error(self, response):
+  def _handle_api_status_error(self, response):
     json_response = response.json()
 
     if response.status_code == HTTPStatus.NOT_FOUND:
@@ -105,6 +105,8 @@ class PageMaker:
     except ValidationError as error:
       return self.RequestNewInvoicePage(errors=[error.messages])
 
+    self._get_warehouse_api_data(
+    )  # Make sure that self.warehouse_apikey and self.warehouse_url are set.
     try:
       invoice = self._create_invoice_and_products(sanitized_invoice,
                                                   products['products'])
@@ -119,7 +121,6 @@ class PageMaker:
     return self.req.Redirect('/invoices', httpcode=303)
 
   def _create_invoice_and_products(self, sanitized_invoice, invoice_products):
-    self._get_warehouse_api_data()
     clean_products = CreateCleanProductList(invoice_products, negative_abs=True)
 
     with transaction(self.connection, model.Invoice):
@@ -134,11 +135,12 @@ class PageMaker:
                                    "products": clean_products,
                                    "reference": reference_message,
                                })
-      if response.status_code == 200:
-        model.Client.commit(self.connection)
-      else:
+      if response.status_code != 200:
         model.Client.rollback(self.connection)
-        raise WarehouseAPIException(response.json())
+        json_response = response.json()
+        if 'errors' in json_response:
+          raise WarehouseAPIException(json_response['errors'])
+        return self._handle_api_status_error(response)
 
     return invoice
 
