@@ -98,6 +98,10 @@ class MT940_processor:
 
   def __init__(self, files):
     self.files = files
+    self.transactions = mt940.models.Transactions(
+        processors=dict(pre_statement=[
+            mt940.processors.add_currency_pre_processor('EUR'),
+        ],))
 
   def _create_io_file(self, f):
     return StringIO(f)
@@ -106,27 +110,57 @@ class MT940_processor:
     results = []
     for f in self.files:
       io_file = self._create_io_file(f['content'])
-      results.extend(self.regex_search(io_file))
+      results.extend(self._regex_search(io_file.read()))
     return results
 
-  def regex_search(self, current_file):
-    """Parse a StringIO object"""
-    transactions = mt940.models.Transactions(processors=dict(pre_statement=[
-        mt940.processors.add_currency_pre_processor('EUR'),
-    ],))
-    data = current_file.read()
-    transactions.parse(data)
+  def _regex_search(self, data):
+    """Parse data and match patterns that could indicate a invoice or a pro forma invoice
+
+    Arguments:
+      @ data: str
+        Data read from .STA file.
+
+    Returns:
+      List of dictionaries that matched the invoice pattern.
+      [
+        {
+          invoice: sequenceNumber,
+          amount: value
+        }
+      ]
+    """
     results = []
-    for transaction in transactions:
+    self.transactions.parse(data)
+
+    for transaction in self.transactions:
       matches = re.finditer(self.INVOICE_REGEX_PATTERN,
                             transaction.data['transaction_details'],
                             re.MULTILINE)
-      amount = str(transaction.data['amount'].amount)
-      results.extend([{
-          "invoice": x.group(),
-          "amount": amount
-      } for x in matches])
+      potential_invoice_references = self._clean_results(matches, transaction)
+      results.extend(potential_invoice_references)
     return results
+
+  def _clean_results(self, matches, transaction):
+    """Iterates over all found matches and returns the matches in a dict.
+
+    Arguments:
+      @ matches:
+        The found regex matches
+      @ transaction:
+        The current transaction that is being parsed.
+
+    Returns:
+      List of dictionaries that matched the invoice pattern
+        [
+          {
+            invoice: sequenceNumber,
+            amount: value
+          }
+        ]
+    """
+    amount = str(
+        transaction.data['amount'].amount)  # Get the value of the transaction
+    return [{"invoice": x.group(), "amount": amount} for x in matches]
 
 
 class MT940_invoice_handler:
@@ -153,11 +187,11 @@ class MT940_invoice_handler:
 
   def handleSuccess(self):
     self.current_pair.ok()
-    self.processed_invoices.append(self.current_pair.current_invoice)
+    self.processed_invoices.append(self.current_pair.invoice)
 
   def handleFailed(self):
     self.current_pair.failed()
-    self.failed_invoices.append(self.current_pair.current_invoice)
+    self.failed_invoices.append(self.current_pair.invoice)
 
 
 class InvoicePair:
