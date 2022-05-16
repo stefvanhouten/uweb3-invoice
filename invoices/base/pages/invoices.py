@@ -2,6 +2,7 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
+from http.client import FORBIDDEN
 import re
 import mt940
 import decimal
@@ -73,6 +74,37 @@ def regex_search(file, regex):
     amount = str(transaction.data['amount'].amount)
     results.extend([{"invoice": x.group(), "amount": amount} for x in matches])
   return results
+
+
+def get_and_zip_products(products, product_prices, product_vat,
+                         product_quantity):
+  """Transform invoice products post data to a list of dictionaries.
+  This function uses zip_longest, so any missing data will be filled with None.
+
+  Arguments:
+    @ products: list
+    @ product_prices: list
+    @ product_vat: list
+    @ product_quantity: list
+
+  Returns: [
+      { name: The name of the product,
+        price: The price of the product,
+        vat_percentage: specified vat percentage of a given product,
+        quantity: The amount of products that were specified
+      }]
+  """
+  products = []
+  for product, price, vat, quantity in zip_longest(products, product_prices,
+                                                   product_vat,
+                                                   product_quantity):
+    products.append({
+        'name': product,
+        'price': price,
+        'vat_percentage': vat,
+        'quantity': quantity
+    })
+  return products
 
 
 class WarehouseAPIException(Exception):
@@ -225,19 +257,13 @@ class PageMaker(APIPages):
   def RequestNewInvoicePage(self, errors=[]):
     api_url = self.config.options['general']['warehouse_api']
     apikey = self.config.options['general']['apikey']
-    response = requests.get(f'{api_url}/products?apikey={apikey}')
-    json_response = response.json()
-    if response.status_code != 200:
-      if response.status_code == HTTPStatus.NOT_FOUND:
-        return self.Error(
-            f"Warehouse API at url '{api_url}' could not be found.")
-      if response.status_code == HTTPStatus.FORBIDDEN:
-        error = json_response.get(
-            'error',
-            'Not allowed to access this page. Are you using a valid apikey?')
-        return self.Error(error)
-      return self.Error("Something went wrong!")
 
+    response = requests.get(f'{api_url}/products?apikey={apikey}')
+
+    if response.status_code != 200:
+      return self._hadle_api_status_error(response)
+
+    json_response = response.json()
     return {
         'clients': list(model.Client.List(self.connection)),
         'products': json_response['products'],
@@ -247,21 +273,25 @@ class PageMaker(APIPages):
         'scripts': ['/js/invoice.js']
     }
 
+  def _hadle_api_status_error(self, response):
+    json_response = response.json()
+    if response.status_code == HTTPStatus.NOT_FOUND:
+      return self.Error(f"Warehouse API at url '{api_url}' could not be found.")
+    elif response.status_code == HTTPStatus.FORBIDDEN:
+      error = json_response.get(
+          'error',
+          'Not allowed to access this page. Are you using a valid apikey?')
+      return self.Error(error)
+    return self.Error("Something went wrong!")
+
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
   def RequestCreateNewInvoicePage(self):
     # TODO: Handle validation errors
-    products = []
-    for product, price, vat, quantity in zip_longest(
-        self.post.getlist('products'), self.post.getlist('invoice_prices'),
-        self.post.getlist('invoice_vat'), self.post.getlist('quantity')):
-      products.append({
-          'name': product,
-          'price': price,
-          'vat_percentage': vat,
-          'quantity': quantity
-      })
-    invoice = None
+    products = get_and_zip_products(self.post.getlist('products'),
+                                    self.post.getlist('invoice_prices'),
+                                    self.post.getlist('invoice_vat'),
+                                    self.post.getlist('quantity'))
     client = model.Client.FromClientNumber(self.connection,
                                            int(self.post.getfirst('client')))
     try:
@@ -278,6 +308,7 @@ class PageMaker(APIPages):
     except WarehouseAPIException as error:
       if 'errors' in error.args[0]:
         return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
+      return self.RequestNewInvoicePage(errors='Something went wrong')
 
     if invoice:
       self.mail_invoice(invoice,
