@@ -1,4 +1,3 @@
-"""A uWeb3 warehousing inventory software."""
 import os
 # Third-party modules
 import uweb3
@@ -26,7 +25,6 @@ def main():
           ('/login', 'HandleLogin', 'POST'),
           ('/login', 'RequestLogin'),
           ('/logout', 'RequestLogout'),
-          ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
           ('/resetpassword', 'RequestResetPassword'),
           ('/resetpassword/([^/]*)/(.*)', 'RequestResetPassword'),
           ('/setup', 'RequestSetup'),
@@ -51,24 +49,21 @@ def main():
           ('/invoices/new', 'RequestCreateNewInvoicePage', 'POST'),
           ('/invoices/settopayed', 'RequestInvoicePayed', 'POST'),
           ('/invoices/settonew', 'RequestInvoiceReservationToNew', 'POST'),
+          ('/invoice/payments/(.*)', 'ManagePayments', 'GET'),
+          ('/invoice/payments/(.*)', 'AddPayment', 'POST'),
+          ('/invoice/(.*)', 'RequestInvoiceDetails', 'GET'),
           ('/invoices/cancel', 'RequestInvoiceCancel', 'POST'),
-          ('/pdfinvoice/(.*)', 'RequestPDFInvoice'),
           ('/invoices/mt940', 'RequestMt940', 'GET'),
           ('/invoices/upload', 'RequestUploadMt940', 'POST'),
+          ('/pdfinvoice/(.*)', 'RequestPDFInvoice'),
 
           # API routes
-          # (f'{basepages.API_VERSION}/invoices', 'RequestInvoices', 'GET'),
-          # (f'{basepages.API_VERSION}/invoices', 'RequestNewInvoice', 'POST'),
-          # (f'{basepages.API_VERSION}/invoice/(.*)', 'RequestInvoiceDetailsJSON',
-          #  'GET'),
           (f'{basepages.API_VERSION}/client/([0-9]+)', 'RequestClient'),
           (f'{basepages.API_VERSION}/clients', 'RequestClients', 'GET'),
           (f'{basepages.API_VERSION}/clients', 'RequestNewClient', 'POST'),
           (f'{basepages.API_VERSION}/clients/save', 'RequestSaveClient'),
 
           ## Mollie routes
-          # (f'{basepages.API_VERSION}/payment', 'RequestPaymentFormMollie',
-          #  'POST'),
           (f'{basepages.API_VERSION}/mollie/redirect/(\d+)', 'Mollie_Redirect'),
           (f'{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)',
            '_Mollie_HookPaymentReturn'),

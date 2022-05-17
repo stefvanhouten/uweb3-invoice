@@ -1,5 +1,5 @@
 # Application
-import base
+from invoices import base
 
 
 def main():

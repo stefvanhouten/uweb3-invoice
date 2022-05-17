@@ -1,19 +1,13 @@
-from http import HTTPStatus
 import time
-
 import marshmallow
+from http import HTTPStatus
+
 import uweb3
-from invoices.base.pages import clients, invoices, settings, mollie
 from invoices.base.model import model
+from invoices.base.pages import clients, invoices, settings, mollie
+from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
 
 API_VERSION = '/api/v1'
-
-
-def CentRound(monies):
-  """Rounds the given float to two decimals."""
-  if monies:
-
-    return '%.2f' % monies
 
 
 class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
@@ -22,14 +16,16 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
 
   def __init__(self, *args, **kwds):
     super(PageMaker, self).__init__(*args, **kwds)
-    self.connection.modelcache = model.modelcache.ClearCache()
 
   def _PostInit(self):
     """Sets up all the default vars"""
     self.validatexsrf()
-    self.parser.RegisterFunction('CentRound', CentRound)
+    self.parser.RegisterFunction('CentRound', lambda x: '%.2f' % x
+                                 if x else None)
     self.parser.RegisterFunction('items', lambda x: x.items())
     self.parser.RegisterFunction('DateOnly', lambda x: str(x)[0:10])
+    self.parser.RegisterFunction(
+        'isProForma', lambda x: bool(str(x).startswith(model.PRO_FORMA_PREFIX)))
     self.parser.RegisterTag('year', time.strftime('%Y'))
     self.parser.RegisterTag(
         'header',
@@ -40,10 +36,8 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
             'parts/footer.html', *args, **kwargs)))
     self.parser.RegisterTag('xsrf', self._Get_XSRF())
     self.parser.RegisterTag('user', self.user)
-    self.connection.modelcache = model.modelcache.ClearCache()
 
   def _PostRequest(self, response):
-    cleanups = model.modelcache.CleanCache(self.connection.modelcache)
     response.headers.update({
         'Access-Control-Allow-Origin': '*',
     })
@@ -194,7 +188,7 @@ class PageMaker(uweb3.DebuggingPageMaker, uweb3.LoginMixin, clients.PageMaker,
           key: self.post.getfirst(key, '') for key in list(self.post.keys())
       }
       try:
-        settings = invoices.CompanyDetailsSchema().load(fieldstorage_to_dict)
+        settings = CompanyDetailsSchema().load(fieldstorage_to_dict)
         model.Companydetails.Create(self.connection, settings)
         user = model.User.Create(self.connection, {
             'ID': 1,

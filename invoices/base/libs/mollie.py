@@ -197,7 +197,7 @@ class MolliePaymentGateway(object):
     changed = transaction.SetState(payment['status'])
     if changed:
       if payment['status'] == MollieStatus.PAID and (
-          payment['amount']['value']) == transaction['amount']:
+          payment['amount']['value']) == str(transaction['amount']):
         return True
       if payment['status'] == MollieStatus.FAILED:
         raise MollieTransactionFailed(

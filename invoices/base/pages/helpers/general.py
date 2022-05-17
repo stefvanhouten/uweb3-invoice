@@ -3,6 +3,8 @@ import decimal
 
 
 def round_price(d):
+  if not isinstance(d, decimal.Decimal):
+    d = decimal.Decimal(d)
   cents = decimal.Decimal('0.01')
   return d.quantize(cents, decimal.ROUND_HALF_UP)
 

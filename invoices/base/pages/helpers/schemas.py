@@ -1,4 +1,7 @@
 from marshmallow import Schema, fields, EXCLUDE, post_load, validate
+from pkg_resources import require
+
+from invoices.base.pages.helpers.general import round_price
 
 
 class InvoiceSchema(Schema):
@@ -80,3 +83,18 @@ class ClientSchema(Schema):
   email = fields.Str(required=True, allow_none=False)
   telephone = fields.Str(required=True, allow_none=False)
   address = fields.Str(required=True, allow_none=False)
+
+
+class PaymentSchema(Schema):
+
+  class Meta:
+    unknown = EXCLUDE
+
+  platform = fields.Str(required=True, allow_none=False)
+  amount = fields.Decimal(required=True, allow_nan=False)
+
+  @post_load
+  def round_amount(self, item, *args, **kwargs):
+    """When an empty string is provided set status to new."""
+    item['amount'] = round_price(item['amount'])
+    return item

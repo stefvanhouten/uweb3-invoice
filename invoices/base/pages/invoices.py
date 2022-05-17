@@ -8,7 +8,7 @@ from http import HTTPStatus
 from invoices.base.pages.helpers.invoices import *
 from invoices.base.pages.helpers.general import transaction
 from invoices.base.pages.helpers.invoices import InvoicePair
-from invoices.base.pages.helpers.schemas import InvoiceSchema, ProductsCollectionSchema
+from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductsCollectionSchema
 
 # uweb modules
 import uweb3
@@ -179,6 +179,7 @@ class PageMaker:
     invoice = self.post.getfirst('invoice')
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
     invoice.ProFormaToRealInvoice()
+    # TODO: When should we mail the invoice, and what should be in the mail?
     self.mail_invoice(invoice,
                       self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
@@ -255,3 +256,26 @@ class PageMaker:
     handler.process()
     return self.RequestMt940(changed_invoices=handler.processed_invoices,
                              failed_invoices=handler.failed_invoices)
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  @uweb3.decorators.TemplateParser('invoices/payments.html')
+  def ManagePayments(self, sequenceNumber):
+    invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
+    return {
+        'invoice': invoice,
+        'payments': invoice.GetPayments(),
+        'totals': invoice.Totals(),
+        'platforms': model.PaymentPlatform.List(self.connection)
+    }
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  @NotExistsErrorCatcher
+  def AddPayment(self, sequenceNumber):
+    payment = PaymentSchema().load(self.post.__dict__)
+    invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
+    invoice.AddPayment(payment['platform'], payment['amount'])
+    return uweb3.Redirect(f'/invoice/payments/{invoice["sequenceNumber"]}',
+                          httpcode=303)

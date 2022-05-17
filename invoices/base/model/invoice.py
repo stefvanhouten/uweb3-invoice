@@ -9,12 +9,17 @@ import time
 import pytz
 
 # Custom modules
+from uweb3.model import Record
 from invoices.base.model.model import RichModel, Client
-from invoices.base.libs import modelcache
 from invoices.base.pages.helpers.general import round_price
 
-PAYMENT_PERIOD = datetime.timedelta(14)
+__all__ = [
+    'PRO_FORMA_PREFIX', 'PAYMENT_PERIOD', 'InvoiceStatus', 'Companydetails',
+    'InvoiceProduct', 'Invoice', 'PaymentPlatform', 'InvoicePayment'
+]
+
 PRO_FORMA_PREFIX = 'PF'
+PAYMENT_PERIOD = datetime.timedelta(14)
 
 
 class InvoiceStatus(str, Enum):
@@ -25,7 +30,7 @@ class InvoiceStatus(str, Enum):
   CANCELED = 'canceled'
 
 
-class Companydetails(modelcache.Record):
+class Companydetails(Record):
   """Abstraction class for companyDetails stored in the database."""
 
   @classmethod
@@ -112,7 +117,9 @@ class Invoice(RichModel):
     This changes the status to new, calculates a new date for when the invoice is due and generates a new sequencenumber.
     """
     self['sequenceNumber'] = self.NextNumber(self.connection)
-    self['status'] = InvoiceStatus.NEW.value
+    # Pro forma invoices can be paid for already, only set status to new when the invoice is not paid for yet.
+    if self['status'] != InvoiceStatus.PAID:
+      self['status'] = InvoiceStatus.NEW.value
     self['dateDue'] = self.CalculateDateDue()
     self.Save()
 
@@ -142,7 +149,7 @@ class Invoice(RichModel):
           fields='sequenceNumber',
           conditions=[
               'YEAR(dateCreated) = YEAR(NOW())',
-              'status not in ("reservation", "canceled")'
+              f'sequenceNumber NOT LIKE "{PRO_FORMA_PREFIX}-%"',
           ],
           limit=1,
           order=[('sequenceNumber', True)],
@@ -156,15 +163,16 @@ class Invoice(RichModel):
   def NextProFormaNumber(cls, connection):
     """Returns the sequenceNumber for the next invoice to create."""
     with connection as cursor:
-      current_max = cursor.Select(table=cls.TableName(),
-                                  fields='sequenceNumber',
-                                  conditions=[
-                                      'YEAR(dateCreated) = YEAR(NOW())',
-                                      'status in ("reservation", "canceled")'
-                                  ],
-                                  limit=1,
-                                  order=[('sequenceNumber', True)],
-                                  escape=False)
+      current_max = cursor.Select(
+          table=cls.TableName(),
+          fields='sequenceNumber',
+          conditions=[
+              'YEAR(dateCreated) = YEAR(NOW())',
+              f'sequenceNumber LIKE "{PRO_FORMA_PREFIX}-%"'
+          ],
+          limit=1,
+          order=[('sequenceNumber', True)],
+          escape=False)
     if current_max:
       prefix, year, sequence = current_max[0][0].split('-')
       return '%s-%s-%03d' % (prefix, year, int(sequence) + 1)
@@ -179,7 +187,8 @@ class Invoice(RichModel):
       invoice['dateDue'] = invoice['dateDue'].replace(
           tzinfo=datetime.timezone.utc)
 
-      if today > invoice['dateDue'] and invoice['status'] != 'paid':
+      if today > invoice['dateDue'] and invoice[
+          'status'] != InvoiceStatus.PAID.value:
         invoice['overdue'] = 'overdue'
       else:
         invoice['overdue'] = ''
@@ -206,7 +215,8 @@ class Invoice(RichModel):
           group='vat_percentage',
           conditions='invoice=%d' % self,
           escape=False)
-    total_vat = 0
+
+    total_vat = decimal.Decimal(0)
     for vat in vatgroup:
       total_vat = total_vat + vat['total']
       vatresults.append({
@@ -214,18 +224,24 @@ class Invoice(RichModel):
           'taxable': round_price(vat['taxable']),
           'type': vat['vat_percentage']
       })
+    total_paid = decimal.Decimal(0)
+    for payment in self.GetPayments():
+      total_paid += payment['amount']
+
+    # TODO: Clean up the round_price stuff
     return {
         'total_price_without_vat': round_price(totals[0]['totalex']),
         'total_price': round_price(totals[0]['total']),
         'total_vat': round_price(total_vat),
+        'total_paid': round_price(total_paid),
+        'remaining': round_price(totals[0]['total']) - round_price(total_paid),
         'vat': vatresults
     }
 
   def Products(self):
     """Returns all products that are part of this invoice."""
-    products = InvoiceProduct.List(
-        self.connection,
-        conditions=['invoice=%d' % self])  # TODO (Stef) filter on not deleted
+    products = InvoiceProduct.List(self.connection,
+                                   conditions=['invoice=%d' % self])
     index = 1
     for product in products:
       product['invoice'] = self
@@ -251,3 +267,49 @@ class Invoice(RichModel):
       product['invoice'] = self[
           'ID']  # Set the product to the current invoice ID.
       InvoiceProduct.Create(self.connection, product)
+
+  def GetPayments(self):
+    return list(
+        InvoicePayment.List(self.connection,
+                            conditions=[f'invoice = {self["ID"]}']))
+
+  def AddPayment(self, platformID, amount):
+    """Add a payment to the current invoice."""
+    platform = PaymentPlatform.FromPrimary(self.connection, platformID)
+    InvoicePayment.Create(
+        self.connection, {
+            'invoice': self['ID'],
+            'platform': platform['ID'],
+            'amount': round_price(amount)
+        })
+
+
+class PaymentPlatform(Record):
+
+  @classmethod
+  def FromName(cls, connection, name):
+    name = connection.EscapeValues(name)
+    with connection as cursor:
+      platform = cursor.Execute("""
+        SELECT *
+        FROM paymentPlatform
+        WHERE name = %s
+      """ % (name))
+    if not name:
+      raise cls.NotExistError("Invalid name")
+    return cls(connection, platform[0])
+
+
+class InvoicePayment(RichModel):
+  _FOREIGN_RELATIONS = {
+      'invoice': {
+          'class': Invoice,
+          'loader': 'FromPrimary',
+          'LookupKey': 'ID'
+      },
+      'platform': {
+          'class': PaymentPlatform,
+          'loader': 'FromPrimary',
+          'LookupKey': 'ID'
+      }
+  }

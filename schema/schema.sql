@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 8.0.29, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: invoices
+-- Host: localhost    Database: invoices
 -- ------------------------------------------------------
 -- Server version	8.0.29-0ubuntu0.20.04.3
 
@@ -34,7 +34,7 @@ CREATE TABLE `client` (
   PRIMARY KEY (`ID`),
   UNIQUE KEY `ID_UNIQUE` (`ID`),
   KEY `clientnumber` (`clientNumber`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -59,7 +59,7 @@ CREATE TABLE `companydetails` (
   `bankCity` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `invoiceprefix` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -83,10 +83,10 @@ CREATE TABLE `invoice` (
   UNIQUE KEY `sequenceNumber` (`sequenceNumber`),
   KEY `status` (`status`),
   KEY `fk_invoice_1_idx` (`client`),
-  KEY `companyDetails` (`companydetails`),
+  KEY `fk_invoice_2_idx` (`companydetails`),
   CONSTRAINT `fk_invoice_1` FOREIGN KEY (`client`) REFERENCES `client` (`ID`),
-  CONSTRAINT `invoice_ibfk_2` FOREIGN KEY (`companydetails`) REFERENCES `companydetails` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=229 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CONSTRAINT `fk_invoice_2` FOREIGN KEY (`companydetails`) REFERENCES `companydetails` (`ID`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=353 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -100,6 +100,45 @@ DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`stef`@`localhost`*/ /*!50003 TRIGGER `invoice_BEFORE_INSERT` BEFORE INSERT ON `invoice` FOR EACH ROW BEGIN
 	IF new.status = 'reservation' AND SUBSTRING(new.sequenceNumber, 1, 2) != 'PF'
     THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A pro forma invoice sequencenumber must start with a PF prefix.';
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `invoicePayment`
+--
+
+DROP TABLE IF EXISTS `invoicePayment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `invoicePayment` (
+  `ID` mediumint NOT NULL AUTO_INCREMENT,
+  `invoice` int NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `platform` varchar(45) DEFAULT NULL,
+  `creationTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ID`),
+  KEY `fk_invoicePayment_1_idx` (`invoice`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`stef`@`localhost`*/ /*!50003 TRIGGER `invoicePayment_AFTER_INSERT` AFTER INSERT ON `invoicePayment` FOR EACH ROW BEGIN
+    CALL CalculateInvoiceTotalPrice(new.invoice, @total_due);
+    CALL CalculateInvoicePaymentTotalPrice(new.invoice, @total_paid);
+	IF ((select @total_paid) >= (select @total_due))
+    THEN UPDATE invoice SET invoice.status = 'paid' where `invoice`.`ID` = new.invoice;
     END IF;
 END */;;
 DELIMITER ;
@@ -124,8 +163,44 @@ CREATE TABLE `invoiceProduct` (
   `quantity` mediumint NOT NULL,
   PRIMARY KEY (`ID`),
   KEY `invoice` (`invoice`),
-  CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+  CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `mollieTransaction`
+--
+
+DROP TABLE IF EXISTS `mollieTransaction`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mollieTransaction` (
+  `ID` mediumint NOT NULL AUTO_INCREMENT,
+  `invoice` int unsigned NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` enum('paid','expired','failed','open','pending','refunded','chargeback','settled','authorized') NOT NULL,
+  `description` text,
+  `creationTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updateTime` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ID`),
+  KEY `fk_mollieTransaction_1_idx` (`invoice`),
+  CONSTRAINT `fk_mollieTransaction_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `paymentPlatform`
+--
+
+DROP TABLE IF EXISTS `paymentPlatform`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `paymentPlatform` (
+  `ID` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(45) NOT NULL,
+  PRIMARY KEY (`ID`),
+  UNIQUE KEY `name_UNIQUE` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -154,6 +229,49 @@ CREATE TABLE `user` (
 --
 -- Dumping routines for database 'invoices'
 --
+/*!50003 DROP PROCEDURE IF EXISTS `CalculateInvoicePaymentTotalPrice` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`invoices`@`%` PROCEDURE `CalculateInvoicePaymentTotalPrice`(IN invoice int, OUT total_paid DECIMAL(10,2))
+BEGIN
+	SET total_paid = (SELECT sum(amount) total_paid
+	FROM invoicePayment
+	WHERE invoicePayment.invoice = invoice);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `CalculateInvoiceTotalPrice` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`stef`@`localhost` PROCEDURE `CalculateInvoiceTotalPrice`(IN invoice int, OUT total_due DECIMAL(10, 2))
+BEGIN
+	SET total_due = (SELECT ROUND(SUM(p.price * p.quantity * (1+p.vat_percentage/100)), 2) as totaal
+	FROM invoice AS inv
+	LEFT JOIN invoiceProduct as p ON p.invoice = inv.ID
+	WHERE inv.ID = invoice);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -164,4 +282,4 @@ CREATE TABLE `user` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-05-09 14:18:19
+-- Dump completed on 2022-05-17 16:00:06

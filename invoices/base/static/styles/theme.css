@@ -14,3 +14,14 @@ tbody tr.canceled td {
 tbody tr.canceled:nth-child(odd) td {
   background-color: hsl(6, 69%, 76%);
 }
+
+#payment {
+  padding-bottom: 5px;
+}
+#payment-details {
+
+}
+
+#payment-details p {
+  line-height: 0.6em;
+}

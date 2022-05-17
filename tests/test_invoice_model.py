@@ -1,6 +1,7 @@
 import datetime
 from datetime import date
 from decimal import Decimal
+from time import sleep
 import pytest
 
 from invoices.base.model import invoice, model
@@ -14,14 +15,19 @@ current_year = date.today().year
 # as the record that is needed in the test database is no longer there.
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def connection():
   connection = mysql.Connect(host='localhost',
                              user='test_invoices',
                              passwd='test_invoices',
                              db='test_invoices',
                              charset='utf8')
-  connection.modelcache = model.modelcache.ClearCache()
+
+  with connection as cursor:
+    cursor.Execute("TRUNCATE TABLE test_invoices.paymentPlatform;")
+    cursor.Execute(
+        "INSERT INTO test_invoices.paymentPlatform (name) VALUES ('ideal'),('marktplaats'),('mollie'),('contant')"
+    )
   yield connection
 
 
@@ -48,7 +54,9 @@ def run_before_and_after_tests(connection):
     cursor.Execute("TRUNCATE TABLE test_invoices.client;")
     cursor.Execute("TRUNCATE TABLE test_invoices.companydetails;")
     cursor.Execute("TRUNCATE TABLE test_invoices.invoice;")
+    cursor.Execute("TRUNCATE TABLE test_invoices.invoicePayment;")
     cursor.Execute("TRUNCATE TABLE test_invoices.invoiceProduct;")
+    cursor.Execute("TRUNCATE TABLE test_invoices.mollieTransaction;")
     cursor.Execute("SET FOREIGN_KEY_CHECKS=0;")
 
 
@@ -112,9 +120,9 @@ class TestClass:
     assert "PF" == invoice.PRO_FORMA_PREFIX
 
   def test_round_price(self):
-    assert str(invoice.round_price(Decimal(12.255))) == '12.26'
-    assert str(invoice.round_price(Decimal(12.26))) == '12.26'
-    assert str(invoice.round_price(Decimal(12.22))) == '12.22'
+    assert str(invoice.round_price(12.255)) == '12.26'
+    assert str(invoice.round_price(12.26)) == '12.26'
+    assert str(invoice.round_price(12.22)) == '12.22'
 
   def test_determine_invoice_type(self, create_invoice_object):
     pro_forma = create_invoice_object(
@@ -297,8 +305,74 @@ class TestClass:
     result = inv.Totals()
     assert result['total_price_without_vat'] == invoice.round_price(
         Decimal(1125.90))
-    assert result['total_price'] == invoice.round_price(Decimal(1338.83))
-    assert result['total_vat'] == invoice.round_price(Decimal(212.93))
+    assert result['total_price'] == invoice.round_price(1338.83)
+    assert result['total_vat'] == invoice.round_price(212.93)
+
+  def test_invoice_add_payment(self, connection, create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    products = [
+        {
+            'name': 'dakpan',
+            'price': 25,
+            'vat_percentage': 10,
+            'quantity': 10
+        },
+    ]
+    inv.AddProducts(products)
+    platform = invoice.PaymentPlatform.FromName(connection, 'contant')
+    inv.AddPayment(platform['ID'], 10)
+    platform = invoice.PaymentPlatform.FromName(connection, 'ideal')
+    inv.AddPayment(platform['ID'], 20)
+    payments = inv.GetPayments()
+    assert len(payments) == 2
+    assert payments[0]['platform']['name'] == 'contant'
+    assert payments[0]['invoice']['ID'] == inv['ID']
+    assert payments[0]['amount'] == 10
+    assert payments[1]['amount'] == 20
+    assert payments[1]['platform']['name'] == 'ideal'
+
+  def test_invoice_add_payment_roundup(self, connection, create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    products = [
+        {
+            'name': 'dakpan',
+            'price': 25,
+            'vat_percentage': 10,
+            'quantity': 10
+        },
+    ]
+    platform = invoice.PaymentPlatform.FromName(connection, 'contant')
+    inv.AddProducts(products)
+    values = [10.01, 20.05, 9.001, 100.006, 9000.005, 1.004]
+    for amount in values:
+      inv.AddPayment(platform['ID'], amount)
+
+    payments = inv.GetPayments()
+    for i in range(len(values)):
+      assert payments[i]['amount'] == invoice.round_price(values[i])
+
+  def test_set_invoice_paid_when_invoice_price_paid(self, connection,
+                                                    create_invoice_object):
+    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
+    products = [
+        {
+            'name': 'dakpan',
+            'price': 10,
+            'vat_percentage': 0,
+            'quantity': 10
+        },
+    ]
+    inv.AddProducts(products)
+    platform = invoice.PaymentPlatform.FromName(connection, 'contant')
+    inv.AddPayment(platform['ID'], 99.99)
+    inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
+    assert inv[
+        'status'] == invoice.InvoiceStatus.NEW  # Status should not be changed as the total amount paid is not yet the amount required.
+    inv.AddPayment(platform['ID'], 0.01)
+    inv = invoice.Invoice.FromPrimary(
+        connection, inv['ID']
+    )  # Re-fetch from database to see if status has been changed propperly
+    assert inv['status'] == invoice.InvoiceStatus.PAID
 
   def test(self):
     """Empty test to ensure that all data is truncated from the database."""

@@ -46,12 +46,13 @@ class PageMaker(mollie.MollieMixin):
               'status'] != updated_transaction['status']:
         invoice = model.Invoice.FromPrimary(self.connection,
                                             transaction['invoice'])
-        invoice.SetPayed()
-
-    except (uweb3.model.NotExistError, Exception) as e:
+        platformID = model.PaymentPlatform.FromName(self.connection,
+                                                    'mollie')['ID']
+        invoice.AddPayment(platformID, transaction['amount'])
+    except (uweb3.model.NotExistError, Exception) as error:
       # Prevent leaking data about transactions.
       uweb3.logging.error(
-          f'Error triggered while processing mollie notification for transaction: {transaction} {e}'
+          f'Error triggered while processing mollie notification for transaction: {transaction} {error}'
       )
     finally:
       return 'ok'
