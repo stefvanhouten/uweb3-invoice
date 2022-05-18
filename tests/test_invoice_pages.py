@@ -1,6 +1,7 @@
 from pymysql import Date
 import pytest
 from invoices.base.pages import invoices
+from invoices.base.pages.helpers.schemas import WarehouseStockChangeSchema
 
 
 @pytest.fixture
@@ -28,68 +29,6 @@ def mt940_result():
 
 class TestClass:
 
-  def test_create_product_list_positive(self):
-    """This test method tests the function that is used to send stock-change requests to uweb3 warehouse."""
-    test_products = [
-        {
-            'name': 'some_name',
-            'quantity': 5
-        },
-        {
-            'name': 'some_name',
-            'quantity': 10
-        },
-    ]
-    results = invoices.CreateCleanProductList(test_products)
-    assert [{'name': 'some_name', 'quantity': 15}] == results
-
-  def test_create_product_list_negative(self):
-    test_products = [
-        {
-            'name': 'some_name',
-            'quantity': 5
-        },
-        {
-            'name': 'some_name',
-            'quantity': 10
-        },
-    ]
-    results = invoices.CreateCleanProductList(test_products, negative_abs=True)
-    assert [{'name': 'some_name', 'quantity': -15}] == results
-
-  def test_create_product_list_multiple_items(self):
-    test_products = [{
-        'name': 'some_name',
-        'quantity': 5
-    }, {
-        'name': 'some_name',
-        'quantity': 10
-    }, {
-        'name': 'another_product',
-        'quantity': 1
-    }, {
-        'name': 'another_product',
-        'quantity': 100
-    }, {
-        'name': 'yet another product',
-        'quantity': 1000000
-    }]
-    results = invoices.CreateCleanProductList(test_products)
-    assert [
-        {
-            'name': 'some_name',
-            'quantity': 15
-        },
-        {
-            'name': 'another_product',
-            'quantity': 101
-        },
-        {
-            'name': 'yet another product',
-            'quantity': 1000000
-        },
-    ] == results
-
   def test_mt940_processing(self, mt940_result):
     data = None
     with open('tests/test_mt940.sta', 'r') as f:
@@ -116,3 +55,21 @@ class TestClass:
     assert results == [
         *mt940_result, *mt940_result, *mt940_result
     ]  # Parsing the same file 3 times should return into the same results 3 times.
+
+  def test_stock_change_schema(self):
+    product = WarehouseStockChangeSchema().load({
+        'name': 'product_1',
+        'quantity': 5
+    })
+    assert product['quantity'] == -5
+
+  def test_stock_change_schema_many(self):
+    products = WarehouseStockChangeSchema(many=True).load([{
+        'name': 'product_1',
+        'quantity': 5
+    }, {
+        'name': 'product_2',
+        'quantity': 10
+    }])
+    assert products[0]['quantity'] == -5
+    assert products[1]['quantity'] == -10

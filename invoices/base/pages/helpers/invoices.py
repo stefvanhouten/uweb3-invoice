@@ -14,8 +14,8 @@ from invoices.base.model.invoice import InvoiceStatus
 from invoices.base.pages.helpers.general import round_price
 
 __all__ = [
-    'ToPDF', 'CreateCleanProductList', 'MT940_processor',
-    'get_and_zip_products', 'create_invoice_reference_msg'
+    'ToPDF', 'MT940_processor', 'get_and_zip_products',
+    'create_invoice_reference_msg'
 ]
 
 
@@ -27,31 +27,6 @@ def ToPDF(html, filename=None):
     result.filename = filename
     return result
   return result.getvalue()
-
-
-def CreateCleanProductList(products, negative_abs=False):
-  """Create a simple list containing {name: value, quantity: x} pairs.
-
-  Arguments:
-    % negative_abs: Change the quantity to an absolute value or leave as is.
-                    This is used when adding stock or decrementing stock.
-  """
-  items = []
-  for product in products:
-    # Check if a product was entered multiple times, if so update quantity of said product.
-    target = list(filter(lambda item: item['name'] == product['name'], items))
-    if len(target) > 0:
-      target[0]['quantity'] += -abs(
-          product['quantity']) if negative_abs else product['quantity']
-      continue
-    # If product not yet in items, add it.
-    items.append({
-        'name':
-            product['name'],
-        'quantity':
-            -abs(product['quantity']) if negative_abs else product['quantity']
-    })
-  return items
 
 
 def get_and_zip_products(postdata):
