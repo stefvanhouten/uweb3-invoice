@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, EXCLUDE, post_load, validate
 from pkg_resources import require
+from invoices.base.model.invoice import InvoiceStatus
 
 from invoices.base.pages.helpers.general import round_price
 
@@ -19,9 +20,9 @@ class InvoiceSchema(Schema):
   def no_status(self, item, *args, **kwargs):
     """When an empty string is provided set status to new."""
     if not item['status'] or item['status'] == '':
-      item['status'] = 'new'
+      item['status'] = InvoiceStatus.NEW.value
     if item['status'] == 'on':  # This is for when the checkbox value is passed.
-      item['status'] = 'reservation'
+      item['status'] = InvoiceStatus.RESERVATION.value
     return item
 
 
@@ -32,12 +33,17 @@ class ProductSchema(Schema):
   quantity = fields.Int(required=True, allow_none=False)
 
 
-class ProductsCollectionSchema(Schema):
+class WarehouseStockChangeSchema(Schema):
 
   class Meta:
     unknown = EXCLUDE
 
-  products = fields.Nested(ProductSchema, many=True, required=True)
+  name = fields.Str(required=True, allow_none=False)
+  quantity = fields.Method('negative_absolute', deserialize='negative_absolute')
+
+  def negative_absolute(self, quantity):
+    """Flip the quantity to a negative value, as this is used to decrement the stock on the warehouse server."""
+    return -abs(int(quantity))
 
 
 class CompanyDetailsSchema(Schema):
