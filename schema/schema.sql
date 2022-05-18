@@ -34,7 +34,7 @@ CREATE TABLE `client` (
   PRIMARY KEY (`ID`),
   UNIQUE KEY `ID_UNIQUE` (`ID`),
   KEY `clientnumber` (`clientNumber`)
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -59,7 +59,7 @@ CREATE TABLE `companydetails` (
   `bankCity` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `invoiceprefix` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -86,7 +86,7 @@ CREATE TABLE `invoice` (
   KEY `fk_invoice_2_idx` (`companydetails`),
   CONSTRAINT `fk_invoice_1` FOREIGN KEY (`client`) REFERENCES `client` (`ID`),
   CONSTRAINT `fk_invoice_2` FOREIGN KEY (`companydetails`) REFERENCES `companydetails` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=353 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=396 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -123,7 +123,7 @@ CREATE TABLE `invoicePayment` (
   `creationTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`ID`),
   KEY `fk_invoicePayment_1_idx` (`invoice`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -138,7 +138,7 @@ DELIMITER ;;
     CALL CalculateInvoiceTotalPrice(new.invoice, @total_due);
     CALL CalculateInvoicePaymentTotalPrice(new.invoice, @total_paid);
 	IF ((select @total_paid) >= (select @total_due))
-    THEN UPDATE invoice SET invoice.status = 'paid' where `invoice`.`ID` = new.invoice;
+    THEN UPDATE invoice SET invoice.status = 'paid' WHERE invoice.ID = new.invoice AND invoice.status != 'canceled';
     END IF;
 END */;;
 DELIMITER ;
@@ -164,7 +164,7 @@ CREATE TABLE `invoiceProduct` (
   PRIMARY KEY (`ID`),
   KEY `invoice` (`invoice`),
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -185,7 +185,7 @@ CREATE TABLE `mollieTransaction` (
   PRIMARY KEY (`ID`),
   KEY `fk_mollieTransaction_1_idx` (`invoice`),
   CONSTRAINT `fk_mollieTransaction_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -282,4 +282,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-05-17 16:00:06
+-- Dump completed on 2022-05-18 14:26:11
