@@ -159,12 +159,21 @@ class TestClass:
         {
             'name': 'paneel',
             'price': 5,
-            'vat_percentage': 100,
+            'vat_percentage': 25,
             'quantity': 10
         },
     ])
     products = list(inv.Products())
     assert len(products) == 2
+    assert products[0]['name'] == 'dakpan'
+    assert products[0]['price'] == 10
+    assert products[0]['vat_percentage'] == 100
+    assert products[0]['quantity'] == 2
+
+    assert products[1]['name'] == 'paneel'
+    assert products[1]['price'] == 5
+    assert products[1]['vat_percentage'] == 25
+    assert products[1]['quantity'] == 10
 
   def test_invoice_with_products(self, connection, simple_invoice_dict):
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
