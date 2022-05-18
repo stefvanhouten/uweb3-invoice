@@ -46,6 +46,15 @@ class WarehouseStockChangeSchema(Schema):
     return -abs(int(quantity))
 
 
+class WarehouseStockRefundSchema(Schema):
+
+  class Meta:
+    unknown = EXCLUDE
+
+  name = fields.Str(required=True, allow_none=False)
+  quantity = fields.Int(required=True, allow_none=False)
+
+
 class CompanyDetailsSchema(Schema):
 
   class Meta:

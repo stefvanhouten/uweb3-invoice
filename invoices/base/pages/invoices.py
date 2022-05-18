@@ -7,7 +7,7 @@ from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
 from invoices.base.pages.helpers.invoices import *
 from invoices.base.pages.helpers.general import round_price, transaction
-from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductSchema, WarehouseStockChangeSchema
+from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductSchema, WarehouseStockChangeSchema, WarehouseStockRefundSchema
 
 # uweb modules
 import uweb3
@@ -110,9 +110,8 @@ class PageMaker:
       if response.status_code != 200:
         model.Client.rollback(self.connection)
         json_response = response.json()
-        return self._handle_api_status_error(
-            json_response['errors'] if 'errors' in json_response else response)
-
+        if 'errors' in json_response:
+          return self.RequestNewInvoicePage(errors=json_response['errors'])
     self._handle_mail(invoice)
     return self.req.Redirect('/invoices', httpcode=303)
 
@@ -216,7 +215,8 @@ class PageMaker:
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
     products = invoice.Products()
 
-    items = CreateCleanProductList(products)
+    warehouse_ready_products = WarehouseStockRefundSchema(
+        many=True).load(products)
     response = requests.post(
         f'{self.warehouse_api_url}/products/bulk_stock',
         json={
@@ -225,7 +225,7 @@ class PageMaker:
             "reference":
                 f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
             "products":
-                items
+                warehouse_ready_products
         })
     if response.status_code != 200:
       return self._handle_api_status_error(response)
