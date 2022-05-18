@@ -63,7 +63,7 @@ def create_invoice_reference_msg(status, sequenceNumber):
       The sequenceNumber of the invoice
   """
   if status == InvoiceStatus.RESERVATION:
-    reference = f"Reservation for invoice: {sequenceNumber}"
+    reference = f"Reservation for pro forma invoice: {sequenceNumber}"
   else:
     reference = f"Buy order for invoice: {sequenceNumber}"
   return reference
