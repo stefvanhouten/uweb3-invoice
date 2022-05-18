@@ -288,6 +288,36 @@ class TestClass:
     inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
     assert inv['status'] == invoice.InvoiceStatus.CANCELED
 
+  def test_correct_companydetails_object_on_invoice(self, connection,
+                                                    create_invoice_object):
+    first_invoice = create_invoice_object(
+        status=invoice.InvoiceStatus.NEW.value)
+    # Test that this invoice uses the highest available companydetails, as of now this is ID 1
+    assert first_invoice['companyDetails'] == 1
+
+    # Create a new record for companydetails
+    invoice.Companydetails.Create(
+        connection, {
+            'ID': 2,
+            'name': 'changed_name',
+            'telephone': '12345678',
+            'address': 'address',
+            'postalCode': 'postalCode',
+            'city': 'city',
+            'country': 'country',
+            'vat': 'vat',
+            'kvk': 'kvk',
+            'bank': 'bank',
+            'bankAccount': 'bankAccount',
+            'bankCity': 'bankCity',
+            'invoiceprefix': 'test'
+        })
+    second_invoice = create_invoice_object(
+        status=invoice.InvoiceStatus.NEW.value)
+    # Make sure that the companyDetails that the first invoice references has not changed
+    assert first_invoice['companyDetails'] == 1
+    assert second_invoice['companyDetails'] == 2
+
   def test(self):
     """Empty test to ensure that all data is truncated from the database."""
     pass
