@@ -1,0 +1,103 @@
+{{ for error in [errors] }}
+  <p class="error">[error]</p>
+{{ endfor }}
+<form class="newinvoice" action="/invoices/new" method="post">
+  <input type="hidden" name="xsrf" value="[xsrf]">
+  <fieldset>
+    <legend>Client</legend>
+    <div>
+      <label for="user_client">Client</label>
+      <select name="client" id="user_client">
+        {{ for client in [clients] }}
+        <option value="[client:clientNumber]">[client:name]</option>
+        {{ endfor }}
+      </select>
+    </div>
+    <div>
+      <label for="reservation">Reservation</label>
+      <ul>
+        <li>
+          <label for="">
+            <input type="checkbox" name="reservation">
+            This is a pro forma invoice
+          </label>
+        </li>
+      </ul>
+    </div>
+    <div>
+      <label for="shouldmail">Send mail</label>
+      <ul>
+        <li>
+          <label for="">
+            <input type="checkbox" name="shouldmail">
+            Send mail to client
+          </label>
+        </li>
+      </ul>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>General</legend>
+    <div>
+      <label for="invoice_title">Title</label> <input type="text" name="title" id="invoice_title" required maxlength="80">
+    </div>
+    <div>
+      <label for="invoice_description">Description</label>
+      <textarea name="description" id="invoice_description" required></textarea>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Products / services</legend>
+    <table class="products">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th class="number">Price</th>
+          <th class="number">VAT</th>
+          <th class="number">Quantity</th>
+          <th class="number">VAT amount</th>
+          <th class="number">Subtotal</th>
+          <th class="number">Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="product">
+          <td>
+            <select name="products" id="product_select">
+              <option value="">None</option>
+              {{ for product in [products] }}
+              <option value="[product:name]">[product:name]</option>
+              {{ endfor }}
+            </select>
+        </td>
+          <td class="number">€&nbsp;<input type="number" min="0" name="invoice_prices" step="any" required></td>
+          <td class="number"><input type="number" min="0" name="invoice_vat" step="any" required>%</td>
+          <td class="number"><input type="number" min="0" name="quantity" step="any" required></td>
+
+          <td class="number"><output></output></td>
+          <td class="number"><output></output></td>
+          <td class="number"><output></output></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="vat">
+          <th colspan="4" class="number">VAT (<output></output>%)</th>
+          <td class="number"><output></output></td>
+        </tr>
+        <tr class="totalex">
+          <th colspan="4" class="number">Total</th>
+          <td class="number"><output></output></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr class="totalinc">
+          <th colspan="4" class="number">Total (inc. VAT)</th>
+          <td class="number"><output></output></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </fieldset>
+  <input type="submit" value="Create invoice">
+</form>

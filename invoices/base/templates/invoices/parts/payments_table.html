@@ -1,0 +1,26 @@
+<table class="payments">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Invoice</th>
+      <th>Amount</th>
+      <th>Platform</th>
+      <th>Paid</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ for payment in [payments] }}
+    <tr>
+      <td>[payment:ID]</td>
+      {{ ifpresent [mt940_preview] }}
+        <td><a href="/invoice/[payment:invoice:sequenceNumber]">[payment:invoice:sequenceNumber]</a></td>
+      {{ else }}
+        <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
+      {{ endif }}
+      <td>&euro; [payment:amount]</td>
+      <td>[payment:platform:name]</td>
+      <td>[payment:creationTime|DateOnly]</td>
+    </tr>
+    {{ endfor }}
+  </tbody>
+</table>
