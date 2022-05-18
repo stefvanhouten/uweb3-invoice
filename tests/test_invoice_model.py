@@ -1,110 +1,15 @@
+import pytest
 import datetime
 from datetime import date
 from decimal import Decimal
-from time import sleep
-import pytest
 
-from invoices.base.model import invoice, model
-from uweb3.libs.sqltalk import mysql
-
-current_year = date.today().year
+from tests.fixtures import *
+from invoices.base.model import invoice
 
 # XXX: Some parameters might seem like they are unused.
 # However since they are pytest fixtures they are used to create a databaserecord
 # that is needed for that specific test. Removing these paramters will fail the test
 # as the record that is needed in the test database is no longer there.
-
-
-@pytest.fixture(scope="module")
-def connection():
-  connection = mysql.Connect(host='localhost',
-                             user='test_invoices',
-                             passwd='test_invoices',
-                             db='test_invoices',
-                             charset='utf8')
-
-  with connection as cursor:
-    cursor.Execute("TRUNCATE TABLE test_invoices.paymentPlatform;")
-    cursor.Execute(
-        "INSERT INTO test_invoices.paymentPlatform (name) VALUES ('ideal'),('marktplaats'),('mollie'),('contant')"
-    )
-  yield connection
-
-
-@pytest.fixture
-def client_object(connection) -> invoice.Client:
-  client = invoice.Client.Create(
-      connection, {
-          'ID': 1,
-          'clientNumber': 1,
-          'name': 'client_name',
-          'city': 'city',
-          'postalCode': '1234AB',
-          'email': 'test@gmail.com',
-          'telephone': '12345678',
-          'address': 'address'
-      })
-  return client
-
-
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests(connection):
-  with connection as cursor:
-    cursor.Execute("SET FOREIGN_KEY_CHECKS=0;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.client;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.companydetails;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.invoice;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.invoicePayment;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.invoiceProduct;")
-    cursor.Execute("TRUNCATE TABLE test_invoices.mollieTransaction;")
-    cursor.Execute("SET FOREIGN_KEY_CHECKS=0;")
-
-
-@pytest.fixture
-def companydetails_object(connection) -> invoice.Companydetails:
-  companydetails = invoice.Companydetails.Create(
-      connection, {
-          'ID': 1,
-          'name': 'companyname',
-          'telephone': '12345678',
-          'address': 'address',
-          'postalCode': 'postalCode',
-          'city': 'city',
-          'country': 'country',
-          'vat': 'vat',
-          'kvk': 'kvk',
-          'bank': 'bank',
-          'bankAccount': 'bankAccount',
-          'bankCity': 'bankCity',
-          'invoiceprefix': 'test'
-      })
-  return companydetails
-
-
-@pytest.fixture
-def simple_invoice_dict(client_object, companydetails_object) -> dict:
-  return {
-      'ID': 1,
-      'title': 'test invoice',
-      'description': 'test',
-      'client': client_object['ID'],
-      'status': 'new'
-  }
-
-
-@pytest.fixture
-def create_invoice_object(connection, client_object, companydetails_object):
-
-  def create(status=invoice.InvoiceStatus.NEW.value) -> invoice.Invoice:
-    return invoice.Invoice.Create(
-        connection, {
-            'title': 'test invoice',
-            'description': 'test',
-            'client': client_object['ID'],
-            'status': status
-        })
-
-  return create
 
 
 def calc_due_date():
@@ -331,64 +236,40 @@ class TestClass:
     assert payments[1]['amount'] == 20
     assert payments[1]['platform']['name'] == 'ideal'
 
-  def test_invoice_add_payment_roundup(self, connection, create_invoice_object):
-    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
-    products = [
-        {
-            'name': 'dakpan',
-            'price': 25,
-            'vat_percentage': 10,
-            'quantity': 10
-        },
-    ]
-    platform = invoice.PaymentPlatform.FromName(connection, 'contant')
-    inv.AddProducts(products)
+  def test_invoice_add_payment_roundup(self, default_invoice_and_products):
+    inv = default_invoice_and_products(status=invoice.InvoiceStatus.NEW.value)
+
     values = [10.01, 20.05, 9.001, 100.006, 9000.005, 1.004]
     for amount in values:
-      inv.AddPayment(platform['ID'], amount)
+      inv.AddPayment(1, amount)
 
     payments = inv.GetPayments()
     for i in range(len(values)):
       assert payments[i]['amount'] == invoice.round_price(values[i])
 
-  def test_set_invoice_paid_when_invoice_price_paid(self, connection,
-                                                    create_invoice_object):
-    inv = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
-    products = [
-        {
-            'name': 'dakpan',
-            'price': 10,
-            'vat_percentage': 0,
-            'quantity': 10
-        },
-    ]
-    inv.AddProducts(products)
-    inv.AddPayment(1, 99.99)
+  def test_set_invoice_paid_when_invoice_price_paid(
+      self, connection, default_invoice_and_products):
+    inv = default_invoice_and_products(status=invoice.InvoiceStatus.NEW.value)
+    inv.AddPayment(1, 274.99)
     inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
-    assert inv[
-        'status'] == invoice.InvoiceStatus.NEW  # Status should not be changed as the total amount paid is not yet the amount required.
+
+    # Status should not be changed as the total amount paid is not yet the amount required.
+    assert inv['status'] == invoice.InvoiceStatus.NEW
+
     inv.AddPayment(1, 0.01)
-    inv = invoice.Invoice.FromPrimary(
-        connection, inv['ID']
-    )  # Re-fetch from database to see if status has been changed propperly
+
+    # Re-fetch from database to see if status has been changed propperly
+    inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
     assert inv['status'] == invoice.InvoiceStatus.PAID
 
-  def test_do_not_uncancel_invoice_when_full_price_paid(self, connection,
-                                                        create_invoice_object):
+  def test_do_not_uncancel_invoice_when_full_price_paid(
+      self, connection, default_invoice_and_products):
     """Ensure that a canceled invoice is not uncanceled if payments are added to it that fullfill the required price.
     This is important because when a invoice is canceled the parts required are refunded to warehouse, if for some reason
     the invoice gets uncanceled the parts can be refunded again leading to duplicate refunds.
     """
-    inv = create_invoice_object(status=invoice.InvoiceStatus.RESERVATION.value)
-    products = [
-        {
-            'name': 'dakpan',
-            'price': 10,
-            'vat_percentage': 0,
-            'quantity': 10
-        },
-    ]
-    inv.AddProducts(products)
+    inv = default_invoice_and_products(
+        status=invoice.InvoiceStatus.RESERVATION.value)
     inv.CancelProFormaInvoice()
     inv.AddPayment(1, 1000)
     inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
