@@ -317,7 +317,3 @@ class TestClass:
     # Make sure that the companyDetails that the first invoice references has not changed
     assert first_invoice['companyDetails'] == 1
     assert second_invoice['companyDetails'] == 2
-
-  def test(self):
-    """Empty test to ensure that all data is truncated from the database."""
-    pass
