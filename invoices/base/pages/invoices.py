@@ -7,7 +7,7 @@ from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
 from invoices.base.pages.helpers.invoices import *
 from invoices.base.pages.helpers.general import round_price, transaction
-from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductsCollectionSchema
+from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductSchema, WarehouseStockChangeSchema
 
 # uweb modules
 import uweb3
@@ -81,65 +81,82 @@ class PageMaker:
   @uweb3.decorators.checkxsrf
   @RequestWrapper
   def RequestCreateNewInvoicePage(self):
-    # TODO: Handle validation errors
-    products = get_and_zip_products(self.post.getlist('products'),
-                                    self.post.getlist('invoice_prices'),
-                                    self.post.getlist('invoice_vat'),
-                                    self.post.getlist('quantity'))
-    model.Client.FromPrimary(self.connection, int(
-        self.post.getfirst('client')))  # Check if client exists
+    # Check if client exists
+    model.Client.FromPrimary(self.connection, int(self.post.getfirst('client')))
+    products = get_and_zip_products(self.post)
+
     try:
       sanitized_invoice = InvoiceSchema().load(self.post.__dict__)
-      products = ProductsCollectionSchema().load({'products': products})
+      products = ProductSchema(many=True).load(products)
     except ValidationError as error:
       return self.RequestNewInvoicePage(errors=[error.messages])
 
-    self._get_warehouse_api_data(
-    )  # Make sure that self.warehouse_apikey and self.warehouse_url are set.
-    try:
-      invoice = self._create_invoice_and_products(sanitized_invoice,
-                                                  products['products'])
-    except WarehouseAPIException as error:
-      return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
+    if not products:
+      return self.RequestNewInvoicePage(
+          errors=['cannot create invoice without products'])
 
-    if invoice and self.post.getfirst('shouldmail') or self.post.getfirst(
-        'mollie_payment_request'):
-      if self.post.getfirst('mollie_payment_request'):
-        result = self.RequestMollie(
-            invoice['ID'],
-            round_price(self.post.getfirst('mollie_payment_request')),
-            invoice['description'], invoice['sequenceNumber'])
-        self.mail_invoice(invoice,
-                          self.RequestInvoiceDetails(invoice['sequenceNumber']),
-                          **{'mollie': result['url']['href']})
-      else:
-        self.mail_invoice(invoice,
-                          self.RequestInvoiceDetails(invoice['sequenceNumber']))
-    return self.req.Redirect('/invoices', httpcode=303)
-
-  def _create_invoice_and_products(self, sanitized_invoice, invoice_products):
-    clean_products = CreateCleanProductList(invoice_products, negative_abs=True)
-
+    # Start a transaction that is rolled back when any unhandled exception occurs
     with transaction(self.connection, model.Invoice):
       invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-      invoice.AddProducts(invoice_products)
-      reference_message = decide_reference_message(invoice['status'],
-                                                   invoice['sequenceNumber'])
+      invoice.AddProducts(products)
+      warehouse_ready_products = WarehouseStockChangeSchema(
+          many=True).load(products)
 
-      response = requests.post(f'{self.warehouse_api_url}/products/bulk_stock',
-                               json={
-                                   "apikey": self.warehouse_apikey,
-                                   "products": clean_products,
-                                   "reference": reference_message,
-                               })
+      reference = create_invoice_reference_msg(invoice['status'],
+                                               invoice['sequenceNumber'])
+      response = self._warehouse_bulk_stock_request(warehouse_ready_products,
+                                                    reference)
+
       if response.status_code != 200:
         model.Client.rollback(self.connection)
         json_response = response.json()
-        if 'errors' in json_response:
-          raise WarehouseAPIException(json_response['errors'])
-        return self._handle_api_status_error(response)
+        return self._handle_api_status_error(
+            json_response['errors'] if 'errors' in json_response else response)
 
-    return invoice
+    self._handle_mail(invoice)
+    return self.req.Redirect('/invoices', httpcode=303)
+
+  def _warehouse_bulk_stock_request(self, products, reference):
+    # Make sure that self.warehouse_apikey and self.warehouse_url are set.
+    self._get_warehouse_api_data()
+    return requests.post(f'{self.warehouse_api_url}/products/bulk_stock',
+                         json={
+                             "apikey": self.warehouse_apikey,
+                             "products": products,
+                             "reference": reference
+                         })
+
+  def _handle_mail(self, invoice):
+    if not invoice:
+      return
+
+    should_mail = self.post.getfirst('shouldmail')
+    mollie_amount = self.post.getfirst('mollie_payment_request')
+
+    if should_mail:
+      data = {}
+
+      # Check if there is a payment request for mollie in the post data
+      if mollie_amount:
+        payment_req_url = self._create_mollie_request(invoice, mollie_amount)
+        data['mollie'] = payment_req_url
+
+      # Mail the invoice with PDF attached
+      return self.mail_invoice(
+          invoice, self.RequestInvoiceDetails(invoice['sequenceNumber']),
+          **data)
+
+    if mollie_amount:
+      # Mollie payment request was added, but the invoice is not supposed to be mailed.. What to do here?
+      raise NotImplementedError(
+          "When a mollie payment is requested the invoice should also be mailed.."
+      )
+
+  def _create_mollie_request(self, invoice, amount):
+    mollie_result = self.RequestMollie(invoice['ID'], round_price(amount),
+                                       invoice['description'],
+                                       invoice['sequenceNumber'])
+    return mollie_result['url']['href']
 
   @uweb3.decorators.TemplateParser('invoices/invoice.html')
   @NotExistsErrorCatcher
