@@ -33,6 +33,7 @@ def main():
           ('/settings', 'RequestSettings', 'GET'),
           ('/settings', 'RequestSettingsSave', 'POST'),
           ('/warehousesettings', 'RequestWarehouseSettingsSave', 'POST'),
+          ('/molliesettings', 'RequestMollieSettingsSave', 'POST'),
 
           # Clients
           ('/clients', 'RequestClientsPage', 'GET'),

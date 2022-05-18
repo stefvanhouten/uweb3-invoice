@@ -3,6 +3,57 @@
   <div>
     <section>
       <header>
+        <h1>Mollie settings</h1>
+      </header>
+      <div>
+      <div class="grid">
+        <div class="col-1-2">
+          <form action="/molliesettings" method="post">
+            <input type="hidden" name="xsrf" value="[xsrf]" />
+            <fieldset>
+            <legend>Urls</legend>
+            <div>
+              <label for="webhook_url">Webhook URL (notification)</label
+              ><input
+                name="webhook_url"
+                id="webhook_url"
+                type="url"
+                minlength="10"
+                value="{{ ifpresent [mollie:webhook_url] }} [mollie:webhook_url] {{ endif }}"
+                required
+              />
+            </div>
+            <div>
+              <label for="redirect_url">Redirect URL (client)</label
+              ><input
+                name="redirect_url"
+                id="redirect_url"
+                type="url"
+                minlength="10"
+                value="{{ ifpresent [mollie:redirect_url] }} [mollie:redirect_url] {{ endif }}"
+                required
+              />
+            </div>
+            <div>
+              <label for="apikey">Apikey</label
+              ><input
+                name="apikey"
+                id="apikey"
+                type="text"
+                minlength="10"
+                value="{{ ifpresent [mollie:apikey] }} [mollie:apikey] {{ endif }}"
+                required
+              />
+            </div>
+            </fieldset>
+            <input type="submit" value="Save changes" />
+          </form>
+      </div>
+    </section>
+  </div>
+  <div>
+    <section>
+      <header>
         <h1>Warehouse settings</h1>
       </header>
       <div>

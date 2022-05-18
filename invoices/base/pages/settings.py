@@ -22,6 +22,7 @@ class PageMaker:
         'title': 'Settings',
         'page_id': 'settings',
         'warehouse': self.options.get('general', {}),
+        'mollie': self.options.get('mollie', {}),
         'settings': settings,
         'errors': errors
     }
@@ -30,11 +31,8 @@ class PageMaker:
   @uweb3.decorators.checkxsrf
   def RequestSettingsSave(self):
     """Saves the changes and returns the settings page."""
-    fieldstorage_to_dict = {
-        key: self.post.getfirst(key, '') for key in list(self.post.keys())
-    }
     try:
-      newsettings = CompanyDetailsSchema().load(fieldstorage_to_dict)
+      newsettings = CompanyDetailsSchema().load(self.post.__dict__)
     except marshmallow.exceptions.ValidationError as error:
       return self.RequestSettings(errors=error.messages)
 
@@ -59,4 +57,14 @@ class PageMaker:
     self.config.Update('general', 'warehouse_api',
                        self.post.getfirst('warehouse_api'))
     self.config.Update('general', 'apikey', self.post.getfirst('apikey'))
+    return self.req.Redirect('/settings', httpcode=303)
+
+  @uweb3.decorators.loggedin
+  @uweb3.decorators.checkxsrf
+  def RequestMollieSettingsSave(self):
+    self.config.Update('mollie', 'apikey', self.post.getfirst('apikey'))
+    self.config.Update('mollie', 'webhook_url',
+                       self.post.getfirst('webhook_url'))
+    self.config.Update('mollie', 'redirect_url',
+                       self.post.getfirst('redirect_url'))
     return self.req.Redirect('/settings', httpcode=303)
