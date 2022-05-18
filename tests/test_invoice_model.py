@@ -363,16 +363,36 @@ class TestClass:
         },
     ]
     inv.AddProducts(products)
-    platform = invoice.PaymentPlatform.FromName(connection, 'contant')
-    inv.AddPayment(platform['ID'], 99.99)
+    inv.AddPayment(1, 99.99)
     inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
     assert inv[
         'status'] == invoice.InvoiceStatus.NEW  # Status should not be changed as the total amount paid is not yet the amount required.
-    inv.AddPayment(platform['ID'], 0.01)
+    inv.AddPayment(1, 0.01)
     inv = invoice.Invoice.FromPrimary(
         connection, inv['ID']
     )  # Re-fetch from database to see if status has been changed propperly
     assert inv['status'] == invoice.InvoiceStatus.PAID
+
+  def test_do_not_uncancel_invoice_when_full_price_paid(self, connection,
+                                                        create_invoice_object):
+    """Ensure that a canceled invoice is not uncanceled if payments are added to it that fullfill the required price.
+    This is important because when a invoice is canceled the parts required are refunded to warehouse, if for some reason
+    the invoice gets uncanceled the parts can be refunded again leading to duplicate refunds.
+    """
+    inv = create_invoice_object(status=invoice.InvoiceStatus.RESERVATION.value)
+    products = [
+        {
+            'name': 'dakpan',
+            'price': 10,
+            'vat_percentage': 0,
+            'quantity': 10
+        },
+    ]
+    inv.AddProducts(products)
+    inv.CancelProFormaInvoice()
+    inv.AddPayment(1, 1000)
+    inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
+    assert inv['status'] == invoice.InvoiceStatus.CANCELED
 
   def test(self):
     """Empty test to ensure that all data is truncated from the database."""
