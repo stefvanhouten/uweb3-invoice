@@ -6,7 +6,7 @@ import requests
 from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
 from invoices.base.pages.helpers.invoices import *
-from invoices.base.pages.helpers.general import transaction
+from invoices.base.pages.helpers.general import round_price, transaction
 from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductsCollectionSchema
 
 # uweb modules
@@ -86,15 +86,10 @@ class PageMaker:
                                     self.post.getlist('invoice_prices'),
                                     self.post.getlist('invoice_vat'),
                                     self.post.getlist('quantity'))
-    client = model.Client.FromClientNumber(self.connection,
-                                           int(self.post.getfirst('client')))
+    model.Client.FromPrimary(self.connection, int(
+        self.post.getfirst('client')))  # Check if client exists
     try:
-      sanitized_invoice = InvoiceSchema().load({
-          'client': client['ID'],
-          'title': self.post.getfirst('title'),
-          'description': self.post.getfirst('description'),
-          'status': self.post.getfirst('reservation', '')
-      })
+      sanitized_invoice = InvoiceSchema().load(self.post.__dict__)
       products = ProductsCollectionSchema().load({'products': products})
     except ValidationError as error:
       return self.RequestNewInvoicePage(errors=[error.messages])
@@ -107,9 +102,19 @@ class PageMaker:
     except WarehouseAPIException as error:
       return self.RequestNewInvoicePage(errors=error.args[0]['errors'])
 
-    if invoice and self.post.getfirst('shouldmail'):
-      self.mail_invoice(invoice,
-                        self.RequestInvoiceDetails(invoice['sequenceNumber']))
+    if invoice and self.post.getfirst('shouldmail') or self.post.getfirst(
+        'mollie_payment_request'):
+      if self.post.getfirst('mollie_payment_request'):
+        result = self.RequestMollie(
+            invoice['ID'],
+            round_price(self.post.getfirst('mollie_payment_request')),
+            invoice['description'], invoice['sequenceNumber'])
+        self.mail_invoice(invoice,
+                          self.RequestInvoiceDetails(invoice['sequenceNumber']),
+                          **{'mollie': result['url']['href']})
+      else:
+        self.mail_invoice(invoice,
+                          self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
 
   def _create_invoice_and_products(self, sanitized_invoice, invoice_products):
@@ -208,13 +213,11 @@ class PageMaker:
     invoice.CancelProFormaInvoice()
     return self.req.Redirect('/invoices', httpcode=303)
 
-  def mail_invoice(self, invoice, details):
+  def mail_invoice(self, invoice, details, **kwds):
     # Generate the PDF for newly created invoice
     pdf = ToPDF(details, filename='invoice.pdf')
     # Create a mollie payment request
-    content = self.parser.Parse(
-        'email/invoice.txt',
-        **{'mollie': self.RequestMollie(invoice)['url']['href']})
+    content = self.parser.Parse('email/invoice.txt', **kwds)
 
     with MailSender() as send_mail:
       send_mail.Attachments(recipients=invoice['client']['email'],

@@ -17,17 +17,21 @@ class PageMaker(mollie.MollieMixin):
   Each page as a separate method.
   """
 
-  def RequestMollie(self, invoice):
-    price = invoice.Totals()['total_price']
-    description = invoice.get('description')
-    # TODO: Secret
+  def RequestMollie(self, invoiceID, price, description, reference):
+    """
+    Arguments:
+      invoiceID: int
+        The ID of the invoice
+      price: Decimal
+        The amount that we want to be on the mollie request
+      description:
+        The description
+      reference: str
+        The invoice sequenceNumber. We use this for processing #TODO: fix description
+    """
 
     mollie = self.NewMolliePaymentGateway()
-    return mollie.GetForm(
-        invoice['ID'],
-        price,  # Mollie expects amounts in euros  # TODO: (Jan) How should the currency be handled? Currently using a Decimal which is then converted to a string for mollie
-        description,
-        invoice['sequenceNumber'])
+    return mollie.GetForm(invoiceID, price, description, reference)
 
   def _Mollie_HookPaymentReturn(self, transaction):
     """This is the webhook that mollie calls when that transaction is updated."""
