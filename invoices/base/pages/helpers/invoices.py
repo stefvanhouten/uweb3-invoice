@@ -15,7 +15,7 @@ from invoices.base.pages.helpers.general import round_price
 
 __all__ = [
     'ToPDF', 'CreateCleanProductList', 'MT940_processor',
-    'get_and_zip_products', 'decide_reference_message', 'MT940_invoice_handler'
+    'get_and_zip_products', 'decide_reference_message'
 ]
 
 
@@ -165,65 +165,10 @@ class MT940_processor:
     """
     amount = str(
         transaction.data['amount'].amount)  # Get the value of the transaction
-    return [{"invoice": x.group(), "amount": amount} for x in matches]
-
-
-class MT940_invoice_handler:
-
-  def __init__(self, invoice_pairs):
-    """Processes a list of InvoicePairs and updates the database for found results.
-
-    Arguments:
-      @ invoice_pairs: list(InvoicePair)
-        A list containing the actual invoice and the found reference from the MT940 file.
-    """
-    self.processed_invoices = [
-    ]  # The invoices that have been processed successfully
-    self.failed_invoices = []  # The invoices that have failed
-    self.invoice_pairs = invoice_pairs
-
-  def process(self):
-    """Process all InvoicePairs and keep track of which invoice was processed successfully and which was not.
-    If an invoice is processed the status in the database will be updated accordingly.
-    """
-    for pair in self.invoice_pairs:
-      self.current_pair = pair
-      if self.current_pair.costs_match():
-        self.handleSuccess()
-      else:
-        self.handleFailed()
-
-  def handleSuccess(self):
-    self.current_pair.ok()
-    self.processed_invoices.append(self.current_pair.invoice)
-
-  def handleFailed(self):
-    self.current_pair.failed()
-    self.failed_invoices.append(self.current_pair.invoice)
-
-
-class InvoicePair:
-
-  def __init__(self, invoice, reference):
-    """"""
-    self.invoice = invoice
-    self.reference = reference
-    self.target_price = self.invoice.Totals()['total_price']
-    self.reference['amount'] = round_price(
-        decimal.Decimal(self.reference['amount']))
-
-  def costs_match(self):
-    """Compare the price that was mentioned in the mt940 file with the price that we have stored in the database."""
-    return self.reference['amount'] == self.target_price
-
-  def ok(self):
-    """Sets the current invoice to paid and adds previous_state to the object so that it can be displayed on the page."""
-    previous_status = self.invoice['status']
-    self.invoice.SetPayed()
-    self.invoice['previous_status'] = previous_status
-
-  def failed(self):
-    """Add a few values to the invoice object for extra information as of why the invoice was not processed propperly."""
-    self.invoice['actual_amount'] = self.target_price
-    self.invoice['expected_amount'] = self.reference['amount']
-    self.invoice['diff'] = self.reference['amount'] - self.target_price
+    return [{
+        "invoice": x.group(),
+        "amount": amount,
+        "customer_reference": transaction.data.get('customer_reference'),
+        "entry_date": transaction.data.get('entry_date'),
+        "transaction_id": transaction.data.get('id')
+    } for x in matches]

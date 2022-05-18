@@ -276,7 +276,7 @@ class Invoice(RichModel):
   def AddPayment(self, platformID, amount):
     """Add a payment to the current invoice."""
     platform = PaymentPlatform.FromPrimary(self.connection, platformID)
-    InvoicePayment.Create(
+    return InvoicePayment.Create(
         self.connection, {
             'invoice': self['ID'],
             'platform': platform['ID'],

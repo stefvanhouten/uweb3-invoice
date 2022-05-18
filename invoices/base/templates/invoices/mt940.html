@@ -3,39 +3,86 @@
   <div>
     <section>
       <header>
-        <h1>Upload mt-940 file</h1>
+        <h1>Upload and process MT-940 files.</h1>
       </header>
-      <form action="/invoices/upload" method="post" enctype="multipart/form-data">
-        <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]">
+      <form
+        action="/invoices/upload"
+        method="post"
+        enctype="multipart/form-data"
+      >
+        <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]" />
         <label for="files">Select files:</label>
-        <input type="file" id="fileupload" name="fileupload" multiple>
-        <input type="submit" value="upload">
+        <input type="file" id="fileupload" name="fileupload" multiple />
+        <input type="submit" value="upload" />
       </form>
     </section>
   </div>
-    <div>
+
+  <div>
     <section>
       <header>
-        <h1>Status changed</h1>
+        <h2>Successfully added payments</h2>
       </header>
-      {{ if len([invoices]) == 0 }}
-        <p>No invoices changed</p>
+      {{ if len([payments]) == 0 }}
+      <p>No payments added</p>
       {{ else}}
-        <h2>Successfully changed invoices</h2>
-        <p> When the previous status is coloured red this means that the previous status is equal to the current state.
-          This indicates that the invoice has already been paid, meaning that this could be a duplicate payment.
-        </p>
-        {{ inline invoices/parts/invoices_table.html }}
-      {{ endif }}
-
-       {{ if len([failed_invoices]) == 0 }}
-        <p>No failed invoices</p>
-      {{ else}}
-        <h2>Failed invoices</h2>
-        <p class="error">These invoices failed</p>
-          {{ inline invoices/parts/failed_invoices_table.html }}
+      <table class="invoices">
+        <thead>
+          <tr>
+            <th>MT-940 transaction id</th>
+            <th>Matched invoice</th>
+            <th>Amount</th>
+            <th>Customer reference</th>
+            <th>Entry date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ for invoice in [payments] }}
+          <tr>
+            <td>[invoice:transaction_id]</td>
+            <td>[invoice:invoice]</td>
+            <td>&euro; [invoice:amount]</td>
+            <td>[invoice:customer_reference]</td>
+            <td>[invoice:entry_date]</td>
+          </tr>
+          {{ endfor }}
+        </tbody>
+      </table>
       {{ endif }}
     </section>
   </div>
+
+  {{ if len([failed_invoices]) > 0 }}
+  <div>
+    <section>
+      <header>
+        <h2>Failed payments</h2>
+      </header>
+      <p class="error">These payments could not be traced back to an invoice</p>
+      <table class="invoices">
+        <thead>
+          <tr>
+            <th>MT-940 transaction id</th>
+            <th>Matched invoice</th>
+            <th>Amount</th>
+            <th>Customer reference</th>
+            <th>Entry date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ for invoice in [failed_invoices] }}
+          <tr>
+            <td>[invoice:transaction_id]</td>
+            <td>[invoice:invoice]</td>
+            <td>&euro; [invoice:amount]</td>
+            <td>[invoice:customer_reference]</td>
+            <td>[invoice:entry_date]</td>
+          </tr>
+          {{ endfor }}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  {{ endif }}
 </main>
 [footer]

@@ -7,7 +7,6 @@ from marshmallow.exceptions import ValidationError
 from http import HTTPStatus
 from invoices.base.pages.helpers.invoices import *
 from invoices.base.pages.helpers.general import transaction
-from invoices.base.pages.helpers.invoices import InvoicePair
 from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductsCollectionSchema
 
 # uweb modules
@@ -226,9 +225,9 @@ class PageMaker:
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf
   @uweb3.decorators.TemplateParser('invoices/mt940.html')
-  def RequestMt940(self, changed_invoices=[], failed_invoices=[]):
+  def RequestMt940(self, payments=[], failed_invoices=[]):
     return {
-        'invoices': changed_invoices,
+        'payments': payments,
         'failed_invoices': failed_invoices,
         'mt940_preview': True,
     }
@@ -237,25 +236,29 @@ class PageMaker:
   @uweb3.decorators.checkxsrf
   def RequestUploadMt940(self):
     # TODO: File validation.
-    pairs = []
+    payments = []
+    failed_payments = []
     found_invoice_references = MT940_processor(self.files.get(
         'fileupload', [])).process_files()
+
     for invoice_ref in found_invoice_references:
       try:
         invoice = model.Invoice.FromSequenceNumber(self.connection,
                                                    invoice_ref['invoice'])
-        pairs.append(InvoicePair(invoice, invoice_ref))
       except (uweb3.model.NotExistError, Exception) as e:
         # Invoice could not be found. This could mean two things,
         # 1. The regex matched something that looks like an invoice sequence number, but its not part of our system.
         # 2. The transaction contains a pro-forma invoice, but this invoice was already set to paid and thus changed to a real invoice.
         # its also possible that there was a duplicate pro-forma invoice ID in the description, but since it was already processed no reference can be found to it anymore.
+        failed_payments.append(invoice_ref)
         continue
 
-    handler = MT940_invoice_handler(pairs)
-    handler.process()
-    return self.RequestMt940(changed_invoices=handler.processed_invoices,
-                             failed_invoices=handler.failed_invoices)
+      platform = model.PaymentPlatform.FromName(
+          self.connection, 'ideal')  # XXX: What payment platform is this?
+      invoice.AddPayment(platform['ID'], invoice_ref['amount'])
+      payments.append(invoice_ref)
+
+    return self.RequestMt940(payments=payments, failed_invoices=failed_payments)
 
   @uweb3.decorators.loggedin
   @uweb3.decorators.checkxsrf

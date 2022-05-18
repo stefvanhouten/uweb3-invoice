@@ -1,24 +1,29 @@
+from pymysql import Date
 import pytest
 from invoices.base.pages import invoices
 
 
 @pytest.fixture
 def mt940_result():
-  return [
-      {
-          'invoice':
-              'PF-2022-001',  # First pro forma invoice that was referenced in .sta
-          'amount': '100.76'
-      },
-      {
-          'invoice': '2022-001',  # Fist actual invoice that was referenced
-          'amount': '65.20'
-      },
-      {
-          'invoice': '2022-002',  # Second invoice
-          'amount': '952.10'
-      }
-  ]
+  return [{
+      'invoice': 'PF-2022-001',
+      'amount': '100.76',
+      'customer_reference': 'NONREF',
+      'entry_date': Date(2001, 1, 1),
+      'transaction_id': 'N123'
+  }, {
+      'invoice': '2022-001',
+      'amount': '65.20',
+      'customer_reference': 'NONREF',
+      'entry_date': Date(2001, 1, 1),
+      'transaction_id': 'N124'
+  }, {
+      'invoice': '2022-002',
+      'amount': '952.10',
+      'customer_reference': 'NONREF',
+      'entry_date': Date(2001, 1, 1),
+      'transaction_id': 'N125'
+  }]
 
 
 class TestClass:
