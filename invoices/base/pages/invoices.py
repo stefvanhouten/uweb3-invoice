@@ -200,6 +200,8 @@ class PageMaker:
     invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
     invoice.ProFormaToRealInvoice()
     # TODO: When should we mail the invoice, and what should be in the mail?
+    # Re fetch invoice to prevent mailing a pro forma invoice. We fetch by primary because the sequenceNumber might have changed.
+    invoice = model.Invoice.FromPrimary(self.connection, invoice['ID'])
     self.mail_invoice(invoice,
                       self.RequestInvoiceDetails(invoice['sequenceNumber']))
     return self.req.Redirect('/invoices', httpcode=303)
