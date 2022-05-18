@@ -15,7 +15,7 @@ from invoices.base.pages.helpers.general import round_price
 
 __all__ = [
     'ToPDF', 'CreateCleanProductList', 'MT940_processor',
-    'get_and_zip_products', 'decide_reference_message'
+    'get_and_zip_products', 'create_invoice_reference_msg'
 ]
 
 
@@ -54,17 +54,9 @@ def CreateCleanProductList(products, negative_abs=False):
   return items
 
 
-def get_and_zip_products(product_names, product_prices, product_vat,
-                         product_quantity):
+def get_and_zip_products(postdata):
   """Transform invoice products post data to a list of dictionaries.
   This function uses zip_longest, so any missing data will be filled with None.
-
-  Arguments:
-    @ product_names: list
-    @ product_prices: list
-    @ product_vat: list
-    @ product_quantity: list
-
   Returns: [
       { name: The name of the product,
         price: The price of the product,
@@ -72,10 +64,11 @@ def get_and_zip_products(product_names, product_prices, product_vat,
         quantity: The amount of products that were specified
       }]
   """
+
   products = []
-  for product, price, vat, quantity in zip_longest(product_names,
-                                                   product_prices, product_vat,
-                                                   product_quantity):
+  for product, price, vat, quantity in zip_longest(
+      postdata.getlist('products'), postdata.getlist('invoice_prices'),
+      postdata.getlist('invoice_vat'), postdata.getlist('quantity')):
     products.append({
         'name': product,
         'price': price,
@@ -85,7 +78,7 @@ def get_and_zip_products(product_names, product_prices, product_vat,
   return products
 
 
-def decide_reference_message(status, sequenceNumber):
+def create_invoice_reference_msg(status, sequenceNumber):
   """Determines the reference message that is send to the warehouse API.
 
   Arguments:
