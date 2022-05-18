@@ -116,6 +116,10 @@ class Invoice(RichModel):
     """Changes a pro forma invoice to an actual invoice.
     This changes the status to new, calculates a new date for when the invoice is due and generates a new sequencenumber.
     """
+    if self['status'] == InvoiceStatus.CANCELED:
+      raise ValueError(
+          "Can not change the status of a canceled invoice to paid.")
+
     self['sequenceNumber'] = self.NextNumber(self.connection)
     # Pro forma invoices can be paid for already, only set status to new when the invoice is not paid for yet.
     if self['status'] != InvoiceStatus.PAID:
@@ -125,6 +129,9 @@ class Invoice(RichModel):
 
   def SetPayed(self):
     """Sets the current invoice status to paid. """
+    if self['status'] == InvoiceStatus.CANCELED:
+      raise ValueError(
+          "Can not change the status of a canceled invoice to paid.")
     if self._isProForma():
       self.ProFormaToRealInvoice()
     self['status'] = InvoiceStatus.PAID.value

@@ -288,6 +288,12 @@ class TestClass:
     inv = invoice.Invoice.FromPrimary(connection, inv['ID'])
     assert inv['status'] == invoice.InvoiceStatus.CANCELED
 
+    with pytest.raises(ValueError):
+      inv.ProFormaToRealInvoice()
+
+    with pytest.raises(ValueError):
+      inv.SetPayed()
+
   def test_correct_companydetails_object_on_invoice(self, connection,
                                                     create_invoice_object):
     first_invoice = create_invoice_object(
