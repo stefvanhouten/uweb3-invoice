@@ -45,9 +45,13 @@ class TestClass:
             'title': 'test invoice',
             'description': 'test',
             'client': client_object['ID'],
-            'status': 'new'
+            'status': invoice.InvoiceStatus.NEW.value
         })
     assert inv['ID'] == 1
+    assert inv['title'] == 'test invoice'
+    assert inv['description'] == 'test'
+    assert inv['client']['ID'] == client_object['ID']
+    assert inv['status'] == invoice.InvoiceStatus.NEW
 
   def test_invoice_sequence_number(self, connection, simple_invoice_dict):
     inv = invoice.Invoice.Create(connection, simple_invoice_dict)
