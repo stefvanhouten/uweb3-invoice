@@ -220,9 +220,12 @@ class PageMaker:
     response = requests.post(
         f'{self.warehouse_api_url}/products/bulk_stock',
         json={
-            "apikey": self.warehouse_apikey,
-            "reference": f"Canceling reservation: {invoice['sequenceNumber']}",
-            "products": items
+            "apikey":
+                self.warehouse_apikey,
+            "reference":
+                f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
+            "products":
+                items
         })
     if response.status_code != 200:
       return self._handle_api_status_error(response)
