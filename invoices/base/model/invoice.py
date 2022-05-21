@@ -104,7 +104,8 @@ class Invoice(RichModel):
     """
     status = record.get('status', InvoiceStatus.NEW.value)
     if status and status == InvoiceStatus.RESERVATION:
-      record.setdefault('sequenceNumber', cls.NextProFormaNumber(connection))
+      record.setdefault('sequenceNumber',
+                        ProFormaSequenceTable.NextProFormaNumber(connection))
     else:
       record.setdefault('sequenceNumber', cls.NextNumber(connection))
     record.setdefault('companyDetails',
@@ -167,27 +168,9 @@ class Invoice(RichModel):
     return '%s-%03d' % (time.strftime('%Y'), 1)
 
   @classmethod
-  def NextProFormaNumber(cls, connection):
-    """Returns the sequenceNumber for the next invoice to create."""
-    with connection as cursor:
-      current_max = cursor.Select(
-          table=cls.TableName(),
-          fields='sequenceNumber',
-          conditions=[
-              'YEAR(dateCreated) = YEAR(NOW())',
-              f'sequenceNumber LIKE "{PRO_FORMA_PREFIX}-%"'
-          ],
-          limit=1,
-          order=[('sequenceNumber', True)],
-          escape=False)
-    if current_max:
-      prefix, year, sequence = current_max[0][0].split('-')
-      return '%s-%s-%03d' % (prefix, year, int(sequence) + 1)
-    return '%s-%s-%03d' % (PRO_FORMA_PREFIX, time.strftime('%Y'), 1)
-
-  @classmethod
-  def List(cls, *args, **kwds):
-    invoices = list(super().List(*args, **kwds))
+  def List(cls, connection, *args, **kwds):
+    test = ProFormaSequenceTable.NextProFormaNumber(connection)
+    invoices = list(super().List(connection, *args, **kwds))
     today = pytz.utc.localize(datetime.datetime.utcnow())
     for invoice in invoices:
       invoice['totals'] = invoice.Totals()
@@ -320,3 +303,43 @@ class InvoicePayment(RichModel):
           'LookupKey': 'ID'
       }
   }
+
+
+class ProFormaSequenceTable(Record):
+  """This table is used to keep track of the current pro forma sequencenumber.
+  This is needed to prevent MT-940 payments from former pro forma invoices
+  being added to new pro forma invoices.
+  """
+
+  @classmethod
+  def NextProFormaNumber(cls, connection):
+    """Generate a new sequence number for a pro forma invoice and return its value.
+
+    Returns:
+        str: The next sequenceNumber for a pro forma invoice.
+    """
+    with connection as cursor:
+      record = cursor.Select(table=cls.TableName(), limit=1)
+
+    if record:
+      current_max = cls(connection, record[0])
+      current_max.SetToNextNum()
+      return current_max['sequenceNumber']
+    return cls.Create(connection)['sequenceNumber']
+
+  @classmethod
+  def Create(cls, connection):
+    """Create a record to keep track of the current pro forma invoice sequence number"""
+    if list(cls.List(connection)):
+      raise ValueError(
+          "Only one record is needed to keep track of the pro forma sequence number."
+      )
+    return super().Create(connection, {
+        'sequenceNumber':
+            '%s-%s-%03d' % (PRO_FORMA_PREFIX, time.strftime('%Y'), 1)
+    })
+
+  def SetToNextNum(self):
+    prefix, year, sequence = self['sequenceNumber'].split('-')
+    self['sequenceNumber'] = '%s-%s-%03d' % (prefix, year, int(sequence) + 1)
+    self.Save()
