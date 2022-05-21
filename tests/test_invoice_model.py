@@ -84,8 +84,7 @@ class TestClass:
     assert pro_forma[
         'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
 
-  def test_invoice_and_pro_forma_mix_sequence_number(self, connection,
-                                                     client_object,
+  def test_invoice_and_pro_forma_mix_sequence_number(self,
                                                      create_invoice_object):
     real_invoice = create_invoice_object(status=invoice.InvoiceStatus.NEW.value)
     pro_forma = create_invoice_object(
@@ -99,6 +98,17 @@ class TestClass:
     assert pro_forma[
         'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
     assert second_real_invoice['sequenceNumber'] == f'{date.today().year}-002'
+    assert second_pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-002'
+
+  def test_dont_reuse_pro_forma_sequence_number(self, create_invoice_object):
+    first_pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
+    assert first_pro_forma[
+        'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-001'
+    first_pro_forma.Delete()
+    second_pro_forma = create_invoice_object(
+        status=invoice.InvoiceStatus.RESERVATION.value)
     assert second_pro_forma[
         'sequenceNumber'] == f'{invoice.PRO_FORMA_PREFIX}-{date.today().year}-002'
 

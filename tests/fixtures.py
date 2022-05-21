@@ -49,6 +49,7 @@ def run_before_and_after_tests(connection):
     cursor.Execute("TRUNCATE TABLE test_invoices.invoicePayment;")
     cursor.Execute("TRUNCATE TABLE test_invoices.invoiceProduct;")
     cursor.Execute("TRUNCATE TABLE test_invoices.mollieTransaction;")
+    cursor.Execute("TRUNCATE TABLE test_invoices.proFormaSequenceTable;")
     cursor.Execute("SET FOREIGN_KEY_CHECKS=0;")
 
 
