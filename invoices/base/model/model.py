@@ -9,7 +9,6 @@ __version__ = "1.0"
 # Custom modules
 from uweb3 import model
 
-
 __all__ = [
     "NOTDELETEDDATE",
     "NOTDELETED",

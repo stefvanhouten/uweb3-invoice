@@ -4,11 +4,11 @@
 # standard modules
 import decimal
 import re
-import mt940
+from io import BytesIO
 from itertools import zip_longest
 
+import mt940
 from weasyprint import HTML
-from io import BytesIO
 
 from invoices.base.model.invoice import InvoiceStatus
 from invoices.base.pages.helpers.general import round_price

@@ -3,14 +3,15 @@
 
 import datetime
 import decimal
-from enum import Enum
 import time
+from enum import Enum
 
 import pytz
 
 # Custom modules
 from uweb3.model import Record
-from invoices.base.model.model import RichModel, Client
+
+from invoices.base.model.model import Client, RichModel
 from invoices.base.pages.helpers.general import round_price
 
 __all__ = [

@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 import decimal
+from contextlib import contextmanager
 
 
 def round_price(d):
