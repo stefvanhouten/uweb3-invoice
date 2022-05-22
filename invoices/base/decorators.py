@@ -1,10 +1,9 @@
-from http import HTTPStatus
-
 import requests
-import uweb3
+from http import HTTPStatus
+from invoices.base.model import model
 from marshmallow import ValidationError
 
-from invoices.base.model import model
+import uweb3
 
 
 def NotExistsErrorCatcher(f):

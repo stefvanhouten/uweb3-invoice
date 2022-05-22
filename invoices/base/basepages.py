@@ -1,11 +1,10 @@
 import time
+import marshmallow
 from http import HTTPStatus
 
-import marshmallow
 import uweb3
-
 from invoices.base.model import model
-from invoices.base.pages import clients, invoices, mollie, settings
+from invoices.base.pages import clients, invoices, settings, mollie
 from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
 
 API_VERSION = '/api/v1'

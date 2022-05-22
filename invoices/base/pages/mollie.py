@@ -4,9 +4,9 @@
 __author__ = 'Jan Klopper <janklopper@underdark.nl>'
 __version__ = '0.1'
 
-import uweb3
-
 from invoices.base import decorators
+
+import uweb3
 from invoices.base.libs import mollie
 from invoices.base.model import model
 

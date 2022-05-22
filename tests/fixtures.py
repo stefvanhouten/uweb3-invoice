@@ -1,9 +1,8 @@
 from datetime import date
-
 import pytest
-from uweb3.libs.sqltalk import mysql
 
 from invoices.base.model import invoice
+from uweb3.libs.sqltalk import mysql
 
 current_year = date.today().year
 
