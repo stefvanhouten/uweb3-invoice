@@ -1,5 +1,5 @@
-from uweb3 import model
 from passlib.hash import pbkdf2_sha256
+from uweb3 import model
 
 
 class User(model.Record):

@@ -1,5 +1,6 @@
-from pymysql import Date
 import pytest
+from pymysql import Date
+
 from invoices.base.pages import invoices
 from invoices.base.pages.helpers.schemas import WarehouseStockChangeSchema
 

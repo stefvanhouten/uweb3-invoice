@@ -1,19 +1,23 @@
 #!/usr/bin/python
 """Request handlers for the uWeb3 warehouse inventory software"""
 
+from http import HTTPStatus
+
 # standard modules
 import requests
-from marshmallow.exceptions import ValidationError
-from http import HTTPStatus
-from invoices.base.pages.helpers.invoices import *
-from invoices.base.pages.helpers.general import round_price, transaction
-from invoices.base.pages.helpers.schemas import InvoiceSchema, PaymentSchema, ProductSchema, WarehouseStockChangeSchema, WarehouseStockRefundSchema
-
 # uweb modules
 import uweb3
-from invoices.base.model import model
+from marshmallow.exceptions import ValidationError
 from uweb3.libs.mail import MailSender
+
 from invoices.base.decorators import NotExistsErrorCatcher, RequestWrapper
+from invoices.base.model import model
+from invoices.base.pages.helpers.general import round_price, transaction
+from invoices.base.pages.helpers.invoices import *
+from invoices.base.pages.helpers.schemas import (InvoiceSchema, PaymentSchema,
+                                                 ProductSchema,
+                                                 WarehouseStockChangeSchema,
+                                                 WarehouseStockRefundSchema)
 
 
 class WarehouseAPIException(Exception):
