@@ -1,10 +1,8 @@
-# standard modules
 import marshmallow
-from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
-
-# uweb modules
 import uweb3
+
 from invoices.base import model
+from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
 
 
 class PageMaker:

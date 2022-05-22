@@ -4,11 +4,10 @@
 __author__ = "Jan Klopper <janklopper@underdark.nl>"
 __version__ = "0.1"
 
-from invoices.base import decorators
-
 import uweb3
+
+from invoices.base import decorators, model
 from invoices.base.libs import mollie
-from invoices.base import model
 
 
 class PageMaker(mollie.MollieMixin):

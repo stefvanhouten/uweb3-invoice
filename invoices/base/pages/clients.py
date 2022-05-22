@@ -5,9 +5,10 @@
 
 # uweb modules
 import uweb3
-from invoices.base.pages.helpers.schemas import ClientSchema, RequestClientSchema
+
 from invoices.base import model
 from invoices.base.decorators import NotExistsErrorCatcher, json_error_wrapper
+from invoices.base.pages.helpers.schemas import ClientSchema, RequestClientSchema
 
 
 class PageMaker:

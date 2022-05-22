@@ -1,10 +1,11 @@
-import pytest
 import datetime
 from datetime import date
 from decimal import Decimal
 
-from tests.fixtures import *
+import pytest
+
 from invoices.base.model import invoice
+from tests.fixtures import *
 
 # XXX: Some parameters might seem like they are unused.
 # However since they are pytest fixtures they are used to create a databaserecord

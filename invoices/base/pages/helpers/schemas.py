@@ -1,7 +1,7 @@
-from marshmallow import Schema, fields, EXCLUDE, post_load, validate
+from marshmallow import EXCLUDE, Schema, fields, post_load, validate
 from pkg_resources import require
-from invoices.base.model.invoice import InvoiceStatus
 
+from invoices.base.model.invoice import InvoiceStatus
 from invoices.base.pages.helpers.general import round_price
 
 

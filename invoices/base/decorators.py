@@ -1,7 +1,7 @@
-import uweb3
+from http import HTTPStatus
 
 import requests
-from http import HTTPStatus
+import uweb3
 from marshmallow import ValidationError
 
 
