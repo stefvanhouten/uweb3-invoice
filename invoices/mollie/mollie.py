@@ -1,99 +1,24 @@
-__author__ = "Arjen Pander <arjen@underdark.nl>"
+#!/usr/bin/python
+"""Html/JSON generators for api.coolmoo.se"""
+
+__author__ = "Jan Klopper <janklopper@underdark.nl>"
 __version__ = "0.1"
 
 import json
-import time
-from enum import Enum
-
-# Standard modules
-from hashlib import sha1
 
 import requests
-
-# Package modules
+import uweb3
 from uweb3 import model
+
+from invoices import basepages
+from invoices.common import decorators
+from invoices.invoice import model as invoice_model
+from invoices.mollie import model as mollie_model
 
 MOLLIE_API = "https://api.mollie.nl/v2"
 
 
-class MollieStatus(str, Enum):
-    PAID = "paid"  # https://docs.mollie.com/overview/webhooks#payments-api
-    EXPIRED = "expired"  # These are the states the payments API can send us.
-    FAILED = "failed"
-    CANCELED = "canceled"
-    OPEN = "open"
-    PENDING = "pending"
-    REFUNDED = "refunded"
-
-    CHARGEBACK = "chargeback"  # These are states that we currently do not use.
-    SETTLED = "settled"
-    PARTIALLY_REFUNDED = "partially_refunded"
-    AUTHORIZED = "authorized"
-
-
-# ##############################################################################
-# Record classes for Mollie integration
-#
-# Model classes have many methods, this is acceptable
-# pylint: disable=R0904
-class MollieError(Exception):
-    """Raises a mollie specific error"""
-
-
-class MollieTransactionFailed(MollieError):
-    """Raised when a transaction status gets set to failed"""
-
-
-class MollieTransactionCanceled(MollieError):
-    """Raised when a transaction status gets set to canceled"""
-
-
-class MollieConfigError(MollieError):
-    """Raises a config error"""
-
-
-class MollieTransaction(model.Record):
-    """Abstraction for the `MollieTransaction` table."""
-
-    def _PreCreate(self, cursor):
-        super(MollieTransaction, self)._PreCreate(cursor)
-        self["creationTime"] = time.gmtime()
-
-    def _PreSave(self, cursor):
-        super(MollieTransaction, self)._PreSave(cursor)
-        self["updateTime"] = time.gmtime()
-
-    def SetState(self, status):
-        if self["status"] not in (MollieStatus.OPEN,):
-            if self["status"] == MollieStatus.PAID and status == MollieStatus.PAID:
-                raise model.PermissionError("Mollie transaction is already paid for.")
-            raise model.PermissionError(
-                "Cannot update transaction, current state is %r new state %r"
-                % (self["status"], status)
-            )
-        change = self["status"] != status  # we return true if a change has happened
-        self["status"] = status
-        self.Save()
-        return change
-
-    @classmethod
-    def FromDescription(cls, connection, remoteID):
-        """Fetches an order object by remoteID"""
-        with connection as cursor:
-            order = cursor.Execute(
-                """
-          SELECT *
-          FROM mollieTransaction
-          WHERE `description` = "%s"
-      """
-                % remoteID
-            )
-        if not order:
-            raise model.NotExistError("No order for id %s" % remoteID)
-        return cls(connection, order[0])
-
-
-class MolliePaymentGateway(object):
+class MolliePaymentGateway:
     def __init__(self, uweb, apikey=None, redirect_url=None, webhook_url=None):
         """Init the mollie object and set its values
 
@@ -121,7 +46,7 @@ class MolliePaymentGateway(object):
             if not webhook_url:
                 self.webhook_url = self.uweb.options["mollie"]["webhook_url"]
         except KeyError as e:
-            raise MollieConfigError(
+            raise mollie_model.MollieConfigError(
                 f"""Mollie config error: You need to supply a
           value for: {e.args[0]} in your µweb config under the header mollie"""
             )
@@ -156,10 +81,12 @@ class MolliePaymentGateway(object):
         """
         transaction = {
             "amount": str(total),
-            "status": MollieStatus.OPEN.value,
+            "status": mollie_model.MollieStatus.OPEN.value,
             "invoice": invoiceID,
         }
-        transaction = MollieTransaction.Create(self.uweb.connection, transaction)
+        transaction = mollie_model.MollieTransaction.Create(
+            self.uweb.connection, transaction
+        )
         mollietransaction = {
             "amount": {
                 "currency": "EUR",
@@ -193,21 +120,23 @@ class MolliePaymentGateway(object):
         returns False if the notification did not change a transaction into an
           authorized state
         """
-        transaction = MollieTransaction.FromDescription(
+        transaction = mollie_model.MollieTransaction.FromDescription(
             self.uweb.connection, transaction
         )
         changed = transaction.SetState(payment["status"])
         if changed:
-            if payment["status"] == MollieStatus.PAID and (
+            if payment["status"] == mollie_model.MollieStatus.PAID and (
                 payment["amount"]["value"]
             ) == str(transaction["amount"]):
                 return True
-            if payment["status"] == MollieStatus.FAILED:
-                raise MollieTransactionFailed(
+            if payment["status"] == mollie_model.MollieStatus.FAILED:
+                raise mollie_model.MollieTransactionFailed(
                     "Mollie payment failed"
                 )  # XXX: Should we throw errors here?
-            if payment["status"] == MollieStatus.CANCELED:
-                raise MollieTransactionCanceled("Mollie payment was canceled")
+            if payment["status"] == mollie_model.MollieStatus.CANCELED:
+                raise mollie_model.MollieTransactionCanceled(
+                    "Mollie payment was canceled"
+                )
         return False
 
     def GetForm(self, invoiceID, total, description, referenceID):
@@ -246,10 +175,7 @@ class MolliePaymentGateway(object):
         return self._UpdateTransaction(transaction, payment)
 
 
-# ##############################################################################
-# Actual Pagemaker mixin class
-#
-class MollieMixin(object):
+class MollieMixin:
     """Provides the Mollie Framework for uWeb."""
 
     def _Mollie_HookPaymentReturn(self, transaction):
@@ -266,13 +192,16 @@ class MollieMixin(object):
                 # In every other scenario it will either return False or raise an exception.
                 return self._MollieHandleSuccessfulpayment(transaction)
             return self._MollieHandleSuccessfulNotification(transaction)
-        except MollieTransaction.NotExistError:
+        except mollie_model.MollieTransaction.NotExistError:
             return self._MollieHandleUnsuccessfulNotification(
                 transaction, "invalid transaction ID"
             )
-        except (MollieTransactionFailed, MollieTransactionCanceled) as e:
+        except (
+            mollie_model.MollieTransactionFailed,
+            mollie_model.MollieTransactionCanceled,
+        ) as e:
             return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
-        except (MollieError, model.PermissionError, Exception) as e:
+        except (mollie_model.MollieError, model.PermissionError, Exception) as e:
             return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
 
     def NewMolliePaymentGateway(self):
@@ -297,3 +226,73 @@ class MollieMixin(object):
         """This method gets called when the transaction could not be updated
         because the signature was wrong or some other error occured"""
         raise NotImplementedError
+
+
+class PageMaker(basepages.PageMaker, MollieMixin):
+    """Holds all the html generators for the webapp
+
+    Each page as a separate method.
+    """
+
+    def RequestMollie(self, invoiceID, price, description, reference):
+        """
+        Arguments:
+          invoiceID: int
+            The ID of the invoice
+          price: Decimal
+            The amount that we want to be on the mollie request
+          description:
+            The description
+          reference: str
+            The invoice sequenceNumber. We use this for processing #TODO: fix description
+        """
+
+        mollie = self.NewMolliePaymentGateway()
+        return mollie.GetForm(invoiceID, price, description, reference)
+
+    def _Mollie_HookPaymentReturn(self, transaction):
+        """This is the webhook that mollie calls when that transaction is updated."""
+        # This route is used to receive updates from mollie about the transaction status.
+        try:
+            transaction = mollie_model.MollieTransaction.FromPrimary(
+                self.connection, transaction
+            )
+            super()._Mollie_HookPaymentReturn(transaction["description"])
+
+            updated_transaction = mollie_model.MollieTransaction.FromPrimary(
+                self.connection, transaction
+            )
+
+            #  If the updated transactions status is paid and the status of the transaction was changed since the beginning of this route
+            if (
+                updated_transaction["status"] == mollie_model.MollieStatus.PAID
+                and transaction["status"] != updated_transaction["status"]
+            ):
+                invoice = invoice_model.Invoice.FromPrimary(
+                    self.connection, transaction["invoice"]
+                )
+                platformID = invoice_model.PaymentPlatform.FromName(
+                    self.connection, "mollie"
+                )["ID"]
+                invoice.AddPayment(platformID, transaction["amount"])
+        except (uweb3.model.NotExistError, Exception) as error:
+            # Prevent leaking data about transactions.
+            uweb3.logging.error(
+                f"Error triggered while processing mollie notification for transaction: {transaction} {error}"
+            )
+        finally:
+            return "ok"
+
+    def _MollieHandleSuccessfulpayment(self, transaction):
+        return "ok"
+
+    def _MollieHandleSuccessfulNotification(self, transaction):
+        return "ok"
+
+    def _MollieHandleUnsuccessfulNotification(self, transaction, error):
+        return "ok"
+
+    @decorators.NotExistsErrorCatcher
+    @uweb3.decorators.TemplateParser("mollie/payment_ok.html")
+    def Mollie_Redirect(self, transactionID):
+        return

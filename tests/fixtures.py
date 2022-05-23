@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from uweb3.libs.sqltalk import mysql
 
-from invoices.base.model import invoice
+from invoices.invoice import model as invoice_model
 
 current_year = date.today().year
 
@@ -27,8 +27,8 @@ def connection():
 
 
 @pytest.fixture
-def client_object(connection) -> invoice.Client:
-    client = invoice.Client.Create(
+def client_object(connection) -> invoice_model.Client:
+    client = invoice_model.Client.Create(
         connection,
         {
             "ID": 1,
@@ -59,8 +59,8 @@ def run_before_and_after_tests(connection):
 
 
 @pytest.fixture
-def companydetails_object(connection) -> invoice.Companydetails:
-    companydetails = invoice.Companydetails.Create(
+def companydetails_object(connection) -> invoice_model.Companydetails:
+    companydetails = invoice_model.Companydetails.Create(
         connection,
         {
             "ID": 1,
@@ -94,8 +94,8 @@ def simple_invoice_dict(client_object, companydetails_object) -> dict:
 
 @pytest.fixture
 def create_invoice_object(connection, client_object, companydetails_object):
-    def create(status=invoice.InvoiceStatus.NEW.value) -> invoice.Invoice:
-        return invoice.Invoice.Create(
+    def create(status=invoice_model.InvoiceStatus.NEW.value) -> invoice_model.Invoice:
+        return invoice_model.Invoice.Create(
             connection,
             {
                 "title": "test invoice",
@@ -111,8 +111,8 @@ def create_invoice_object(connection, client_object, companydetails_object):
 @pytest.fixture
 def default_invoice_and_products(create_invoice_object):
     def create_default_invoice(
-        status=invoice.InvoiceStatus.NEW.value,
-    ) -> invoice.Invoice:
+        status=invoice_model.InvoiceStatus.NEW.value,
+    ) -> invoice_model.Invoice:
         invoice = create_invoice_object(status=status)
         products = [
             {"name": "dakpan", "price": 25, "vat_percentage": 10, "quantity": 10},

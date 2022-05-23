@@ -2,7 +2,6 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 # standard modules
-import decimal
 import re
 from io import BytesIO
 from itertools import zip_longest
@@ -10,8 +9,8 @@ from itertools import zip_longest
 import mt940
 from weasyprint import HTML
 
-from invoices.base.model.invoice import InvoiceStatus
-from invoices.base.pages.helpers.general import round_price
+from invoices.common.helpers import round_price
+from invoices.invoice.model import InvoiceStatus
 
 __all__ = [
     "ToPDF",

@@ -1,19 +1,22 @@
-import marshmallow
+import marshmallow.exceptions
 import uweb3
 
-from invoices.base import model
-from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
+import invoices.invoice.model as invoice_model
+from invoices import basepages
+from invoices.common.schemas import CompanyDetailsSchema
 
 
-class PageMaker:
+class PageMaker(basepages.PageMaker):
     @uweb3.decorators.loggedin
     @uweb3.decorators.TemplateParser("settings.html")
-    def RequestSettings(self, errors={}):
+    def RequestSettings(self, errors=None):
         """Returns the settings page."""
+        if not errors:
+            errors = {}
         settings = None
-        highestcompanyid = model.Companydetails.HighestNumber(self.connection)
+        highestcompanyid = invoice_model.Companydetails.HighestNumber(self.connection)
         if highestcompanyid:
-            settings = model.Companydetails.FromPrimary(
+            settings = invoice_model.Companydetails.FromPrimary(
                 self.connection, highestcompanyid
             )
         return {
@@ -35,17 +38,19 @@ class PageMaker:
             return self.RequestSettings(errors=error.messages)
 
         settings = None
-        increment = model.Companydetails.HighestNumber(self.connection)
+        increment = invoice_model.Companydetails.HighestNumber(self.connection)
 
         try:
-            settings = model.Companydetails.FromPrimary(self.connection, increment)
+            settings = invoice_model.Companydetails.FromPrimary(
+                self.connection, increment
+            )
         except uweb3.model.NotExistError:
             pass
 
         if settings:
             settings.Create(self.connection, newsettings)
         else:
-            model.Companydetails.Create(self.connection, newsettings)
+            invoice_model.Companydetails.Create(self.connection, newsettings)
 
         return self.RequestSettings()
 

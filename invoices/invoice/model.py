@@ -1,29 +1,17 @@
-# Standard modules
-# Standard modules
-
 import datetime
 import decimal
 import time
 from enum import Enum
 
 import pytz
+import uweb3
 
 # Custom modules
 from uweb3.model import Record
 
-from invoices.base.model.model import Client, RichModel
-from invoices.base.pages.helpers.general import round_price
-
-__all__ = [
-    "PRO_FORMA_PREFIX",
-    "PAYMENT_PERIOD",
-    "InvoiceStatus",
-    "Companydetails",
-    "InvoiceProduct",
-    "Invoice",
-    "PaymentPlatform",
-    "InvoicePayment",
-]
+from invoices.clients.model import Client
+from invoices.common import model as common_model
+from invoices.common.helpers import round_price
 
 PRO_FORMA_PREFIX = "PF"
 PAYMENT_PERIOD = datetime.timedelta(14)
@@ -52,7 +40,7 @@ class Companydetails(Record):
         return 0
 
 
-class InvoiceProduct(RichModel):
+class InvoiceProduct(common_model.RichModel):
     """Abstraction class for Products that are linked to an invoice"""
 
     def Totals(self):
@@ -62,7 +50,7 @@ class InvoiceProduct(RichModel):
         ]
 
 
-class Invoice(RichModel):
+class Invoice(common_model.RichModel):
     """Abstraction class for Invoices stored in the database."""
 
     _FOREIGN_RELATIONS = {
@@ -309,7 +297,7 @@ class PaymentPlatform(Record):
         return cls(connection, platform[0])
 
 
-class InvoicePayment(RichModel):
+class InvoicePayment(common_model.RichModel):
     _FOREIGN_RELATIONS = {
         "invoice": {"class": Invoice, "loader": "FromPrimary", "LookupKey": "ID"},
         "platform": {
@@ -361,3 +349,6 @@ class ProFormaSequenceTable(Record):
         prefix, year, sequence = self["sequenceNumber"].split("-")
         self["sequenceNumber"] = "%s-%s-%03d" % (prefix, year, int(sequence) + 1)
         self.Save()
+
+
+NotExistError = uweb3.model.NotExistError

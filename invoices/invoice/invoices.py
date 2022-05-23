@@ -11,24 +11,24 @@ import uweb3
 from marshmallow.exceptions import ValidationError
 from uweb3.libs.mail import MailSender
 
-from invoices.base import model
-from invoices.base.decorators import NotExistsErrorCatcher, RequestWrapper
-from invoices.base.pages.helpers import invoices
-from invoices.base.pages.helpers.general import round_price, transaction
-from invoices.base.pages.helpers.schemas import (
+from invoices import basepages
+from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper
+from invoices.common.helpers import round_price, transaction
+from invoices.common.schemas import (
     InvoiceSchema,
     PaymentSchema,
     ProductSchema,
     WarehouseStockChangeSchema,
     WarehouseStockRefundSchema,
 )
+from invoices.invoice import helpers, model
 
 
 class WarehouseAPIException(Exception):
     """Error that was raised during an API call to warehouse."""
 
 
-class PageMaker:
+class PageMaker(basepages.PageMaker):
     def _get_warehouse_api_data(
         self,
     ):  # XXX: This is used because the __init__ and _PostInit methods are not called because this PageMakers super class is object.
@@ -93,7 +93,7 @@ class PageMaker:
     def RequestCreateNewInvoicePage(self):
         # Check if client exists
         model.Client.FromPrimary(self.connection, int(self.post.getfirst("client")))
-        products = invoices.get_and_zip_products(self.post)
+        products = helpers.get_and_zip_products(self.post)
 
         try:
             sanitized_invoice = InvoiceSchema().load(self.post.__dict__)
@@ -114,7 +114,7 @@ class PageMaker:
                 products
             )
 
-            reference = invoices.create_invoice_reference_msg(
+            reference = helpers.create_invoice_reference_msg(
                 invoice["status"], invoice["sequenceNumber"]
             )
             response = self._warehouse_bulk_stock_request(
@@ -196,7 +196,7 @@ class PageMaker:
         requestedinvoice = self.RequestInvoiceDetails(invoice)
         if type(requestedinvoice) != uweb3.response.Redirect:
             return uweb3.Response(
-                invoices.ToPDF(requestedinvoice), content_type="application/pdf"
+                helpers.ToPDF(requestedinvoice), content_type="application/pdf"
             )
         return requestedinvoice
 
@@ -255,7 +255,7 @@ class PageMaker:
 
     def mail_invoice(self, invoice, details, **kwds):
         # Generate the PDF for newly created invoice
-        pdf = invoices.ToPDF(details, filename="invoice.pdf")
+        pdf = helpers.ToPDF(details, filename="invoice.pdf")
         # Create a mollie payment request
         content = self.parser.Parse("email/invoice.txt", **kwds)
 
@@ -283,7 +283,7 @@ class PageMaker:
         # TODO: File validation.
         payments = []
         failed_payments = []
-        found_invoice_references = invoices.MT940_processor(
+        found_invoice_references = helpers.MT940_processor(
             self.files.get("fileupload", [])
         ).process_files()
 
