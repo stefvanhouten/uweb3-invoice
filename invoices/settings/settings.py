@@ -9,8 +9,10 @@ from invoices.common.schemas import CompanyDetailsSchema
 class PageMaker(basepages.PageMaker):
     @uweb3.decorators.loggedin
     @uweb3.decorators.TemplateParser("settings.html")
-    def RequestSettings(self, errors={}):
+    def RequestSettings(self, errors=None):
         """Returns the settings page."""
+        if not errors:
+            errors = {}
         settings = None
         highestcompanyid = invoice_model.Companydetails.HighestNumber(self.connection)
         if highestcompanyid:
