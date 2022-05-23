@@ -90,7 +90,7 @@ class MolliePaymentGateway:
             self.connection,
             {
                 "amount": obj.price,
-                "status": mollie_model.MollieStatus.OPEN.value,
+                "status": MollieStatus.OPEN.value,
                 "invoice": obj.id,
             },
         )
@@ -121,15 +121,15 @@ class MolliePaymentGateway:
         )
         changed = transaction.SetState(payment["status"])
         if changed:
-            if payment["status"] == mollie_model.MollieStatus.PAID and (
+            if payment["status"] == MollieStatus.PAID and (
                 payment["amount"]["value"]
             ) == str(transaction["amount"]):
                 return True
-            if payment["status"] == mollie_model.MollieStatus.FAILED:
+            if payment["status"] == MollieStatus.FAILED:
                 raise mollie_model.MollieTransactionFailed(
                     "Mollie payment failed"
                 )  # XXX: Should we throw errors here?
-            if payment["status"] == mollie_model.MollieStatus.CANCELED:
+            if payment["status"] == MollieStatus.CANCELED:
                 raise mollie_model.MollieTransactionCanceled(
                     "Mollie payment was canceled"
                 )
