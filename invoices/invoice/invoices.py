@@ -22,6 +22,7 @@ from invoices.common.schemas import (
     WarehouseStockRefundSchema,
 )
 from invoices.invoice import helpers, model
+from invoices.mollie import mollie as mollie_module
 
 
 class WarehouseAPIException(Exception):
@@ -153,8 +154,16 @@ class PageMaker(basepages.PageMaker):
 
             # Check if there is a payment request for mollie in the post data
             if mollie_amount:
-                payment_req_url = self._create_mollie_request(invoice, mollie_amount)
-                data["mollie"] = payment_req_url
+                obj = mollie_module.MollieTransactionObject(
+                    invoice["ID"],
+                    round_price(mollie_amount),
+                    invoice["description"],
+                    invoice["sequenceNumber"],
+                )
+                mollie = mollie_module.new_mollie_request(
+                    self.connection, self.options["mollie"], obj
+                )
+                data["mollie"] = mollie_module.get_request_url(mollie)
 
             # Mail the invoice with PDF attached
             return self.mail_invoice(
@@ -166,15 +175,6 @@ class PageMaker(basepages.PageMaker):
             raise NotImplementedError(
                 "When a mollie payment is requested the invoice should also be mailed.."
             )
-
-    def _create_mollie_request(self, invoice, amount):
-        mollie_result = self.RequestMollie(
-            invoice["ID"],
-            round_price(amount),
-            invoice["description"],
-            invoice["sequenceNumber"],
-        )
-        return mollie_result["url"]["href"]
 
     @uweb3.decorators.TemplateParser("invoices/invoice.html")
     @NotExistsErrorCatcher
