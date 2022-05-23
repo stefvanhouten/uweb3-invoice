@@ -68,6 +68,8 @@ def CheckAndAddPayment(connection, transaction):
         invoice = invoice_model.Invoice.FromPrimary(connection, transaction["invoice"])
         platformID = invoice_model.PaymentPlatform.FromName(connection, "mollie")["ID"]
         invoice.AddPayment(platformID, transaction["amount"])
+        return True
+    return False
 
 
 class MolliePaymentGateway:
