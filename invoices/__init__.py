@@ -3,10 +3,11 @@ import os
 # Third-party modules
 import uweb3
 
-from invoices.clients import clients
-from invoices.invoice import invoices
-from invoices.login import login
-from invoices.settings import settings
+from invoices.clients.urls import urls as client_urls
+from invoices.invoice.urls import urls as invoice_urls
+from invoices.login.urls import urls as login_urls
+from invoices.mollie.urls import urls as mollie_urls
+from invoices.settings.urls import urls as setting_urls
 
 # Application
 from . import basepages
@@ -22,79 +23,23 @@ def main():
       name of a presenter method which should handle it.
     - The execution path, internally used to find templates etc.
     """
-    return uweb3.uWeb(
-        basepages.PageMaker,
-        [
-            ("/", (login.PageMaker, "RequestIndex")),
-            # # login / user management
-            ("/login", (login.PageMaker, "HandleLogin"), "POST"),
-            ("/login", (login.PageMaker, "RequestLogin")),
-            ("/logout", (login.PageMaker, "RequestLogout")),
-            ("/setup", (login.PageMaker, "RequestSetup")),
-            # # Settings
-            ("/settings", (settings.PageMaker, "RequestSettings"), "GET"),
-            ("/settings", (settings.PageMaker, "RequestSettingsSave"), "POST"),
-            (
-                "/warehousesettings",
-                (settings.PageMaker, "RequestWarehouseSettingsSave"),
-                "POST",
-            ),
-            (
-                "/molliesettings",
-                (settings.PageMaker, "RequestMollieSettingsSave"),
-                "POST",
-            ),
-            # Clients
-            ("/clients", (clients.PageMaker, "RequestClientsPage"), "GET"),
-            ("/clients", (clients.PageMaker, "RequestNewClientPage"), "POST"),
-            (
-                "/clients/save",
-                (clients.PageMaker, "RequestRequestSaveClientPage"),
-                "POST",
-            ),
-            ("/client/(.*)", (clients.PageMaker, "RequestClientPage")),
-            # # Invoices
-            ("/invoices", (invoices.PageMaker, "RequestInvoicesPage"), "GET"),
-            ("/invoices/new", (invoices.PageMaker, "RequestNewInvoicePage"), "GET"),
-            (
-                "/invoices/new",
-                (invoices.PageMaker, "RequestCreateNewInvoicePage"),
-                "POST",
-            ),
-            (
-                "/invoices/settopayed",
-                (invoices.PageMaker, "RequestInvoicePayed"),
-                "POST",
-            ),
-            (
-                "/invoices/settonew",
-                (invoices.PageMaker, "RequestInvoiceReservationToNew"),
-                "POST",
-            ),
-            ("/invoice/payments/(.*)", (invoices.PageMaker, "ManagePayments"), "GET"),
-            ("/invoice/payments/(.*)", (invoices.PageMaker, "AddPayment"), "POST"),
-            ("/invoice/(.*)", (invoices.PageMaker, "RequestInvoiceDetails"), "GET"),
-            ("/invoices/cancel", (invoices.PageMaker, "RequestInvoiceCancel"), "POST"),
-            ("/invoices/mt940", (invoices.PageMaker, "RequestMt940"), "GET"),
-            ("/invoices/upload", (invoices.PageMaker, "RequestUploadMt940"), "POST"),
-            ("/pdfinvoice/(.*)", (invoices.PageMaker, "RequestPDFInvoice")),
-            # # API routes
-            # (f"{basepages.API_VERSION}/client/([0-9]+)", "RequestClient"),
-            # (f"{basepages.API_VERSION}/clients", "RequestClients", "GET"),
-            # (f"{basepages.API_VERSION}/clients", "RequestNewClient", "POST"),
-            # (f"{basepages.API_VERSION}/clients/save", "RequestSaveClient"),
-            # ## Mollie routes
-            # (f"{basepages.API_VERSION}/mollie/redirect/(\d+)", "Mollie_Redirect"),
-            # (
-            #     f"{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)",
-            #     "_Mollie_HookPaymentReturn",
-            # ),
+    urls = (
+        setting_urls
+        + login_urls
+        + client_urls
+        + invoice_urls
+        + mollie_urls
+        + [
             # Helper files
             ("(/styles/.*)", "Static"),
             ("(/js/.*)", "Static"),
             ("(/media/.*)", "Static"),
             ("(/favicon.ico)", "Static"),
             ("(/.*)", "RequestInvalidcommand"),
-        ],
+        ]
+    )
+    return uweb3.uWeb(
+        basepages.PageMaker,
+        urls,
         os.path.dirname(__file__),
     )
