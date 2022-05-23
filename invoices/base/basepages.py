@@ -1,12 +1,10 @@
 import time
 from http import HTTPStatus
 
-import marshmallow
 import uweb3
 
-from invoices.base import model
-from invoices.base.pages import clients, invoices, mollie, settings
-from invoices.base.pages.helpers.schemas import CompanyDetailsSchema
+import invoices.base.login.model as login_model
+from invoices.base.invoice.model import PRO_FORMA_PREFIX
 
 API_VERSION = "/api/v1"
 
@@ -14,10 +12,6 @@ API_VERSION = "/api/v1"
 class PageMaker(
     uweb3.DebuggingPageMaker,
     uweb3.LoginMixin,
-    clients.PageMaker,
-    invoices.PageMaker,
-    settings.PageMaker,
-    mollie.PageMaker,
 ):
     """Holds all the request handlers for the application"""
 
@@ -31,7 +25,7 @@ class PageMaker(
         self.parser.RegisterFunction("items", lambda x: x.items())
         self.parser.RegisterFunction("DateOnly", lambda x: str(x)[0:10])
         self.parser.RegisterFunction(
-            "isProForma", lambda x: bool(str(x).startswith(model.PRO_FORMA_PREFIX))
+            "isProForma", lambda x: bool(str(x).startswith(PRO_FORMA_PREFIX))
         )
         self.parser.RegisterTag("year", time.strftime("%Y"))
         self.parser.RegisterTag(
@@ -59,124 +53,16 @@ class PageMaker(
     def _ReadSession(self):
         """Attempts to read the session for this user from his session cookie"""
         try:
-            user = model.Session(self.connection)
+            user = login_model.Session(self.connection)
         except Exception:
             raise ValueError("Session cookie invalid")
         try:
-            user = model.User.FromPrimary(self.connection, int(str(user)))
-        except model.NotExistError:
+            user = login_model.User.FromPrimary(self.connection, int(str(user)))
+        except uweb3.model.NotExistError:
             return None
         if user["active"] != "true":
             raise ValueError("User not active, session invalid")
         return user
-
-    @uweb3.decorators.loggedin
-    def RequestIndex(self):
-        """Returns the homepage"""
-        return self.req.Redirect("/invoices", httpcode=303)
-
-    @uweb3.decorators.TemplateParser("login.html")
-    def RequestLogin(self, url=None):
-        """Please login"""
-        if self.user:
-            return self.RequestIndex()
-        if not url and "url" in self.get:
-            url = self.get.getfirst("url")
-        return {"url": url}
-
-    @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("logout.html")
-    def RequestLogout(self):
-        """Handles logouts"""
-        message = "You were already logged out."
-        if self.user:
-            message = ""
-            if "action" in self.post:
-                session = model.Session(self.connection)
-                session.Delete()
-                return self.req.Redirect("/login")
-        return {"message": message}
-
-    @uweb3.decorators.checkxsrf
-    def HandleLogin(self):
-        """Handles a username/password combo post."""
-        if self.user or "email" not in self.post or "password" not in self.post:
-            return self.RequestIndex()
-        url = (
-            self.post.getfirst("url", None)
-            if self.post.getfirst("url", "").startswith("/")
-            else "/"
-        )
-        try:
-            self._user = model.User.FromLogin(
-                self.connection,
-                self.post.getfirst("email"),
-                self.post.getfirst("password"),
-            )
-            model.Session.Create(self.connection, int(self.user), path="/")
-            print("login successful.", self.post.getfirst("email"))
-            # redirect 303 to make sure we GET the next page, not post again to avoid leaking login details.
-            return self.req.Redirect(url, httpcode=303)
-        except model.User.NotExistError as error:
-            self.parser.RegisterTag("loginerror", "%s" % error)
-            print("login failed.", self.post.getfirst("email"))
-        return self.RequestLogin(url)
-
-    @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("setup.html")
-    def RequestSetup(self):
-        """Allows the user to setup various fields, and create an admin user.
-
-        If these fields are already filled out, this page will not function any
-        longer.
-        """
-        if not model.User.IsFirstUser(self.connection):
-            return self.RequestLogin()
-
-        if (
-            "email" in self.post
-            and "password" in self.post
-            and "password_confirm" in self.post
-            and self.post.getfirst("password") == self.post.getfirst("password_confirm")
-        ):
-
-            # We do this because marshmallow only validates dicts. Calling dict(self.post) does not work propperly because the values of the dict will be indexfield.
-            fieldstorage_to_dict = {
-                key: self.post.getfirst(key, "") for key in list(self.post.keys())
-            }
-            try:
-                settings = CompanyDetailsSchema().load(fieldstorage_to_dict)
-                model.Companydetails.Create(self.connection, settings)
-                user = model.User.Create(
-                    self.connection,
-                    {
-                        "ID": 1,
-                        "email": self.post.getfirst("email"),
-                        "active": "true",
-                        "password": self.post.getfirst("password"),
-                    },
-                    generate_password_hash=True,
-                )
-            except ValueError:
-                return {
-                    "errors": {
-                        "password": ["Password too short, 8 characters minimal."]
-                    },
-                    "postdata": fieldstorage_to_dict,
-                }
-            except marshmallow.exceptions.ValidationError as error:
-                return {"errors": error.messages, "postdata": fieldstorage_to_dict}
-
-            self.config.Update("general", "host", self.post.getfirst("hostname"))
-            self.config.Update(
-                "general", "locale", self.post.getfirst("locale", "en_GB")
-            )
-            self.config.Update(
-                "general", "warehouse_api", self.post.getfirst("warehouse_api")
-            )
-            self.config.Update("general", "apikey", self.post.getfirst("apikey"))
-            model.Session.Create(self.connection, int(user), path="/")
-            return self.req.Redirect("/", httpcode=301)
 
     def RequestInvalidcommand(self, command=None, error=None, httpcode=404):
         """Returns an error message"""
