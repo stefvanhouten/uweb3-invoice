@@ -15,8 +15,6 @@ from invoices.common import decorators
 from invoices.invoice import model as invoice_model
 from invoices.mollie import model as mollie_model
 
-MOLLIE_API = "https://api.mollie.nl/v2"
-
 
 class MolliePaymentGateway:
     def __init__(self, uweb, apikey=None, redirect_url=None, webhook_url=None):
@@ -30,6 +28,7 @@ class MolliePaymentGateway:
           % webhook_url: str
             Set the webhook URL, where we will send payment status updates to.
         """
+        self.api_url = "https://api.mollie.nl/v2"
         self.uweb = uweb
         self.apikey = apikey
         self.redirect_url = redirect_url
@@ -50,20 +49,6 @@ class MolliePaymentGateway:
                 f"""Mollie config error: You need to supply a
           value for: {e.args[0]} in your µweb config under the header mollie"""
             )
-
-    def GetIdealBanks(self):
-        directorydata = requests.request(
-            "GET",
-            f"{MOLLIE_API}/issuers",
-            headers={"Authorization": "Bearer " + self.apikey},
-        )
-        banks = json.loads(directorydata.text)
-        issuerlist = []
-        for issuer in banks["data"]:
-            issuername = issuer["name"]
-            issuerid = issuer["id"]
-            issuerlist.append({"id": issuerid, "name": issuername})
-        return issuerlist
 
     def CreateTransaction(self, invoiceID, total, description, referenceID):
         """Store the transaction into the database and fetch the unique transaction
@@ -99,7 +84,7 @@ class MolliePaymentGateway:
             "method": "ideal",
         }
         paymentdata = requests.post(
-            f"{MOLLIE_API}/payments",
+            f"{self.api_url}/paymentpayments",
             headers={"Authorization": "Bearer " + self.apikey},
             data=json.dumps(mollietransaction),
         )
@@ -162,7 +147,7 @@ class MolliePaymentGateway:
     def GetPayment(self, transaction):
         data = requests.request(
             "GET",
-            f"{MOLLIE_API}/payments/%s" % transaction,
+            f"{self.api_url}/payments/%s" % transaction,
             headers={"Authorization": "Bearer " + self.apikey},
         )
         payment = json.loads(data.text)
