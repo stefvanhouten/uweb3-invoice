@@ -1,11 +1,30 @@
 from datetime import date
 
 import pytest
+from uweb3 import SettingsManager
 from uweb3.libs.sqltalk import mysql
 
 from invoices.invoice import model as invoice_model
 
 current_year = date.today().year
+
+
+@pytest.fixture
+def config():
+    return SettingsManager("config", "invoices/")
+
+
+@pytest.fixture
+def mollie_config(config):
+    apikey = str(config.options["mollie"]["test_apikey"])
+
+    if not apikey.startswith("test_"):
+        raise Exception("You should use a mollie test key for unittesting purposes.")
+    return {
+        "apikey": apikey,
+        "webhook_url": config.options["mollie"]["webhook_url"],
+        "redirect_url": config.options["mollie"]["redirect_url"],
+    }
 
 
 @pytest.fixture(scope="module")
