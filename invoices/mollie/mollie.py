@@ -184,10 +184,10 @@ class MollieMixin:
         except (
             mollie_model.MollieTransactionFailed,
             mollie_model.MollieTransactionCanceled,
-        ) as e:
-            return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
-        except (mollie_model.MollieError, model.PermissionError, Exception) as e:
-            return self._MollieHandleUnsuccessfulNotification(transaction, str(e))
+        ) as error:
+            return self._MollieHandleUnsuccessfulNotification(transaction, str(error))
+        except (mollie_model.MollieError, model.PermissionError, Exception) as error:
+            return self._MollieHandleUnsuccessfulNotification(transaction, str(error))
 
     def NewMolliePaymentGateway(self):
         """Overwrite this to implement an MolliePaymentGateway instance with non
