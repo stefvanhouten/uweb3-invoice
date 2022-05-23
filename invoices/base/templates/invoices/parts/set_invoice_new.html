@@ -1,9 +1,0 @@
-<form
-  action="/invoices/settonew"
-  method="post"
-  onsubmit="return confirm('Are you sure you want to change invoice [invoice:sequenceNumber] status from reservation to new?')"
->
-  <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
-  <input type="hidden" name="xsrf" value="[xsrf]" />
-  <input type="submit" value="Change to normal invoice" />
-</form>

@@ -9,9 +9,9 @@ import uweb3
 # Custom modules
 from uweb3.model import Record
 
-from invoices.base.clients.model import Client
-from invoices.base.common import model as common_model
-from invoices.base.common.helpers import round_price
+from invoices.clients.model import Client
+from invoices.common import model as common_model
+from invoices.common.helpers import round_price
 
 PRO_FORMA_PREFIX = "PF"
 PAYMENT_PERIOD = datetime.timedelta(14)

@@ -1,8 +1,8 @@
 import pytest
 from pymysql import Date
 
-from invoices.base.common.schemas import WarehouseStockChangeSchema
-from invoices.base.invoice import helpers as invoice_helpers
+from invoices.common.schemas import WarehouseStockChangeSchema
+from invoices.invoice import helpers as invoice_helpers
 
 
 @pytest.fixture

@@ -10,10 +10,10 @@ import requests
 import uweb3
 from uweb3 import model
 
-from invoices.base import basepages
-from invoices.base.common import decorators
-from invoices.base.invoice import model as invoice_model
-from invoices.base.mollie import model as mollie_model
+from invoices import basepages
+from invoices.common import decorators
+from invoices.invoice import model as invoice_model
+from invoices.mollie import model as mollie_model
 
 MOLLIE_API = "https://api.mollie.nl/v2"
 

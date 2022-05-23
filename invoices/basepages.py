@@ -3,8 +3,8 @@ from http import HTTPStatus
 
 import uweb3
 
-import invoices.base.login.model as login_model
-from invoices.base.invoice.model import PRO_FORMA_PREFIX
+import invoices.login.model as login_model
+from invoices.invoice.model import PRO_FORMA_PREFIX
 
 API_VERSION = "/api/v1"
 

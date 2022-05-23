@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from uweb3.libs.sqltalk import mysql
 
-from invoices.base.invoice import model as invoice_model
+from invoices.invoice import model as invoice_model
 
 current_year = date.today().year
 

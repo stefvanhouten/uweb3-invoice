@@ -1,6 +1,6 @@
 import uweb3
 
-from invoices.base.common import model as common_model
+from invoices.common import model as common_model
 
 
 class Client(common_model.RichVersionedRecord):

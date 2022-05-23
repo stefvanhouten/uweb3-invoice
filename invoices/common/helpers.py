@@ -18,7 +18,7 @@ def transaction(connection, cls):
 
     Arguments:
       @ connection: The databaseconnection available in the PageMaker class.
-      @ cls: uweb3.model.BaseRecord
+      @ cls: uweb3.modelRecord
         Any class that derives from the BaseRecord class.
     """
     try:

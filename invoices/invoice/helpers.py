@@ -9,8 +9,8 @@ from itertools import zip_longest
 import mt940
 from weasyprint import HTML
 
-from invoices.base.common.helpers import round_price
-from invoices.base.invoice.model import InvoiceStatus
+from invoices.common.helpers import round_price
+from invoices.invoice.model import InvoiceStatus
 
 __all__ = [
     "ToPDF",

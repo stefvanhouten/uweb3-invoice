@@ -4,8 +4,8 @@ from decimal import Decimal
 
 import pytest
 
-from invoices.base.common import helpers
-from invoices.base.invoice import model as invoice_model
+from invoices.common import helpers
+from invoices.invoice import model as invoice_model
 from tests.fixtures import *
 
 # XXX: Some parameters might seem like they are unused.

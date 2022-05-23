@@ -11,17 +11,17 @@ import uweb3
 from marshmallow.exceptions import ValidationError
 from uweb3.libs.mail import MailSender
 
-from invoices.base import basepages
-from invoices.base.common.decorators import NotExistsErrorCatcher, RequestWrapper
-from invoices.base.common.helpers import round_price, transaction
-from invoices.base.common.schemas import (
+from invoices import basepages
+from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper
+from invoices.common.helpers import round_price, transaction
+from invoices.common.schemas import (
     InvoiceSchema,
     PaymentSchema,
     ProductSchema,
     WarehouseStockChangeSchema,
     WarehouseStockRefundSchema,
 )
-from invoices.base.invoice import helpers, model
+from invoices.invoice import helpers, model
 
 
 class WarehouseAPIException(Exception):

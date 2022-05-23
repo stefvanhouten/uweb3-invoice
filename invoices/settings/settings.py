@@ -1,9 +1,9 @@
 import marshmallow.exceptions
 import uweb3
 
-import invoices.base.invoice.model as invoice_model
-from invoices.base import basepages
-from invoices.base.common.schemas import CompanyDetailsSchema
+import invoices.invoice.model as invoice_model
+from invoices import basepages
+from invoices.common.schemas import CompanyDetailsSchema
 
 
 class PageMaker(basepages.PageMaker):

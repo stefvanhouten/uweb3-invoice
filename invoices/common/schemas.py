@@ -1,7 +1,7 @@
 from marshmallow import EXCLUDE, Schema, fields, post_load, validate
 
-from invoices.base.common.helpers import round_price
-from invoices.base.invoice.model import InvoiceStatus
+from invoices.common.helpers import round_price
+from invoices.invoice.model import InvoiceStatus
 
 
 class InvoiceSchema(Schema):

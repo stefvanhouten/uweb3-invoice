@@ -1,9 +1,0 @@
-<form
-  action="/invoices/settopayed"
-  method="post"
-  onsubmit="return confirm('Are you sure you want to change [invoice:sequenceNumber] to paid?')"
->
-  <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
-  <input type="hidden" name="xsrf" value="[xsrf]" />
-  <input type="submit" value="Change to paid" />
-</form>
