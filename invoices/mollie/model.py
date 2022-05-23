@@ -2,24 +2,10 @@ __author__ = "Arjen Pander <arjen@underdark.nl>"
 __version__ = "0.1"
 
 import time
-from enum import Enum
 
 from uweb3 import model
 
-
-class MollieStatus(str, Enum):
-    PAID = "paid"  # https://docs.mollie.com/overview/webhooks#payments-api
-    EXPIRED = "expired"  # These are the states the payments API can send us.
-    FAILED = "failed"
-    CANCELED = "canceled"
-    OPEN = "open"
-    PENDING = "pending"
-    REFUNDED = "refunded"
-
-    CHARGEBACK = "chargeback"  # These are states that we currently do not use.
-    SETTLED = "settled"
-    PARTIALLY_REFUNDED = "partially_refunded"
-    AUTHORIZED = "authorized"
+from invoices.mollie import helpers
 
 
 # ##############################################################################
@@ -55,8 +41,11 @@ class MollieTransaction(model.Record):
         self["updateTime"] = time.gmtime()
 
     def SetState(self, status):
-        if self["status"] not in (MollieStatus.OPEN,):
-            if self["status"] == MollieStatus.PAID and status == MollieStatus.PAID:
+        if self["status"] not in (helpers.MollieStatus.OPEN,):
+            if (
+                self["status"] == helpers.MollieStatus.PAID
+                and status == helpers.MollieStatus.PAID
+            ):
                 raise model.PermissionError("Mollie transaction is already paid for.")
             raise model.PermissionError(
                 "Cannot update transaction, current state is %r new state %r"
@@ -73,10 +62,10 @@ class MollieTransaction(model.Record):
         with connection as cursor:
             order = cursor.Execute(
                 """
-          SELECT *
-          FROM mollieTransaction
-          WHERE `description` = "%s"
-      """
+                SELECT *
+                FROM mollieTransaction
+                WHERE `description` = "%s"
+                """
                 % remoteID
             )
         if not order:

@@ -7,11 +7,27 @@ __version__ = "0.1"
 import json
 from dataclasses import dataclass
 from decimal import Decimal
+from enum import Enum
 
 import requests
 from uweb3 import model
 
 from invoices.mollie import model as mollie_model
+
+
+class MollieStatus(str, Enum):
+    PAID = "paid"  # https://docs.mollie.com/overview/webhooks#payments-api
+    EXPIRED = "expired"  # These are the states the payments API can send us.
+    FAILED = "failed"
+    CANCELED = "canceled"
+    OPEN = "open"
+    PENDING = "pending"
+    REFUNDED = "refunded"
+
+    CHARGEBACK = "chargeback"  # These are states that we currently do not use.
+    SETTLED = "settled"
+    PARTIALLY_REFUNDED = "partially_refunded"
+    AUTHORIZED = "authorized"
 
 
 @dataclass
