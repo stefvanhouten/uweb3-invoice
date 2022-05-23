@@ -12,6 +12,7 @@ from enum import Enum
 import requests
 from uweb3 import model
 
+from invoices.invoice import model as invoice_model
 from invoices.mollie import model as mollie_model
 
 
@@ -36,6 +37,37 @@ class MollieTransactionObject:
     price: Decimal
     description: str
     reference: str
+
+
+def mollie_factory(connection, config):
+    apikey = config["apikey"]
+    redirect_url = config["redirect_url"]
+    webhook_url = config["webhook_url"]
+    return MolliePaymentGateway(
+        connection, apikey=apikey, redirect_url=redirect_url, webhook_url=webhook_url
+    )
+
+
+def new_mollie_request(connection, config, obj: MollieTransactionObject):
+    mollie = mollie_factory(connection, config)
+    return mollie.GetForm(obj)
+
+
+def get_request_url(mollie_request):
+    return mollie_request["url"]["href"]
+
+
+def CheckAndAddPayment(connection, transaction):
+    updated_transaction = mollie_model.MollieTransaction.FromPrimary(
+        connection, transaction
+    )
+    if (
+        updated_transaction["status"] == MollieStatus.PAID
+        and transaction["status"] != updated_transaction["status"]
+    ):
+        invoice = invoice_model.Invoice.FromPrimary(connection, transaction["invoice"])
+        platformID = invoice_model.PaymentPlatform.FromName(connection, "mollie")["ID"]
+        invoice.AddPayment(platformID, transaction["amount"])
 
 
 class MolliePaymentGateway:

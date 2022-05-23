@@ -22,7 +22,7 @@ from invoices.common.schemas import (
     WarehouseStockRefundSchema,
 )
 from invoices.invoice import helpers, model
-from invoices.mollie import mollie as mollie_module
+from invoices.mollie.mollie import helpers as mollie_module
 
 
 class WarehouseAPIException(Exception):
@@ -191,7 +191,7 @@ class PageMaker(basepages.PageMaker):
         """Returns the invoice as a pdf file.
 
         Takes:
-          invoice: int or str
+            invoice: int or str
         """
         requestedinvoice = self.RequestInvoiceDetails(invoice)
         if type(requestedinvoice) != uweb3.response.Redirect:
