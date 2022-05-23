@@ -277,7 +277,7 @@ class PageMaker(basepages.PageMaker, MollieMixin):
     def _MollieHandleUnsuccessfulNotification(self, transaction, error):
         return "ok"
 
-    @decorators.NotExistsErrorCatcher
     @uweb3.decorators.TemplateParser("mollie/payment_ok.html")
     def Mollie_Redirect(self, transactionID):
+        # TODO: Add logic to check if payment was actually done successfully
         return
