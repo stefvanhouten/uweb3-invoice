@@ -3,6 +3,11 @@ import os
 # Third-party modules
 import uweb3
 
+from invoices.base.clients import clients
+from invoices.base.invoice import invoices
+from invoices.base.login import login
+from invoices.base.settings import settings
+
 # Application
 from . import basepages
 
@@ -20,49 +25,70 @@ def main():
     return uweb3.uWeb(
         basepages.PageMaker,
         [
-            ("/", "RequestIndex"),
+            ("/", (login.PageMaker, "RequestIndex")),
             # # login / user management
-            ("/login", "HandleLogin", "POST"),
-            ("/login", "RequestLogin"),
-            ("/logout", "RequestLogout"),
-            ("/setup", "RequestSetup"),
-            # Settings
-            ("/settings", "RequestSettings", "GET"),
-            ("/settings", "RequestSettingsSave", "POST"),
-            ("/warehousesettings", "RequestWarehouseSettingsSave", "POST"),
-            ("/molliesettings", "RequestMollieSettingsSave", "POST"),
+            ("/login", (login.PageMaker, "HandleLogin"), "POST"),
+            ("/login", (login.PageMaker, "RequestLogin")),
+            ("/logout", (login.PageMaker, "RequestLogout")),
+            ("/setup", (login.PageMaker, "RequestSetup")),
+            # # Settings
+            ("/settings", (settings.PageMaker, "RequestSettings"), "GET"),
+            ("/settings", (settings.PageMaker, "RequestSettingsSave"), "POST"),
+            (
+                "/warehousesettings",
+                (settings.PageMaker, "RequestWarehouseSettingsSave"),
+                "POST",
+            ),
+            (
+                "/molliesettings",
+                (settings.PageMaker, "RequestMollieSettingsSave"),
+                "POST",
+            ),
             # Clients
-            ("/clients", "RequestClientsPage", "GET"),
-            ("/clients", "RequestNewClientPage", "POST"),
-            ("/clients/save", "RequestSaveClientPage", "POST"),
+            ("/clients", (clients.PageMaker, "RequestClientsPage"), "GET"),
+            ("/clients", (clients.PageMaker, "RequestNewClientPage"), "POST"),
             (
-                "/client/(.*)",
-                "RequestClientPage",
+                "/clients/save",
+                (clients.PageMaker, "RequestRequestSaveClientPage"),
+                "POST",
             ),
-            # Invoices
-            ("/invoices", "RequestInvoicesPage", "GET"),
-            ("/invoices/new", "RequestNewInvoicePage", "GET"),
-            ("/invoices/new", "RequestCreateNewInvoicePage", "POST"),
-            ("/invoices/settopayed", "RequestInvoicePayed", "POST"),
-            ("/invoices/settonew", "RequestInvoiceReservationToNew", "POST"),
-            ("/invoice/payments/(.*)", "ManagePayments", "GET"),
-            ("/invoice/payments/(.*)", "AddPayment", "POST"),
-            ("/invoice/(.*)", "RequestInvoiceDetails", "GET"),
-            ("/invoices/cancel", "RequestInvoiceCancel", "POST"),
-            ("/invoices/mt940", "RequestMt940", "GET"),
-            ("/invoices/upload", "RequestUploadMt940", "POST"),
-            ("/pdfinvoice/(.*)", "RequestPDFInvoice"),
-            # API routes
-            (f"{basepages.API_VERSION}/client/([0-9]+)", "RequestClient"),
-            (f"{basepages.API_VERSION}/clients", "RequestClients", "GET"),
-            (f"{basepages.API_VERSION}/clients", "RequestNewClient", "POST"),
-            (f"{basepages.API_VERSION}/clients/save", "RequestSaveClient"),
-            ## Mollie routes
-            (f"{basepages.API_VERSION}/mollie/redirect/(\d+)", "Mollie_Redirect"),
+            ("/client/(.*)", (clients.PageMaker, "RequestClientPage")),
+            # # Invoices
+            ("/invoices", (invoices.PageMaker, "RequestInvoicesPage"), "GET"),
+            ("/invoices/new", (invoices.PageMaker, "RequestNewInvoicePage"), "GET"),
             (
-                f"{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)",
-                "_Mollie_HookPaymentReturn",
+                "/invoices/new",
+                (invoices.PageMaker, "RequestCreateNewInvoicePage"),
+                "POST",
             ),
+            (
+                "/invoices/settopayed",
+                (invoices.PageMaker, "RequestInvoicePayed"),
+                "POST",
+            ),
+            (
+                "/invoices/settonew",
+                (invoices.PageMaker, "RequestInvoiceReservationToNew"),
+                "POST",
+            ),
+            ("/invoice/payments/(.*)", (invoices.PageMaker, "ManagePayments"), "GET"),
+            ("/invoice/payments/(.*)", (invoices.PageMaker, "AddPayment"), "POST"),
+            ("/invoice/(.*)", (invoices.PageMaker, "RequestInvoiceDetails"), "GET"),
+            ("/invoices/cancel", (invoices.PageMaker, "RequestInvoiceCancel"), "POST"),
+            ("/invoices/mt940", (invoices.PageMaker, "RequestMt940"), "GET"),
+            ("/invoices/upload", (invoices.PageMaker, "RequestUploadMt940"), "POST"),
+            ("/pdfinvoice/(.*)", (invoices.PageMaker, "RequestPDFInvoice")),
+            # # API routes
+            # (f"{basepages.API_VERSION}/client/([0-9]+)", "RequestClient"),
+            # (f"{basepages.API_VERSION}/clients", "RequestClients", "GET"),
+            # (f"{basepages.API_VERSION}/clients", "RequestNewClient", "POST"),
+            # (f"{basepages.API_VERSION}/clients/save", "RequestSaveClient"),
+            # ## Mollie routes
+            # (f"{basepages.API_VERSION}/mollie/redirect/(\d+)", "Mollie_Redirect"),
+            # (
+            #     f"{basepages.API_VERSION}/mollie/notification/([\w\-\.]+)",
+            #     "_Mollie_HookPaymentReturn",
+            # ),
             # Helper files
             ("(/styles/.*)", "Static"),
             ("(/js/.*)", "Static"),
