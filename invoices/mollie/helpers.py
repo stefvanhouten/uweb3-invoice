@@ -27,13 +27,12 @@ class MollieStatus(str, Enum):
 
     CHARGEBACK = "chargeback"  # These are states that we currently do not use.
     SETTLED = "settled"
-    PARTIALLY_REFUNDED = "partially_refunded"
     AUTHORIZED = "authorized"
 
 
 @dataclass
 class MollieTransactionObject:
-    id: str
+    id: int
     price: Decimal
     description: str
     reference: str
@@ -142,7 +141,7 @@ class MolliePaymentGateway:
             "method": "ideal",
         }
 
-    def _UpdateTransaction(self, transaction, payment):
+    def _UpdateTransaction(self, transaction_description, payment):
         """Update the transaction in the database and trigger a succesfull payment
         if the payment has progressed into an authorized state
 
@@ -151,7 +150,7 @@ class MolliePaymentGateway:
         authorized state
         """
         transaction = mollie_model.MollieTransaction.FromDescription(
-            self.connection, transaction
+            self.connection, transaction_description
         )
         changed = transaction.SetState(payment["status"])
         if changed:
