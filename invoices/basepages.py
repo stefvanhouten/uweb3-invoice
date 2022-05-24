@@ -64,6 +64,15 @@ class PageMaker(
             raise ValueError("User not active, session invalid")
         return user
 
+    @uweb3.decorators.TemplateParser("login.html")
+    def RequestLogin(self, url=None):
+        """Please login"""
+        if self.user:
+            return uweb3.Redirect("/invoices")
+        if not url and "url" in self.get:
+            url = self.get.getfirst("url")
+        return {"url": url}
+
     def RequestInvalidcommand(self, command=None, error=None, httpcode=404):
         """Returns an error message"""
         uweb3.logging.warning(

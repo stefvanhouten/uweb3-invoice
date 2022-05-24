@@ -16,15 +16,6 @@ class PageMaker(basepages.PageMaker):
         """Returns the homepage"""
         return self.req.Redirect("/invoices", httpcode=303)
 
-    @uweb3.decorators.TemplateParser("login.html")
-    def RequestLogin(self, url=None):
-        """Please login"""
-        if self.user:
-            return self.RequestIndex()
-        if not url and "url" in self.get:
-            url = self.get.getfirst("url")
-        return {"url": url}
-
     @uweb3.decorators.checkxsrf
     @uweb3.decorators.TemplateParser("logout.html")
     def RequestLogout(self):
