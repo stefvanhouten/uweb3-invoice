@@ -18,6 +18,35 @@ class TestClass:
         assert mollie_gateway.redirect_url == mollie_config["redirect_url"]
         assert mollie_gateway.webhook_url == mollie_config["webhook_url"]
 
+    def test_mollie_update_transaction_paid(self, mollie_gateway):
+        payment = {
+            "status": helpers.MollieStatus.PAID.value,
+            "amount": {
+                "value": "50.00",  # Mollie sends a string value back
+            },
+        }
+        assert True is mollie_gateway._UpdateTransaction("payment_test", payment)
+
+    def test_mollie_update_transaction_failed(self, mollie_gateway):
+        payment = {
+            "status": helpers.MollieStatus.FAILED.value,
+            "amount": {
+                "value": "50.00",  # Mollie sends a string value back
+            },
+        }
+        with pytest.raises(mollie_model.MollieTransactionFailed):
+            mollie_gateway._UpdateTransaction("payment_test", payment)
+
+    def test_mollie_update_transaction_canceled(self, mollie_gateway):
+        payment = {
+            "status": helpers.MollieStatus.CANCELED.value,
+            "amount": {
+                "value": "50.00",  # Mollie sends a string value back
+            },
+        }
+        with pytest.raises(mollie_model.MollieTransactionCanceled):
+            mollie_gateway._UpdateTransaction("payment_test", payment)
+
     def test_create_db_record(
         self, connection, mollie_config, default_invoice_and_products
     ):
@@ -63,56 +92,15 @@ class TestClass:
             == f'{mollie_gateway.webhook_url}/{record["ID"]}'
         )
 
-    def test_add_invoice_payment(self, connection, default_invoice_and_products):
-        """Check if a mollie request which status was changed to paid also adds a invoice payment."""
-        invoice = default_invoice_and_products(
-            status=invoice_model.InvoiceStatus.NEW.value
-        )
-        mollie_model.MollieTransaction.Create(
-            connection,
-            {
-                "ID": 1,
-                "invoice": invoice["ID"],
-                "amount": 50,
-                "status": helpers.MollieStatus.OPEN.value,
-                "description": "payment_test",
-            },
-        )
-        original_record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
-
-        record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
-        record["status"] = helpers.MollieStatus.PAID.value
-        record.Save()
-
-        assert helpers.CheckAndAddPayment(connection, original_record) is True
-
-        payment = invoice_model.InvoicePayment.FromPrimary(connection, 1)
-        assert payment["invoice"]["ID"] == invoice["ID"]
-        assert payment["amount"] == common_helpers.round_price(50)
-
-    def test_dont_add_payments_state_same(
-        self, connection, default_invoice_and_products
-    ):
-        """Make sure that no invoice payment is added when the mollie status was not changed."""
-        invoice = default_invoice_and_products(
-            status=invoice_model.InvoiceStatus.NEW.value
-        )
-        mollie_model.MollieTransaction.Create(
-            connection,
-            {
-                "ID": 1,
-                "invoice": invoice["ID"],
-                "amount": 50,
-                "status": helpers.MollieStatus.OPEN.value,
-                "description": "payment_test",
-            },
-        )
-
-        original_record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
-        helpers.CheckAndAddPayment(connection, original_record)
-        # Re-fetch record to make sure nothing changed
-        refetched_record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
-
-        assert refetched_record["status"] == helpers.MollieStatus.OPEN
-        with pytest.raises(uweb3.model.NotExistError):
-            invoice_model.InvoicePayment.FromPrimary(connection, 1)
+    def test_create_all_mollie_statuses(self, connection):
+        """Test if all MollieStatus enum values are allowed in database"""
+        for status in helpers.MollieStatus:
+            mollie_model.MollieTransaction.Create(
+                connection,
+                {
+                    "invoice": 1,
+                    "amount": 50,
+                    "status": status.value,
+                    "description": "payment_test",
+                },
+            )
