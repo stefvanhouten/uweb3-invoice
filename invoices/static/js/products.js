@@ -82,9 +82,13 @@
             }
 
             let data = await this.fetchProductInfo(ioEls[PRODUCT].value);
-            ioEls[PRICE].value =
-                Number(data["cost"]) + Number(data["assemblycosts"]);
-            ioEls[VAT].value = Number(data["vat"]);
+            // Only update the value and vat when the selected product has changed.
+            // This allows custom pricing.
+            if (ioEls[PRODUCT].value !== ioEls[PRODUCT].dataset.prevval) {
+                ioEls[PRICE].value =
+                    Number(data["cost"]) + Number(data["assemblycosts"]);
+                ioEls[VAT].value = Number(data["vat"]);
+            }
 
             var price = ioEls[1].valueAsNumber;
             var vat = ioEls[2].valueAsNumber;
