@@ -33,6 +33,17 @@ def mail_invoice(recipients, subject, body, attachments=None):
 
 
 def create_mollie_request(invoice, amount, connection, mollie_config):
+    """Generate a new mollie payment request and return its url
+
+    Args:
+        invoice (InvoiceSchema): The invoice
+        amount (str/Decimal): The amount for the mollie payment request
+        connection (self.connection): Db connection
+        mollie_config (self.options['mollie']): The mollie config
+
+    Returns:
+        _type_: _description_
+    """
     mollie_request_object = mollie_module.MollieTransactionObject(
         invoice["ID"],
         common_helpers.round_price(amount),
