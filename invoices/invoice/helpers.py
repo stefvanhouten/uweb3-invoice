@@ -8,8 +8,10 @@ from itertools import zip_longest
 
 import mt940
 import requests
+from uweb3.libs.mail import MailSender
 from weasyprint import HTML
 
+from invoices.common import helpers as common_helpers
 from invoices.common.schemas import (
     InvoiceSchema,
     ProductSchema,
@@ -17,6 +19,28 @@ from invoices.common.schemas import (
 )
 from invoices.invoice import model
 from invoices.invoice.model import InvoiceStatus
+from invoices.mollie.mollie import helpers as mollie_module
+
+
+def mail_invoice(recipients, subject, body, attachments=None):
+    with MailSender() as send_mail:
+        send_mail.Attachments(
+            recipients=recipients,
+            subject=subject,
+            content=body,
+            attachments=attachments,
+        )
+
+
+def create_mollie_request(invoice, amount, connection, mollie_config):
+    mollie_request_object = mollie_module.MollieTransactionObject(
+        invoice["ID"],
+        common_helpers.round_price(amount),
+        invoice["description"],
+        invoice["sequenceNumber"],
+    )
+    mollie_gateway = mollie_module.mollie_factory(connection, mollie_config)
+    return mollie_gateway.CreateTransaction(mollie_request_object)["href"]
 
 
 def warehouse_stock_update_request(warehouse_url, warehouse_apikey, invoice, products):
