@@ -5,6 +5,21 @@ from uweb3 import SettingsManager
 from uweb3.libs.sqltalk import mysql
 
 from invoices.invoice import model as invoice_model
+from invoices.mollie import helpers as mollie_helpers
+from invoices.mollie import model as mollie_model
+
+__all__ = [
+    "config",
+    "mollie_config",
+    "connection",
+    "client_object",
+    "run_before_and_after_tests",
+    "companydetails_object",
+    "simple_invoice_dict",
+    "create_invoice_object",
+    "default_invoice_and_products",
+    "mollie_gateway",
+]
 
 current_year = date.today().year
 
@@ -140,3 +155,19 @@ def default_invoice_and_products(create_invoice_object):
         return invoice
 
     return create_default_invoice
+
+
+@pytest.fixture
+def mollie_gateway(connection, mollie_config, default_invoice_and_products):
+    default_invoice_and_products()
+    mollie_model.MollieTransaction.Create(
+        connection,
+        {
+            "ID": 1,
+            "invoice": 1,
+            "amount": 50,
+            "status": mollie_helpers.MollieStatus.OPEN.value,
+            "description": "payment_test",
+        },
+    )
+    return mollie_helpers.mollie_factory(connection, mollie_config)
