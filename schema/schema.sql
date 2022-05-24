@@ -97,7 +97,7 @@ CREATE TABLE `invoice` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`stef`@`localhost`*/ /*!50003 TRIGGER `invoice_BEFORE_INSERT` BEFORE INSERT ON `invoice` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`invoices`@`localhost`*/ /*!50003 TRIGGER `invoice_BEFORE_INSERT` BEFORE INSERT ON `invoice` FOR EACH ROW BEGIN
 	IF new.status = 'reservation' AND SUBSTRING(new.sequenceNumber, 1, 2) != 'PF'
     THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A pro forma invoice sequencenumber must start with a PF prefix.';
     END IF;
@@ -134,7 +134,7 @@ CREATE TABLE `invoicePayment` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`stef`@`localhost`*/ /*!50003 TRIGGER `invoicePayment_AFTER_INSERT` AFTER INSERT ON `invoicePayment` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`invoices`@`localhost`*/ /*!50003 TRIGGER `invoicePayment_AFTER_INSERT` AFTER INSERT ON `invoicePayment` FOR EACH ROW BEGIN
     CALL CalculateInvoiceTotalPrice(new.invoice, @total_due);
     CALL CalculateInvoicePaymentTotalPrice(new.invoice, @total_paid);
 	IF ((select @total_paid) >= (select @total_due))
@@ -253,7 +253,7 @@ CREATE TABLE `user` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`stef`@`localhost` PROCEDURE `CalculateInvoicePaymentTotalPrice`(IN invoice int, OUT total_paid DECIMAL(10,2))
+CREATE DEFINER=`invoices`@`localhost` PROCEDURE `CalculateInvoicePaymentTotalPrice`(IN invoice int, OUT total_paid DECIMAL(10,2))
 BEGIN
 	SET total_paid = (SELECT sum(amount) total_paid
 	FROM invoicePayment
@@ -274,7 +274,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`stef`@`localhost` PROCEDURE `CalculateInvoiceTotalPrice`(IN invoice int, OUT total_due DECIMAL(10, 2))
+CREATE DEFINER=`invoices`@`localhost` PROCEDURE `CalculateInvoiceTotalPrice`(IN invoice int, OUT total_due DECIMAL(10, 2))
 BEGIN
 	SET total_due = (SELECT ROUND(SUM(p.price * p.quantity * (1+p.vat_percentage/100)), 2) as totaal
 	FROM invoice AS inv
