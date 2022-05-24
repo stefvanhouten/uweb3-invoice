@@ -23,6 +23,21 @@ from invoices.mollie.mollie import helpers as mollie_module
 
 
 def mail_invoice(recipients, subject, body, attachments=None):
+    """Used for sending a mail with attachments or as plain text.
+
+    Args:
+        recipients (list[str]): The recipients to send it to
+        subject (str): The mail subject
+        body (str): The mail body
+        attachments: The attachments that should be send with this mail
+    """
+    if attachments:
+        _mail_attachment(recipients, subject, body, attachments)
+    else:
+        _mail_text(recipients, subject, body)
+
+
+def _mail_attachment(recipients, subject, body, attachments):
     with MailSender() as send_mail:
         send_mail.Attachments(
             recipients=recipients,
@@ -30,6 +45,11 @@ def mail_invoice(recipients, subject, body, attachments=None):
             content=body,
             attachments=attachments,
         )
+
+
+def _mail_text(recipients, subject, body):
+    with MailSender() as send_mail:
+        send_mail.Text(recipients=recipients, subject=subject, content=body)
 
 
 def create_mollie_request(invoice, amount, connection, mollie_config):
