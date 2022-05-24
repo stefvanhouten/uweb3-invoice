@@ -7,20 +7,86 @@ from io import BytesIO
 from itertools import zip_longest
 
 import mt940
+import requests
 from weasyprint import HTML
 
-from invoices.common.helpers import round_price
+from invoices.common.schemas import (
+    InvoiceSchema,
+    ProductSchema,
+    WarehouseStockChangeSchema,
+)
+from invoices.invoice import model
 from invoices.invoice.model import InvoiceStatus
 
-__all__ = [
-    "ToPDF",
-    "MT940_processor",
-    "get_and_zip_products",
-    "create_invoice_reference_msg",
-]
+
+def warehouse_stock_update_request(warehouse_url, warehouse_apikey, invoice, products):
+    """Send a stock update request to the warehouse.
+
+    Args:
+        warehouse_url (str): The API url of the warehouse
+        warehouse_apikey (str): The API key of the warehouse
+        invoice (InvoiceSchema): The invoice data
+        products (ProductSchema): List of products
+
+    Returns:
+        response: Request response
+    """
+    reference = create_invoice_reference_msg(
+        invoice["status"], invoice["sequenceNumber"]
+    )
+    warehouse_products = WarehouseStockChangeSchema(many=True).load(products)
+    return requests.post(
+        f"{warehouse_url}/products/bulk_stock",
+        json={
+            "apikey": warehouse_apikey,
+            "products": warehouse_products,
+            "reference": reference,
+        },
+    )
 
 
-def ToPDF(html, filename=None):
+def sanitize_new_invoice_post_data(postdata):
+    """Sanitize post data for invoice creation.
+
+    Args:
+        postdata (IndexedFieldStorage): uweb3 self.post data.
+
+    Raises:
+        marshmallow.exceptions.ValidationError: Marshmallow validation failed
+        ValueError: No products were supplied by the post request
+
+    Returns:
+        sanitized_invoice (dict): Invoice with sanitized data
+        products list(ProductSchema): List of products from the invoice.
+    """
+    unclean_products = get_and_zip_products(postdata)
+
+    sanitized_invoice = InvoiceSchema().load(postdata.__dict__)
+    products = ProductSchema(many=True).load(unclean_products)
+
+    if not products:
+        raise ValueError("cannot create invoice without products")
+
+    return sanitized_invoice, products
+
+
+def create_invoice_add_products(connection, data, products):
+    """Create a new invoice and add products to that invoice
+
+    Args:
+        connection (self.connection): Uweb connection object
+        data (InvoiceSchema): The cleaned data for the new invoice
+        products (ProductSchema(many=True)): A list of products that should be added to the invoice
+
+    Returns:
+        model.Invoice: The newly created invoice object
+    """
+    invoice = model.Invoice.Create(connection, data)
+    invoice.AddProducts(products)
+    return invoice
+
+
+def to_pdf(html, filename=None):
     """Returns a PDF based on the given HTML."""
     result = BytesIO()
     HTML(string=html).write_pdf(result)
