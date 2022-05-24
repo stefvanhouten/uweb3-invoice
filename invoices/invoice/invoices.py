@@ -3,24 +3,19 @@
 
 from http import HTTPStatus
 
+import marshmallow.exceptions
+
 # standard modules
 import requests
 
 # uweb modules
 import uweb3
-from marshmallow.exceptions import ValidationError
 from uweb3.libs.mail import MailSender
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper
 from invoices.common.helpers import round_price, transaction
-from invoices.common.schemas import (
-    InvoiceSchema,
-    PaymentSchema,
-    ProductSchema,
-    WarehouseStockChangeSchema,
-    WarehouseStockRefundSchema,
-)
+from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
 from invoices.invoice import helpers, model
 from invoices.mollie.mollie import helpers as mollie_module
 
@@ -30,13 +25,8 @@ class WarehouseAPIException(Exception):
 
 
 class PageMaker(basepages.PageMaker):
-    def _get_warehouse_api_data(
-        self,
-    ):  # XXX: This is used because the __init__ and _PostInit methods are not called because this PageMakers super class is object.
-        """Reads the config for warehouse API data and sets:
-        - self.warehouse_api_url: The warehouse url to access the API
-        - self.warehouse_apikey: The apikey that is needed to access the warehouse API
-        """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.warehouse_api_url = self.config.options["general"]["warehouse_api"]
         self.warehouse_apikey = self.config.options["general"]["apikey"]
 
@@ -55,7 +45,6 @@ class PageMaker(basepages.PageMaker):
     @RequestWrapper
     @uweb3.decorators.TemplateParser("invoices/create.html")
     def RequestNewInvoicePage(self, errors=[]):
-        self._get_warehouse_api_data()
         response = requests.get(
             f"{self.warehouse_api_url}/products?apikey={self.warehouse_apikey}"
         )
@@ -94,32 +83,23 @@ class PageMaker(basepages.PageMaker):
     def RequestCreateNewInvoicePage(self):
         # Check if client exists
         model.Client.FromPrimary(self.connection, int(self.post.getfirst("client")))
-        products = helpers.get_and_zip_products(self.post)
 
         try:
-            sanitized_invoice = InvoiceSchema().load(self.post.__dict__)
-            products = ProductSchema(many=True).load(products)
-        except ValidationError as error:
-            return self.RequestNewInvoicePage(errors=[error.messages])
-
-        if not products:
-            return self.RequestNewInvoicePage(
-                errors=["cannot create invoice without products"]
+            sanitized_invoice, products = helpers.sanitize_new_invoice_post_data(
+                self.post
             )
+        except marshmallow.exceptions.ValidationError as error:
+            return self.RequestNewInvoicePage(errors=[error.messages])
+        except ValueError as error:
+            return self.RequestNewInvoicePage(errors=[str(error)])
 
         # Start a transaction that is rolled back when any unhandled exception occurs
         with transaction(self.connection, model.Invoice):
-            invoice = model.Invoice.Create(self.connection, sanitized_invoice)
-            invoice.AddProducts(products)
-            warehouse_ready_products = WarehouseStockChangeSchema(many=True).load(
-                products
+            invoice = helpers.create_invoice_add_products(
+                self.connection, sanitized_invoice, products
             )
-
-            reference = helpers.create_invoice_reference_msg(
-                invoice["status"], invoice["sequenceNumber"]
-            )
-            response = self._warehouse_bulk_stock_request(
-                warehouse_ready_products, reference
+            response = helpers.warehouse_stock_update_request(
+                self.warehouse_api_url, self.warehouse_apikey, invoice, products
             )
 
             if response.status_code != 200:
@@ -127,54 +107,31 @@ class PageMaker(basepages.PageMaker):
                 json_response = response.json()
                 if "errors" in json_response:
                     return self.RequestNewInvoicePage(errors=json_response["errors"])
-        self._handle_mail(invoice)
-        return self.req.Redirect("/invoices", httpcode=303)
-
-    def _warehouse_bulk_stock_request(self, products, reference):
-        # Make sure that self.warehouse_apikey and self.warehouse_url are set.
-        self._get_warehouse_api_data()
-        return requests.post(
-            f"{self.warehouse_api_url}/products/bulk_stock",
-            json={
-                "apikey": self.warehouse_apikey,
-                "products": products,
-                "reference": reference,
-            },
-        )
-
-    def _handle_mail(self, invoice):
-        if not invoice:
-            return
 
         should_mail = self.post.getfirst("shouldmail")
-        mollie_amount = self.post.getfirst("mollie_payment_request")
+        payment_request = self.post.getfirst("mollie_payment_request")
 
-        if should_mail:
-            data = {}
-
-            # Check if there is a payment request for mollie in the post data
-            if mollie_amount:
-                obj = mollie_module.MollieTransactionObject(
-                    invoice["ID"],
-                    round_price(mollie_amount),
-                    invoice["description"],
-                    invoice["sequenceNumber"],
+        if invoice and (should_mail or payment_request):
+            mail_data = {}
+            if payment_request:
+                url = helpers.create_mollie_request(
+                    invoice, payment_request, self.connection, self.options["mollie"]
                 )
-                mollie = mollie_module.new_mollie_request(
-                    self.connection, self.options["mollie"], obj
-                )
-                data["mollie"] = mollie_module.get_request_url(mollie)
+                mail_data["mollie"] = url
 
-            # Mail the invoice with PDF attached
-            return self.mail_invoice(
-                invoice, self.RequestInvoiceDetails(invoice["sequenceNumber"]), **data
+            content = self.parser.Parse("email/invoice.txt", **mail_data)
+            pdf = helpers.to_pdf(
+                self.RequestInvoiceDetails(invoice["sequenceNumber"]),
+                filename="invoice.pdf",
+            )
+            helpers.mail_invoice(
+                recipients=invoice["client"]["email"],
+                subject="Your invoice",
+                body=content,
+                attachments=(pdf,),
             )
 
-        if mollie_amount:
-            # Mollie payment request was added, but the invoice is not supposed to be mailed.. What to do here?
-            raise NotImplementedError(
-                "When a mollie payment is requested the invoice should also be mailed.."
-            )
+        return self.req.Redirect("/invoices", httpcode=303)
 
     @uweb3.decorators.TemplateParser("invoices/invoice.html")
     @NotExistsErrorCatcher
@@ -196,7 +153,7 @@ class PageMaker(basepages.PageMaker):
         requestedinvoice = self.RequestInvoiceDetails(invoice)
         if type(requestedinvoice) != uweb3.response.Redirect:
             return uweb3.Response(
-                helpers.ToPDF(requestedinvoice), content_type="application/pdf"
+                helpers.to_pdf(requestedinvoice), content_type="application/pdf"
             )
         return requestedinvoice
 
@@ -232,8 +189,6 @@ class PageMaker(basepages.PageMaker):
     @NotExistsErrorCatcher
     def RequestInvoiceCancel(self):
         """Sets the given invoice to paid."""
-        self._get_warehouse_api_data()
-
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
         products = invoice.Products()
@@ -255,7 +210,7 @@ class PageMaker(basepages.PageMaker):
 
     def mail_invoice(self, invoice, details, **kwds):
         # Generate the PDF for newly created invoice
-        pdf = helpers.ToPDF(details, filename="invoice.pdf")
+        pdf = helpers.to_pdf(details, filename="invoice.pdf")
         # Create a mollie payment request
         content = self.parser.Parse("email/invoice.txt", **kwds)
 
