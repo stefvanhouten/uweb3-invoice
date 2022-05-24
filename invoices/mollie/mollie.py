@@ -8,7 +8,6 @@ import uweb3
 
 from invoices import basepages
 from invoices.common import decorators
-from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
 
