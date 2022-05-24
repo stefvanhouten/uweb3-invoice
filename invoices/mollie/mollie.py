@@ -7,6 +7,7 @@ __version__ = "0.1"
 import uweb3
 
 from invoices import basepages
+from invoices.common import decorators
 from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
@@ -42,7 +43,23 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
     def _MollieHandleUnsuccessfulNotification(self, transaction, error):
         return "ok"
 
-    @uweb3.decorators.TemplateParser("mollie/payment_ok.html")
+    @decorators.NotExistsErrorCatcher
     def Mollie_Redirect(self, transactionID):
         # TODO: Add logic to check if payment was actually done successfully
+        transaction = mollie_model.MollieTransaction.FromPrimary(
+            self.connection, transactionID
+        )
+        mollie_gateway = self.NewMolliePaymentGateway()
+        status = mollie_gateway.GetPayment(transaction["description"])["status"]
+        if status == helpers.MollieStatus.PAID:
+            return self._PaymentOk()
+        else:
+            return self._PaymentFailed()
+
+    @uweb3.decorators.TemplateParser("mollie/payment_success.html")
+    def _PaymentOk(self):
+        return
+
+    @uweb3.decorators.TemplateParser("mollie/payment_failed.html")
+    def _PaymentFailed(self):
         return
