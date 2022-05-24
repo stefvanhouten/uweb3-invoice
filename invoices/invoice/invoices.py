@@ -176,12 +176,6 @@ class PageMaker(basepages.PageMaker):
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
         invoice.ProFormaToRealInvoice()
-        # TODO: When should we mail the invoice, and what should be in the mail?
-        # Re fetch invoice to prevent mailing a pro forma invoice. We fetch by primary because the sequenceNumber might have changed.
-        invoice = model.Invoice.FromPrimary(self.connection, invoice["ID"])
-        self.mail_invoice(
-            invoice, self.RequestInvoiceDetails(invoice["sequenceNumber"])
-        )
         return self.req.Redirect("/invoices", httpcode=303)
 
     @uweb3.decorators.loggedin
@@ -207,20 +201,6 @@ class PageMaker(basepages.PageMaker):
 
         invoice.CancelProFormaInvoice()
         return self.req.Redirect("/invoices", httpcode=303)
-
-    def mail_invoice(self, invoice, details, **kwds):
-        # Generate the PDF for newly created invoice
-        pdf = helpers.to_pdf(details, filename="invoice.pdf")
-        # Create a mollie payment request
-        content = self.parser.Parse("email/invoice.txt", **kwds)
-
-        with MailSender() as send_mail:
-            send_mail.Attachments(
-                recipients=invoice["client"]["email"],
-                subject="Your invoice",
-                content=content,
-                attachments=(pdf,),
-            )
 
     @uweb3.decorators.loggedin
     @uweb3.decorators.checkxsrf
