@@ -1,0 +1,24 @@
+<table class="payments">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>description</th>
+      <th>Created</th>
+      <th>Updated</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ for payment in [mollie_payments] }}
+    <tr>
+      <td>[payment:ID]</td>
+      <td>&euro; [payment:amount]</td>
+      <td>[payment:status]</td>
+      <td>[payment:description]</td>
+      <td>[payment:creationTime|DateOnly]</td>
+      <td>[payment:updateTime|DateOnly]</td>
+    </tr>
+    {{ endfor }}
+  </tbody>
+</table>

@@ -1,0 +1,10 @@
+<form action="/invoice/payments/mollie/[invoice:sequenceNumber]" method="post">
+  <input type="hidden" name="xsrf" value="[xsrf]">
+  <fieldset>
+    <div>
+      <label for="amount">amount</label>
+      <input name="amount" id="amount" pattern="^\d*(\.\d{0,2})?$" required min="0"></input>
+    </div>
+  </fieldset>
+  <input type="submit" value="Create new request">
+</form>
