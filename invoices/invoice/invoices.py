@@ -10,14 +10,13 @@ import requests
 
 # uweb modules
 import uweb3
-from uweb3.libs.mail import MailSender
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper
-from invoices.common.helpers import round_price, transaction
+from invoices.common.helpers import transaction
 from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
 from invoices.invoice import helpers, model
-from invoices.mollie.mollie import helpers as mollie_module
+from invoices.mollie import model as mollie_model
 
 
 class WarehouseAPIException(Exception):
@@ -253,6 +252,11 @@ class PageMaker(basepages.PageMaker):
             "invoice": invoice,
             "payments": invoice.GetPayments(),
             "totals": invoice.Totals(),
+            "mollie_payments": list(
+                mollie_model.MollieTransaction.List(
+                    self.connection, conditions=[f'invoice = {invoice["ID"]}']
+                )
+            ),
             "platforms": model.PaymentPlatform.List(self.connection),
         }
 
@@ -263,6 +267,26 @@ class PageMaker(basepages.PageMaker):
         payment = PaymentSchema().load(self.post.__dict__)
         invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
         invoice.AddPayment(payment["platform"], payment["amount"])
+        return uweb3.Redirect(
+            f'/invoice/payments/{invoice["sequenceNumber"]}', httpcode=303
+        )
+
+    @uweb3.decorators.loggedin
+    @uweb3.decorators.checkxsrf
+    @NotExistsErrorCatcher
+    def AddMolliePaymentRequest(self, sequenceNumber):
+        invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
+        payment = PaymentSchema().load(self.post.__dict__, partial=("platform",))
+
+        url = helpers.create_mollie_request(
+            invoice, payment["amount"], self.connection, self.options["mollie"]
+        )
+        content = self.parser.Parse("email/invoice.txt", **{"mollie": url})
+        helpers.mail_invoice(
+            recipients=invoice["client"]["email"],
+            subject="Mollie payment request",
+            body=content,
+        )
         return uweb3.Redirect(
             f'/invoice/payments/{invoice["sequenceNumber"]}', httpcode=303
         )

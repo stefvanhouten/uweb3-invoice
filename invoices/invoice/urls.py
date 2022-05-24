@@ -18,6 +18,7 @@ urls = [
         (invoices.PageMaker, "RequestInvoiceReservationToNew"),
         "POST",
     ),
+    ("/invoice/payments/mollie/(.*)", (invoices.PageMaker, "AddMolliePaymentRequest")),
     ("/invoice/payments/(.*)", (invoices.PageMaker, "ManagePayments"), "GET"),
     ("/invoice/payments/(.*)", (invoices.PageMaker, "AddPayment"), "POST"),
     ("/invoice/(.*)", (invoices.PageMaker, "RequestInvoiceDetails"), "GET"),
