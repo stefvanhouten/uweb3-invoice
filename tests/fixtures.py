@@ -1,11 +1,45 @@
 from datetime import date
 
 import pytest
+from uweb3 import SettingsManager
 from uweb3.libs.sqltalk import mysql
 
-from invoices.base.model import invoice
+from invoices.invoice import model as invoice_model
+from invoices.mollie import helpers as mollie_helpers
+from invoices.mollie import model as mollie_model
+
+__all__ = [
+    "config",
+    "mollie_config",
+    "connection",
+    "client_object",
+    "run_before_and_after_tests",
+    "companydetails_object",
+    "simple_invoice_dict",
+    "create_invoice_object",
+    "default_invoice_and_products",
+    "mollie_gateway",
+]
 
 current_year = date.today().year
+
+
+@pytest.fixture
+def config():
+    return SettingsManager("config", "invoices/")
+
+
+@pytest.fixture
+def mollie_config(config):
+    apikey = str(config.options["mollie"]["test_apikey"])
+
+    if not apikey.startswith("test_"):
+        raise Exception("You should use a mollie test key for unittesting purposes.")
+    return {
+        "apikey": apikey,
+        "webhook_url": config.options["mollie"]["webhook_url"],
+        "redirect_url": config.options["mollie"]["redirect_url"],
+    }
 
 
 @pytest.fixture(scope="module")
@@ -27,8 +61,8 @@ def connection():
 
 
 @pytest.fixture
-def client_object(connection) -> invoice.Client:
-    client = invoice.Client.Create(
+def client_object(connection) -> invoice_model.Client:
+    client = invoice_model.Client.Create(
         connection,
         {
             "ID": 1,
@@ -59,8 +93,8 @@ def run_before_and_after_tests(connection):
 
 
 @pytest.fixture
-def companydetails_object(connection) -> invoice.Companydetails:
-    companydetails = invoice.Companydetails.Create(
+def companydetails_object(connection) -> invoice_model.Companydetails:
+    companydetails = invoice_model.Companydetails.Create(
         connection,
         {
             "ID": 1,
@@ -94,8 +128,8 @@ def simple_invoice_dict(client_object, companydetails_object) -> dict:
 
 @pytest.fixture
 def create_invoice_object(connection, client_object, companydetails_object):
-    def create(status=invoice.InvoiceStatus.NEW.value) -> invoice.Invoice:
-        return invoice.Invoice.Create(
+    def create(status=invoice_model.InvoiceStatus.NEW.value) -> invoice_model.Invoice:
+        return invoice_model.Invoice.Create(
             connection,
             {
                 "title": "test invoice",
@@ -111,8 +145,8 @@ def create_invoice_object(connection, client_object, companydetails_object):
 @pytest.fixture
 def default_invoice_and_products(create_invoice_object):
     def create_default_invoice(
-        status=invoice.InvoiceStatus.NEW.value,
-    ) -> invoice.Invoice:
+        status=invoice_model.InvoiceStatus.NEW.value,
+    ) -> invoice_model.Invoice:
         invoice = create_invoice_object(status=status)
         products = [
             {"name": "dakpan", "price": 25, "vat_percentage": 10, "quantity": 10},
@@ -121,3 +155,19 @@ def default_invoice_and_products(create_invoice_object):
         return invoice
 
     return create_default_invoice
+
+
+@pytest.fixture
+def mollie_gateway(connection, mollie_config, default_invoice_and_products):
+    default_invoice_and_products()
+    mollie_model.MollieTransaction.Create(
+        connection,
+        {
+            "ID": 1,
+            "invoice": 1,
+            "amount": 50,
+            "status": mollie_helpers.MollieStatus.OPEN.value,
+            "description": "payment_test",
+        },
+    )
+    return mollie_helpers.mollie_factory(connection, mollie_config)

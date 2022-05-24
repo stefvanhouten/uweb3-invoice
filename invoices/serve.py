@@ -1,9 +1,10 @@
 # Application
-from invoices import base
+
+from . import main as setup
 
 
 def main():
-    app = base.main()
+    app = setup()
     app.serve()
 
 
