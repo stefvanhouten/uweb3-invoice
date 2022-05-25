@@ -172,9 +172,24 @@ class PageMaker(basepages.PageMaker):
     @NotExistsErrorCatcher
     def RequestInvoiceReservationToNew(self):
         """Sets the given invoice to paid."""
-        invoice = self.post.getfirst("invoice")
-        invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
+        sequence_number = self.post.getfirst("invoice")
+        invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
         invoice.ProFormaToRealInvoice()
+
+        updated_invoice = model.Invoice.FromPrimary(self.connection, invoice["ID"])
+
+        mail_data = {}
+        content = self.parser.Parse("email/invoice.txt", **mail_data)
+        pdf = helpers.to_pdf(
+            self.RequestInvoiceDetails(updated_invoice["sequenceNumber"]),
+            filename="invoice.pdf",
+        )
+        helpers.mail_invoice(
+            updated_invoice["client"]["email"],
+            subject="Your invoice",
+            body=content,
+            attachments=(pdf,),
+        )
         return self.req.Redirect("/invoices", httpcode=303)
 
     @uweb3.decorators.loggedin
