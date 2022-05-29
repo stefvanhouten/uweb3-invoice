@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mysql-master:
-        image: mysql:5.7
+        image: mysql:latest
         env: 
           MYSQL_DATABASE: ${{ env.MYSQL_DATABASE }}
           MYSQL_USER: ${{ env.MYSQL_USER }}
