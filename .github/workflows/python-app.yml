@@ -2,11 +2,6 @@
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: Python application
-env:
-  MYSQL_DATABASE: test_invoices
-  MYSQL_USER: test_invoices
-  MYSQL_PASSWORD: test_invoices
-  MYSQL_HOST: mysql-master
 on:
   push:
     branches: 
@@ -27,11 +22,11 @@ jobs:
     services:
       mysql-master:
         image: mysql:latest
-        env: 
-          MYSQL_DATABASE: ${{ env.MYSQL_DATABASE }}
-          MYSQL_USER: ${{ env.MYSQL_USER }}
-          MYSQL_PASSWORD: ${{ env.MYSQL_PASSWORD }}
-          MYSQL_HOST: ${{ env.MYSQL_PASSWORD }}
+        env:
+          MYSQL_DATABASE: test_invoices
+          MYSQL_USER: test_invoices
+          MYSQL_PASSWORD: test_invoices
+          MYSQL_HOST: mysql-master
         ports:
           - 3306:3306
         options: >-
