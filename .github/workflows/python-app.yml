@@ -26,7 +26,8 @@ jobs:
           MYSQL_DATABASE: test_invoices
           MYSQL_USER: test_invoices
           MYSQL_PASSWORD: test_invoices
-          MYSQL_HOST: mysql-master
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_ROOT_PASSWORD: test_invoices
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
