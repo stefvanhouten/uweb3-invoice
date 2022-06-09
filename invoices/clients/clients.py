@@ -4,6 +4,8 @@
 # standard modules
 
 # uweb modules
+import os
+
 import uweb3
 
 from invoices import basepages
@@ -18,6 +20,8 @@ from invoices.common.schemas import ClientSchema, RequestClientSchema
 
 class PageMaker(basepages.PageMaker):
     """Holds all the request handlers for the application"""
+
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
     @uweb3.decorators.ContentType("application/json")
     @json_error_wrapper
@@ -64,7 +68,7 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("clients/clients.html")
+    @uweb3.decorators.TemplateParser("clients.html")
     def RequestClientsPage(self):
         return {
             "title": "Clients",
@@ -91,7 +95,7 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("clients/client.html")
+    @uweb3.decorators.TemplateParser("client.html")
     def RequestClientPage(self, client=None):
         """Returns the client details.
 

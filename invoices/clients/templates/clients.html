@@ -6,7 +6,7 @@
                 <h1>Clients</h1>
             </header>
             {{ if len([clients]) > 0 }}
-                {{ inline clients/parts/clients_table.html }}
+                {{ inline tables/clients.html }}
             {{ else }}
                 <p>You have no clients.</p>
             {{ endif }}
@@ -18,7 +18,7 @@
                 <h1>New client</h1>
                 <p>Register a new client</p>
             </header>
-        {{ inline clients/parts/register_client.html}}
+        {{ inline forms/register_client.html}}
         </section>
     </div>
 </main>
