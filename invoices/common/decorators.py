@@ -74,3 +74,14 @@ def json_error_wrapper(func):
             )
 
     return wrapper_schema_validation
+
+
+def loggedin(f):
+    """Decorator that checks if the user requesting the page is logged in based on set cookie."""
+
+    def wrapper(pagemaker, *args, **kwargs):
+        if not pagemaker.user:
+            return uweb3.Redirect("/login", httpcode=303)
+        return f(pagemaker, *args, **kwargs)
+
+    return wrapper
