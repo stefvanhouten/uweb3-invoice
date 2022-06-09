@@ -12,11 +12,11 @@ import requests
 # uweb modules
 import uweb3
 
-from invoices import basepages
+from invoices import basepages, invoice
 from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper, loggedin
 from invoices.common.helpers import transaction
 from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
-from invoices.invoice import helpers, model
+from invoices.invoice import forms, helpers, model
 from invoices.mollie import model as mollie_model
 
 
@@ -46,7 +46,8 @@ class PageMaker(basepages.PageMaker):
     @uweb3.decorators.checkxsrf
     @RequestWrapper
     @uweb3.decorators.TemplateParser("create.html")
-    def RequestNewInvoicePage(self, errors=[]):
+    def RequestNewInvoicePage(self, errors=[], invoice_form=None):
+
         response = requests.get(
             f"{self.warehouse_api_url}/products?apikey={self.warehouse_apikey}"
         )
@@ -55,12 +56,17 @@ class PageMaker(basepages.PageMaker):
             return self._handle_api_status_error(response)
 
         json_response = response.json()
+
+        if not invoice_form:
+            invoice_form = forms.get_invoice_form(
+                model.Client.List(self.connection), json_response["products"]
+            )
         return {
-            "clients": list(model.Client.List(self.connection)),
             "products": json_response["products"],
             "errors": errors,
             "api_url": self.warehouse_api_url,
             "apikey": self.warehouse_apikey,
+            "invoice_form": invoice_form,
             "scripts": ["/js/invoice.js"],
         }
 
@@ -85,6 +91,12 @@ class PageMaker(basepages.PageMaker):
     def RequestCreateNewInvoicePage(self):
         # Check if client exists
         model.Client.FromPrimary(self.connection, int(self.post.getfirst("client")))
+        invoice_form = forms.get_invoice_form(
+            model.Client.List(self.connection), [], postdata=self.post
+        )
+
+        if not invoice_form.validate():
+            return self.RequestNewInvoicePage(invoice_form=invoice_form)
 
         try:
             sanitized_invoice, products = helpers.sanitize_new_invoice_post_data(
