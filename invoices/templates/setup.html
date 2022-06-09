@@ -1,256 +1,148 @@
 [header]
 <script src="/js/forms.js"></script>
 <section>
-  <header>
-    <h2>Invoices settings and access controls:</h2>
-    <p>Welcome to your invoices instance.</p>
-  </header>
+    <header>
+        <h2>Invoices settings and access controls:</h2>
+        <p>Welcome to your invoices instance.</p>
+    </header>
 </section>
 <section id="loginaccess">
-  <h3>Application settings:</h3>
-  {{ ifpresent [errors] }}
+    <h3>Application settings:</h3>
+    {{ ifpresent [errors] }}
     {{ for key, value in [errors|items]}}
-      {{ for error in [value] }}
-        <p class="error">[key]: [error]</p>
-      {{ endfor }}
+    {{ for error in [value] }}
+    <p class="error">[key]: [error]</p>
     {{ endfor }}
-  {{ endif }}
-  <form action="/setup" method="post">
-    <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]" />
-    <fieldset>
-      <legend>User account</legend>
-      <div>
-        <label for="new_email">Admin email address</label
-        ><input
-          name="email"
-          id="new_email"
-          type="email"
-          required
-          placeholder="example@email.com"
-          minlength="4"
-          maxlength="255"
-          value="{{ ifpresent [postdata:email] }}[postdata:email]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="new_password_new">New password</label
-        ><input
-          name="password"
-          id="new_password_new"
-          type="password"
-          autocomplete="new-password"
-          minlength="8"
-          required
-        />
-      </div>
-      <div>
-        <label for="new_password_confirm">Confirm new password</label
-        ><input
-          name="password_confirm"
-          id="new_password_confirm"
-          type="password"
-          minlength="8"
-          autocomplete="new-password"
-          required
-        />
-      </div>
-      <p>
-        Both passwords need to be the same, so we are sure you dont lock
-        yourself out. <br />
-        Make sure to have at least 8 characters in your password.
-      </p>
-    </fieldset>
+    {{ endfor }}
+    {{ endif }}
+    <form action="/setup" method="post">
+        <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]" />
+        <fieldset>
+            <legend>User account</legend>
+            <div>
+                <label for="new_email">Admin email address</label><input name="email" id="new_email" type="email"
+                    required placeholder="example@email.com" minlength="4" maxlength="255"
+                    value="{{ ifpresent [postdata:email] }}[postdata:email]{{endif}}" />
+            </div>
+            <div>
+                <label for="new_password_new">New password</label><input name="password" id="new_password_new"
+                    type="password" autocomplete="new-password" minlength="8" required />
+            </div>
+            <div>
+                <label for="new_password_confirm">Confirm new password</label><input name="password_confirm"
+                    id="new_password_confirm" type="password" minlength="8" autocomplete="new-password" required />
+            </div>
+            <p>
+                Both passwords need to be the same, so we are sure you dont lock
+                yourself out. <br />
+                Make sure to have at least 8 characters in your password.
+            </p>
+        </fieldset>
 
-    <fieldset>
-      <legend>Application settings</legend>
-      <div>
-        <label for="new_hostname">Hostname</label
-        ><input
-          name="hostname"
-          id="new_hostname"
-          type="text"
-          required
-          placeholder="myserver.com"
-          minlength="4"
-          maxlength="255"
-          value="{{ ifpresent [postdata:hostname] }}[postdata:hostname]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="new_locale">Locale</label
-        ><input
-          name="locale"
-          id="new_locale"
-          type="text"
-          required
-          placeholder="en_GB"
-          minlength="5"
-          maxlength="10"
-          value="{{ ifpresent [postdata:locale] }}[postdata:locale]{{endif}}"
-        />
-      </div>
-      <p>
-        The selected Locale needs to be available on the server. It will be used
-        for curreny formatting.
-      </p>
-    </fieldset>
-    <fieldset>
-      <legend>Warehouse settings</legend>
-    <div>
-      <label for="warehouse_api">Warehouse API</label
-      ><input
-        name="warehouse_api"
-        id="warehouse_api"
-        type="url"
-        minlength="10"
-        value="{{ ifpresent [postdata:warehouse_api] }}[postdata:warehouse_api]{{endif}}"
-        required
-      />
-    </div>
-    <div>
-      <label for="warehouse_api">API key</label
-      ><input name="apikey" id="apikey" type="text" value="{{ ifpresent [postdata:apikey] }}[postdata:apikey]{{endif}}" required />
-    </div>
-    </fieldset>
-    <fieldset>
-      <legend>Personal information</legend>
-      <div>
-        <label for="settings_name">Name*</label>
-        <input
-          type="text"
-          name="name"
-          id="settings_name"
-          required
-          value="{{ ifpresent [postdata:name] }}[postdata:name]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_telephone">Telephone*</label>
-        <input
-          type="tel"
-          name="telephone"
-          id="settings_telephone"
-          placeholder="+31"
-          required
-          value="{{ ifpresent [postdata:telephone] }}[postdata:telephone]{{endif}}"
-        />
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>Postal address</legend>
-      <div>
-        <label for="settings_address">Address*</label>
-        <input
-          type="text"
-          name="address"
-          id="settings_address"
-          required
-          value="{{ ifpresent [postdata:address] }}[postdata:address]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_postalCode">Postal code*</label>
-        <input
-          type="text"
-          name="postalCode"
-          id="settings_postalCode"
-          required
-          value="{{ ifpresent [postdata:postalCode] }}[postdata:postalCode]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_city">City*</label>
-        <input
-          type="text"
-          name="city"
-          id="settings_city"
-          required
-          value="{{ ifpresent [postdata:city] }}[postdata:city]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_country">Country*</label>
-        <input
-          type="text"
-          name="country"
-          id="settings_country"
-          placeholder="NL"
-          required
-          value="{{ ifpresent [postdata:country] }}[postdata:country]{{endif}}"
-        />
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>Business</legend>
-      <div>
-        <label for="settings_vat"
-          ><abbr title="Value-added tax">VAT</abbr> number*</label
-        >
-        <input
-          type="text"
-          name="vat"
-          id="settings_vat"
-          required
-          value="{{ ifpresent [postdata:vat] }}[postdata:vat]{{endif}}"
-        />
-      </div>
-      <div>
-          <label for="settings_kvk">
-            <abbr title="Chamber of commerce">KvK</abbr> number*</label>
-        <input
-          type="text"
-          name="kvk"
-          id="settings_kvk"
-          required
-          value="{{ ifpresent [postdata:kvk] }}[postdata:kvk]{{endif}}"
-        />
-      </div>
-      </div>
-      <div>
-        <label for="settings_invoiceprefix">Invoice prefix*</label>
-        <input
-          type="text"
-          name="invoiceprefix"
-          id="settings_invoiceprefix"
-          required
-          value="{{ ifpresent [postdata:invoiceprefix] }}[postdata:invoiceprefix]{{endif}}"
-        />
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>Banking</legend>
-      <div>
-        <label for="settings_bank">Bank*</label>
-        <input
-          type="text"
-          name="bank"
-          id="settings_bank"
-          required
-          value="{{ ifpresent [postdata:bank] }}[postdata:bank]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_bankAccount">Bank account*</label>
-        <input
-          type="text"
-          name="bankAccount"
-          id="settings_bankAccount"
-          required
-          value="{{ ifpresent [postdata:bankAccount] }}[postdata:bankAccount]{{endif}}"
-        />
-      </div>
-      <div>
-        <label for="settings_bankCity">Bank city*</label>
-        <input
-          type="text"
-          name="bankCity"
-          id="settings_bankCity"
-          required
-          value="{{ ifpresent [postdata:bankCity] }}[postdata:bankCity]{{endif}}"
-        />
-      </div>
-    </fieldset>
-    <div><input type="submit" value="Save changes" class="primary" /></div>
-  </form>
+        <fieldset>
+            <legend>Application settings</legend>
+            <div>
+                <label for="new_hostname">Hostname</label><input name="hostname" id="new_hostname" type="text" required
+                    placeholder="myserver.com" minlength="4" maxlength="255"
+                    value="{{ ifpresent [postdata:hostname] }}[postdata:hostname]{{endif}}" />
+            </div>
+            <div>
+                <label for="new_locale">Locale</label><input name="locale" id="new_locale" type="text" required
+                    placeholder="en_GB" minlength="5" maxlength="10"
+                    value="{{ ifpresent [postdata:locale] }}[postdata:locale]{{endif}}" />
+            </div>
+            <p>
+                The selected Locale needs to be available on the server. It will be used
+                for curreny formatting.
+            </p>
+        </fieldset>
+        <fieldset>
+            <legend>Warehouse settings</legend>
+            <div>
+                <label for="warehouse_api">Warehouse API</label><input name="warehouse_api" id="warehouse_api"
+                    type="url" minlength="10"
+                    value="{{ ifpresent [postdata:warehouse_api] }}[postdata:warehouse_api]{{endif}}" required />
+            </div>
+            <div>
+                <label for="warehouse_api">API key</label><input name="apikey" id="apikey" type="text"
+                    value="{{ ifpresent [postdata:apikey] }}[postdata:apikey]{{endif}}" required />
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Personal information</legend>
+            <div>
+                <label for="settings_name">Name*</label>
+                <input type="text" name="name" id="settings_name" required
+                    value="{{ ifpresent [postdata:name] }}[postdata:name]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_telephone">Telephone*</label>
+                <input type="tel" name="telephone" id="settings_telephone" placeholder="+31" required
+                    value="{{ ifpresent [postdata:telephone] }}[postdata:telephone]{{endif}}" />
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Postal address</legend>
+            <div>
+                <label for="settings_address">Address*</label>
+                <input type="text" name="address" id="settings_address" required
+                    value="{{ ifpresent [postdata:address] }}[postdata:address]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_postalCode">Postal code*</label>
+                <input type="text" name="postalCode" id="settings_postalCode" required
+                    value="{{ ifpresent [postdata:postalCode] }}[postdata:postalCode]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_city">City*</label>
+                <input type="text" name="city" id="settings_city" required
+                    value="{{ ifpresent [postdata:city] }}[postdata:city]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_country">Country*</label>
+                <input type="text" name="country" id="settings_country" placeholder="NL" required
+                    value="{{ ifpresent [postdata:country] }}[postdata:country]{{endif}}" />
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Business</legend>
+            <div>
+                <label for="settings_vat"><abbr title="Value-added tax">VAT</abbr> number*</label>
+                <input type="text" name="vat" id="settings_vat" required
+                    value="{{ ifpresent [postdata:vat] }}[postdata:vat]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_kvk">
+                    <abbr title="Chamber of commerce">KvK</abbr> number*</label>
+                <input type="text" name="kvk" id="settings_kvk" required
+                    value="{{ ifpresent [postdata:kvk] }}[postdata:kvk]{{endif}}" />
+            </div>
+            </div>
+            <div>
+                <label for="settings_invoiceprefix">Invoice prefix*</label>
+                <input type="text" name="invoiceprefix" id="settings_invoiceprefix" required
+                    value="{{ ifpresent [postdata:invoiceprefix] }}[postdata:invoiceprefix]{{endif}}" />
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Banking</legend>
+            <div>
+                <label for="settings_bank">Bank*</label>
+                <input type="text" name="bank" id="settings_bank" required
+                    value="{{ ifpresent [postdata:bank] }}[postdata:bank]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_bankAccount">Bank account*</label>
+                <input type="text" name="bankAccount" id="settings_bankAccount" required
+                    value="{{ ifpresent [postdata:bankAccount] }}[postdata:bankAccount]{{endif}}" />
+            </div>
+            <div>
+                <label for="settings_bankCity">Bank city*</label>
+                <input type="text" name="bankCity" id="settings_bankCity" required
+                    value="{{ ifpresent [postdata:bankCity] }}[postdata:bankCity]{{endif}}" />
+            </div>
+        </fieldset>
+        <div><input type="submit" value="Save changes" class="primary" /></div>
+    </form>
 </section>
 [footer]

@@ -1,13 +1,18 @@
+import os
+
 import marshmallow.exceptions
 import uweb3
 
 import invoices.invoice.model as invoice_model
 from invoices import basepages
+from invoices.common.decorators import loggedin
 from invoices.common.schemas import CompanyDetailsSchema
 
 
 class PageMaker(basepages.PageMaker):
-    @uweb3.decorators.loggedin
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
+    @loggedin
     @uweb3.decorators.TemplateParser("settings.html")
     def RequestSettings(self, errors=None):
         """Returns the settings page."""
@@ -28,7 +33,7 @@ class PageMaker(basepages.PageMaker):
             "errors": errors,
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestSettingsSave(self):
         """Saves the changes and returns the settings page."""
@@ -54,7 +59,7 @@ class PageMaker(basepages.PageMaker):
 
         return self.RequestSettings()
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestWarehouseSettingsSave(self):
         self.config.Update(
@@ -63,7 +68,7 @@ class PageMaker(basepages.PageMaker):
         self.config.Update("general", "apikey", self.post.getfirst("apikey"))
         return self.req.Redirect("/settings", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestMollieSettingsSave(self):
         self.config.Update("mollie", "apikey", self.post.getfirst("apikey"))

@@ -1,5 +1,6 @@
-from invoices.basepages import API_VERSION
 from invoices.mollie import mollie
+
+API_VERSION = "/api/v1"
 
 urls = [
     (f"{API_VERSION}/client/([0-9]+)", (mollie.PageMaker, "RequestClient")),

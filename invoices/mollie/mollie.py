@@ -4,6 +4,8 @@
 __author__ = "Jan Klopper <janklopper@underdark.nl>"
 __version__ = "0.1"
 
+import os
+
 import uweb3
 
 from invoices import basepages
@@ -13,6 +15,8 @@ from invoices.mollie import model as mollie_model
 
 
 class PageMaker(basepages.PageMaker, helpers.MollieMixin):
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
     def NewMolliePaymentGateway(self):
         return helpers.mollie_factory(self.connection, self.options["mollie"])
 
@@ -55,10 +59,10 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
         else:
             return self._PaymentFailed()
 
-    @uweb3.decorators.TemplateParser("mollie/payment_success.html")
+    @uweb3.decorators.TemplateParser("payment_success.html")
     def _PaymentOk(self):
         return
 
-    @uweb3.decorators.TemplateParser("mollie/payment_failed.html")
+    @uweb3.decorators.TemplateParser("payment_failed.html")
     def _PaymentFailed(self):
         return

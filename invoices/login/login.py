@@ -2,6 +2,7 @@ import marshmallow.exceptions
 import uweb3
 
 from invoices import basepages
+from invoices.common.decorators import loggedin
 from invoices.common.schemas import CompanyDetailsSchema
 from invoices.invoice import model as invoice_model
 from invoices.login import model
@@ -11,7 +12,7 @@ class PageMaker(basepages.PageMaker):
     def __init__(self, *args, **kwargs):
         super(PageMaker, self).__init__(*args, **kwargs)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     def RequestIndex(self):
         """Returns the homepage"""
         return self.req.Redirect("/invoices", httpcode=303)

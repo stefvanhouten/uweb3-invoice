@@ -4,16 +4,24 @@
 # standard modules
 
 # uweb modules
+import os
+
 import uweb3
 
 from invoices import basepages
 from invoices.clients import model
-from invoices.common.decorators import NotExistsErrorCatcher, json_error_wrapper
+from invoices.common.decorators import (
+    NotExistsErrorCatcher,
+    json_error_wrapper,
+    loggedin,
+)
 from invoices.common.schemas import ClientSchema, RequestClientSchema
 
 
 class PageMaker(basepages.PageMaker):
     """Holds all the request handlers for the application"""
+
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
     @uweb3.decorators.ContentType("application/json")
     @json_error_wrapper
@@ -58,9 +66,9 @@ class PageMaker(basepages.PageMaker):
         client.Save()
         return client
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("clients/clients.html")
+    @uweb3.decorators.TemplateParser("clients.html")
     def RequestClientsPage(self):
         return {
             "title": "Clients",
@@ -68,7 +76,7 @@ class PageMaker(basepages.PageMaker):
             "clients": list(model.Client.List(self.connection)),
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestNewClientPage(self):
         """Creates a new client, or displays an error."""
@@ -85,9 +93,9 @@ class PageMaker(basepages.PageMaker):
         )
         return self.req.Redirect("/clients", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("clients/client.html")
+    @uweb3.decorators.TemplateParser("client.html")
     def RequestClientPage(self, client=None):
         """Returns the client details.
 
@@ -97,7 +105,7 @@ class PageMaker(basepages.PageMaker):
         client = model.Client.FromClientNumber(self.connection, int(client))
         return {"title": "Client", "page_id": "client", "client": client}
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def RequestSaveClientPage(self):
