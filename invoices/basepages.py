@@ -6,8 +6,6 @@ import uweb3
 import invoices.login.model as login_model
 from invoices.invoice.model import PRO_FORMA_PREFIX
 
-API_VERSION = "/api/v1"
-
 
 class PageMaker(
     uweb3.DebuggingPageMaker,
