@@ -25,8 +25,8 @@
       <td>[invoice:status]</td>
       <td>
         {{ if [invoice:sequenceNumber|isProForma] and not [invoice:status] == 'canceled' }}
-          {{ inline invoices/parts/set_invoice_new.html }}
-          {{ inline invoices/parts/cancel_reservation.html }}
+          {{ inline forms/set_invoice_new.html }}
+          {{ inline forms/cancel_reservation.html }}
         {{ endif }}
       </td>
     </tr>

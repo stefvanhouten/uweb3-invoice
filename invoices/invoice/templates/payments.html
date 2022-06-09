@@ -23,7 +23,7 @@
             {{ if len([payments]) == 0 }}
             <p>No payments available for this invoice</p>
             {{ else}}
-                {{ inline invoices/parts/payments_table.html }}
+                {{ inline tables/payments_table.html }}
             {{ endif }}
         </section>
     </div>
@@ -32,7 +32,7 @@
             <header>
                 <h2>Create payment</h2>
             </header>
-            {{ inline invoices/parts/payment_form.html }}
+            {{ inline forms/payment_form.html }}
         </section>
     </div>
     <div>
@@ -40,7 +40,7 @@
             <header>
                 <h2>Create new mollie payment request</h2>
             </header>
-            {{ inline invoices/parts/form_mollie_payment_request.html }}
+            {{ inline forms/mollie_payment_request.html }}
         </section>
     </div>
     <div>
@@ -51,7 +51,7 @@
             {{ if len([mollie_payments]) == 0 }}
                 <p>No payments available for this invoice</p>
             {{ else}}
-                {{ inline invoices/parts/table_mollie_payments.html }}
+                {{ inline tables/mollie_payments.html }}
             {{ endif}}
         </section>
     </div>
