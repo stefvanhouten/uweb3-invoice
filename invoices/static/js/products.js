@@ -63,7 +63,29 @@
                 this.animate(this.tbodyEl.appendChild(clone));
             }
         },
+        determinePrice: function(prices, quantity){
+            for (let index = 0; index < prices.length; index++) {
+                const current_element = prices[index];
+                const next_element = prices[index + 1];
 
+                if(quantity == current_element.start_range){
+                    return current_element.price;
+                }
+
+                if (
+                    quantity > current_element.start_range &&
+                    next_element &&
+                    quantity < next_element.start_range
+                ) {
+                    return current_element.price;
+                }
+
+                if(next_element === undefined){
+                    return current_element.price;
+                }
+            }
+            return 0;
+        },
         update: async function (ioEls) {
             const PRODUCT = 0;
             const PRICE = 1;
@@ -80,22 +102,24 @@
                 ioEls[STOCK].value = "";
                 return;
             }
-
+            if(ioEls[QUANTITY].value === "" && ioEls[PRODUCT].value != ""){
+                ioEls[QUANTITY].value = 1;
+            }
             let data = await this.fetchProductInfo(ioEls[PRODUCT].value);
+            let price = this.determinePrice(data.prices, Number(ioEls[QUANTITY].value));
+            ioEls[PRICE].value = price;
+            ioEls[VAT].value = Number(data["vat"]);
             // Only update the value and vat when the selected product has changed.
             // This allows custom pricing.
-            if (ioEls[PRODUCT].value !== ioEls[PRODUCT].dataset.prevval) {
-                ioEls[PRICE].value =
-                    Number(data["cost"]) + Number(data["assemblycosts"]);
-                ioEls[VAT].value = Number(data["vat"]);
-            }
+            // if (ioEls[PRODUCT].value !== ioEls[PRODUCT].dataset.prevval) {
+            // }
 
-            var price = ioEls[1].valueAsNumber;
-            var vat = ioEls[2].valueAsNumber;
+            // var price = ioEls[PRICE].valueAsNumber;
+            var vat = ioEls[VAT].valueAsNumber;
             ioEls[
                 STOCK
             ].value = `current: ${data["stock"]} possible: +${data["possible_stock"]}`;
-            let quantity = ioEls[3].valueAsNumber;
+            let quantity = ioEls[QUANTITY].valueAsNumber;
             var vatAmount = ((price * quantity) / 100) * vat;
             var subtotal = price * quantity + vatAmount;
 
