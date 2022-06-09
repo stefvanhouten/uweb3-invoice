@@ -70,7 +70,7 @@
             <select name="products" onFocus="this.dataset.prevval=this.value;" data-prevval="" id="product_select">
               <option value="">None</option>
               {{ for product in [products] }}
-              <option value="[product:name]">[product:name]</option>
+              <option value="[product:sku]">[product:name]</option>
               {{ endfor }}
             </select>
         </td>
