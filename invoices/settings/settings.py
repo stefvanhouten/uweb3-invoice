@@ -1,3 +1,5 @@
+import os
+
 import marshmallow.exceptions
 import uweb3
 
@@ -8,6 +10,8 @@ from invoices.common.schemas import CompanyDetailsSchema
 
 
 class PageMaker(basepages.PageMaker):
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
     @loggedin
     @uweb3.decorators.TemplateParser("settings.html")
     def RequestSettings(self, errors=None):
