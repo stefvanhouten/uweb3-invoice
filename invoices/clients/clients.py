@@ -8,7 +8,11 @@ import uweb3
 
 from invoices import basepages
 from invoices.clients import model
-from invoices.common.decorators import NotExistsErrorCatcher, json_error_wrapper
+from invoices.common.decorators import (
+    NotExistsErrorCatcher,
+    json_error_wrapper,
+    loggedin,
+)
 from invoices.common.schemas import ClientSchema, RequestClientSchema
 
 
@@ -58,7 +62,7 @@ class PageMaker(basepages.PageMaker):
         client.Save()
         return client
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @uweb3.decorators.TemplateParser("clients/clients.html")
     def RequestClientsPage(self):
@@ -68,7 +72,7 @@ class PageMaker(basepages.PageMaker):
             "clients": list(model.Client.List(self.connection)),
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestNewClientPage(self):
         """Creates a new client, or displays an error."""
@@ -85,7 +89,7 @@ class PageMaker(basepages.PageMaker):
         )
         return self.req.Redirect("/clients", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @uweb3.decorators.TemplateParser("clients/client.html")
     def RequestClientPage(self, client=None):
@@ -97,7 +101,7 @@ class PageMaker(basepages.PageMaker):
         client = model.Client.FromClientNumber(self.connection, int(client))
         return {"title": "Client", "page_id": "client", "client": client}
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def RequestSaveClientPage(self):
