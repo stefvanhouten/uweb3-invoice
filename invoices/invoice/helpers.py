@@ -81,35 +81,6 @@ def to_pdf(html, filename=None):
     return result.getvalue()
 
 
-def get_and_zip_products(postdata):
-    """Transform invoice products post data to a list of dictionaries.
-    This function uses zip_longest, so any missing data will be filled with None.
-    Returns: [
-        { name: The name of the product,
-          price: The price of the product,
-          vat_percentage: specified vat percentage of a given product,
-          quantity: The amount of products that were specified
-        }]
-    """
-
-    products = []
-    for product, price, vat, quantity in zip_longest(
-        postdata.getlist("products"),
-        postdata.getlist("invoice_prices"),
-        postdata.getlist("invoice_vat"),
-        postdata.getlist("quantity"),
-    ):
-        products.append(
-            {
-                "name": product,
-                "price": price,
-                "vat_percentage": vat,
-                "quantity": quantity,
-            }
-        )
-    return products
-
-
 def create_invoice_reference_msg(status, sequenceNumber):
     """Determines the reference message that is send to the warehouse API.
 
