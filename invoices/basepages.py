@@ -95,3 +95,12 @@ class PageMaker(
         uweb3.logging.error("Error page triggered: %r", error)
         page_data = self.parser.Parse("parts/error.html", error=error, link=link)
         return uweb3.Response(content=page_data, httpcode=httpcode)
+
+    def WarehouseError(self, error="", httpcode=500, api_status_code=None):
+        uweb3.logging.error(
+            f"Error page triggered: {error} with API status code {api_status_code}"
+        )
+        page_data = self.parser.Parse(
+            "parts/warehouse_error.html", error=error, api_status_code=api_status_code
+        )
+        return uweb3.Response(content=page_data, httpcode=httpcode)
