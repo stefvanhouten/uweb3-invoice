@@ -23,13 +23,6 @@ class InvoiceSchema(Schema):
         return item
 
 
-class ProductSchema(Schema):
-    name = fields.Str(required=True, allow_none=False)
-    price = fields.Decimal(required=True, allow_nan=False)
-    vat_percentage = fields.Int(required=True, allow_none=False)
-    quantity = fields.Int(required=True, allow_none=False)
-
-
 class WarehouseStockChangeSchema(Schema):
     class Meta:
         unknown = EXCLUDE
@@ -40,14 +33,6 @@ class WarehouseStockChangeSchema(Schema):
     def negative_absolute(self, quantity):
         """Flip the quantity to a negative value, as this is used to decrement the stock on the warehouse server."""
         return -abs(int(quantity))
-
-
-class WarehouseStockRefundSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    sku = fields.Str(required=True, allow_none=False)
-    quantity = fields.Int(required=True, allow_none=False)
 
 
 class CompanyDetailsSchema(Schema):
