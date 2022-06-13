@@ -10,5 +10,10 @@ def products():
                 "name": "test product",
                 "quantity": 1,
             },
+            {
+                "sku": "another sku",
+                "name": "another product",
+                "quantity": 1,
+            },
         ]
     }
