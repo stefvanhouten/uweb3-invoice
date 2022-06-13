@@ -1,8 +1,10 @@
 #!/usr/bin/python
 """Request handlers for the uWeb3 warehouse inventory software"""
 
-# standard modules
 import re
+
+# standard modules
+from http import HTTPStatus
 from io import BytesIO
 from itertools import zip_longest
 
@@ -12,11 +14,7 @@ from uweb3.libs.mail import MailSender
 from weasyprint import HTML
 
 from invoices.common import helpers as common_helpers
-from invoices.common.schemas import (
-    InvoiceSchema,
-    ProductSchema,
-    WarehouseStockChangeSchema,
-)
+from invoices.common.schemas import WarehouseStockChangeSchema
 from invoices.invoice import model
 from invoices.invoice.model import InvoiceStatus
 from invoices.mollie.mollie import helpers as mollie_module
@@ -259,3 +257,58 @@ class MT940_processor:
             }
             for x in matches
         ]
+
+
+class WarehouseException(Exception):
+    status_code: int
+
+    def __init__(self, message, status_code):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class WarehouseApi:
+    def __init__(self, url, apikey):
+        self.url = url
+        self.apikey = apikey
+        self.requested_url = None
+        self.endpoints = {"products": "/products"}
+
+    def get_products(self):
+        response = self._request(self.endpoints["products"])
+        json_response = response.json()
+
+        if response.status_code != 200:
+            self.handle_api_errors(response)
+
+        return json_response["products"]
+
+    def _request(self, endpoint):
+        self.requested_url = f"{self.url}{endpoint}"
+
+        try:
+            return requests.get(f"{self.requested_url}?apikey={self.apikey}")
+        except requests.exceptions.ConnectionError as exc:
+            raise WarehouseException(
+                "Could not connect to warehouse API, is the warehouse service running?",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+        except requests.exceptions.RequestException as exc:
+            raise WarehouseException("Unhandled warehouse API exception", 0) from exc
+
+    def handle_api_errors(self, response):
+        match response.status_code:
+            case HTTPStatus.NOT_FOUND:
+                raise WarehouseException(
+                    f"Warehouse API at url '{self.requested_url}' could not be found.",
+                    HTTPStatus.NOT_FOUND,
+                )
+            case HTTPStatus.FORBIDDEN:
+                raise WarehouseException(
+                    f"Access denied to page '{self.requested_url}'. Are you using a valid apikey?",
+                    HTTPStatus.FORBIDDEN,
+                )
+            case _:
+                raise WarehouseException(
+                    "Unhandled warehouse API exception", response.status_code
+                )

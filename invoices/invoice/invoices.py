@@ -2,9 +2,6 @@
 """Request handlers for the uWeb3 warehouse inventory software"""
 
 import os
-from http import HTTPStatus
-
-import marshmallow.exceptions
 
 # standard modules
 import requests
@@ -12,8 +9,12 @@ import requests
 # uweb modules
 import uweb3
 
-from invoices import basepages, invoice
-from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper, loggedin
+from invoices import basepages
+from invoices.common.decorators import (
+    NotExistsErrorCatcher,
+    WarehouseRequestWrapper,
+    loggedin,
+)
 from invoices.common.helpers import transaction
 from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
 from invoices.invoice import forms, helpers, model
@@ -31,6 +32,9 @@ class PageMaker(basepages.PageMaker):
         super().__init__(*args, **kwargs)
         self.warehouse_api_url = self.config.options["general"]["warehouse_api"]
         self.warehouse_apikey = self.config.options["general"]["apikey"]
+        self.warehouse = helpers.WarehouseApi(
+            self.warehouse_api_url, self.warehouse_apikey
+        )
 
     @loggedin
     @uweb3.decorators.checkxsrf
@@ -44,25 +48,17 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
-    @RequestWrapper
+    @WarehouseRequestWrapper
     @uweb3.decorators.TemplateParser("create.html")
     def RequestNewInvoicePage(self, errors=[], invoice_form=None):
-
-        response = requests.get(
-            f"{self.warehouse_api_url}/products?apikey={self.warehouse_apikey}"
-        )
-
-        if response.status_code != 200:
-            return self._handle_api_status_error(response)
-
-        json_response = response.json()
+        products = self.warehouse.get_products()
 
         if not invoice_form:
             invoice_form = forms.get_invoice_form(
-                model.Client.List(self.connection), json_response["products"]
+                model.Client.List(self.connection), products
             )
         return {
-            "products": json_response["products"],
+            "products": products,
             "errors": errors,
             "api_url": self.warehouse_api_url,
             "apikey": self.warehouse_apikey,
@@ -70,48 +66,37 @@ class PageMaker(basepages.PageMaker):
             "scripts": ["/js/invoice.js"],
         }
 
-    def _handle_api_status_error(self, response):
-        json_response = response.json()
-
-        if response.status_code == HTTPStatus.NOT_FOUND:
-            return self.Error(
-                f"Warehouse API at url '{self.warehouse_api_url}' could not be found."
-            )
-        elif response.status_code == HTTPStatus.FORBIDDEN:
-            error = json_response.get(
-                "error",
-                "Not allowed to access this page. Are you using a valid apikey?",
-            )
-            return self.Error(error)
-        return self.Error("Something went wrong!")
-
     @loggedin
     @uweb3.decorators.checkxsrf
-    @RequestWrapper
+    @WarehouseRequestWrapper
     def RequestCreateNewInvoicePage(self):
         # Check if client exists
         model.Client.FromPrimary(self.connection, int(self.post.getfirst("client")))
+        warehouse_products = self.warehouse.get_products()
+
         invoice_form = forms.get_invoice_form(
-            model.Client.List(self.connection), [], postdata=self.post
+            model.Client.List(self.connection), warehouse_products, postdata=self.post
         )
 
         if not invoice_form.validate():
             return self.RequestNewInvoicePage(invoice_form=invoice_form)
 
-        try:
-            sanitized_invoice, products = helpers.sanitize_new_invoice_post_data(
-                self.post
-            )
-        except marshmallow.exceptions.ValidationError as error:
-            return self.RequestNewInvoicePage(errors=[error.messages])
-        except ValueError as error:
-            return self.RequestNewInvoicePage(errors=[str(error)])
-
+        products = helpers.correct_products_name_key(invoice_form.product.data)
         # Start a transaction that is rolled back when any unhandled exception occurs
         with transaction(self.connection, model.Invoice):
-            invoice = helpers.create_invoice_add_products(
-                self.connection, sanitized_invoice, products
+            invoice = model.Invoice.Create(
+                self.connection,
+                {
+                    "client": invoice_form.client.data,
+                    "status": model.InvoiceStatus.RESERVATION.value
+                    if invoice_form.reservation.data
+                    else model.InvoiceStatus.NEW.value,
+                    "title": invoice_form.title.data,
+                    "description": invoice_form.description.data,
+                },
             )
+            invoice.AddProducts(products)
+
             response = helpers.warehouse_stock_update_request(
                 self.warehouse_api_url, self.warehouse_apikey, invoice, products
             )
