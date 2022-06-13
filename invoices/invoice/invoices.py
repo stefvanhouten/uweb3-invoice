@@ -79,34 +79,15 @@ class PageMaker(basepages.PageMaker):
         if not invoice_form.validate():
             return self.RequestNewInvoicePage(invoice_form=invoice_form)
 
-        products = helpers.correct_products_name_key(invoice_form.product.data)
         # Start a transaction that is rolled back when any unhandled exception occurs
         with transaction(self.connection, model.Invoice):
-            invoice = model.Invoice.Create(
-                self.connection,
-                {
-                    "client": invoice_form.client.data,
-                    "status": model.InvoiceStatus.RESERVATION.value
-                    if invoice_form.reservation.data
-                    else model.InvoiceStatus.NEW.value,
-                    "title": invoice_form.title.data,
-                    "description": invoice_form.description.data,
-                },
+            invoice = helpers.create_invoice(
+                invoice_form, warehouse_products, self.connection
             )
-            invoice.AddProducts(products)
+            self.warehouse.add_order(invoice, invoice_form.product.data)
 
-            response = helpers.warehouse_stock_update_request(
-                self.warehouse_api_url, self.warehouse_apikey, invoice, products
-            )
-
-            if response.status_code != 200:
-                model.Client.rollback(self.connection)
-                json_response = response.json()
-                if "errors" in json_response:
-                    return self.RequestNewInvoicePage(errors=json_response["errors"])
-
-        should_mail = self.post.getfirst("shouldmail")
-        payment_request = self.post.getfirst("mollie_payment_request")
+        should_mail = invoice_form.send_mail.data
+        payment_request = invoice_form.mollie_payment_request.data
 
         if invoice and (should_mail or payment_request):
             mail_data = {}
@@ -193,24 +174,15 @@ class PageMaker(basepages.PageMaker):
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
+    @WarehouseRequestWrapper
     def RequestInvoiceCancel(self):
         """Sets the given invoice to paid."""
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-        products = invoice.Products()
-
-        warehouse_ready_products = WarehouseStockRefundSchema(many=True).load(products)
-        response = requests.post(
-            f"{self.warehouse_api_url}/products/bulk_stock",
-            json={
-                "apikey": self.warehouse_apikey,
-                "reference": f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
-                "products": warehouse_ready_products,
-            },
+        self.warehouse.cancel_order(
+            invoice.Products(),
+            f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
         )
-        if response.status_code != 200:
-            return self._handle_api_status_error(response)
-
         invoice.CancelProFormaInvoice()
         return self.req.Redirect("/invoices", httpcode=303)
 
