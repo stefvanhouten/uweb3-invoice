@@ -60,7 +60,6 @@ class InvoiceForm(Form):
 def get_invoice_form(clients, products, postdata=None):
     form = InvoiceForm(postdata)
     form.client.choices = [(c["ID"], c["name"]) for c in clients]
-
     for entry in form.product.entries:
         entry.sku.choices = [(p["sku"], p["name"]) for p in products]
         entry.sku.choices.insert(0, ("", "Select product"))
