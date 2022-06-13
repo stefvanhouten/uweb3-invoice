@@ -6,6 +6,7 @@ from wtforms import (
     FieldList,
     Form,
     FormField,
+    IntegerField,
     SelectField,
     StringField,
     TextAreaField,
@@ -14,10 +15,10 @@ from wtforms import (
 
 
 class ProductForm(Form):
-    name_field = SelectField("Name")
+    sku = SelectField("Name")
     price = DecimalField("Price", [validators.NumberRange(min=0)])
     vat_percentage = DecimalField("VAT", [validators.NumberRange(min=0)])
-    quantity = DecimalField("Quantity", [validators.NumberRange(min=1)])
+    quantity = IntegerField("Quantity", [validators.NumberRange(min=1)])
 
 
 class InvoiceForm(Form):
@@ -61,6 +62,6 @@ def get_invoice_form(clients, products, postdata=None):
     form.client.choices = [(c["ID"], c["name"]) for c in clients]
 
     for entry in form.product.entries:
-        entry.name_field.choices = [(p["sku"], p["name"]) for p in products]
-        entry.name_field.choices.insert(0, ("", "Select product"))
+        entry.sku.choices = [(p["sku"], p["name"]) for p in products]
+        entry.sku.choices.insert(0, ("", "Select product"))
     return form
