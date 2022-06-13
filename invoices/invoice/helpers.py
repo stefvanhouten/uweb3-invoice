@@ -335,6 +335,15 @@ class WarehouseApi:
                     "Something went wrong on the warehouse server.",
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
+            case HTTPStatus.CONFLICT:
+                msg = "Something went wrong on the warehouse server"
+                json_res = response.json()
+                if "errors" in json_res:
+                    msg = json_res["errors"]
+                raise WarehouseException(
+                    msg,
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
             case _:
                 raise WarehouseException(
                     "Unhandled warehouse API exception", response.status_code
