@@ -256,9 +256,9 @@ class Invoice(common_model.RichModel):
                       ]
         """
         for product in products:
-            product["invoice"] = self[
-                "ID"
-            ]  # Set the product to the current invoice ID.
+            if not hasattr(product, "invoice"):
+                # Set the product to the current invoice ID.
+                product["invoice"] = self["ID"]
             InvoiceProduct.Create(self.connection, product)
 
     def GetPayments(self):
