@@ -1,12 +1,15 @@
 #!/usr/bin/python
 """Request handlers for the uWeb3 warehouse inventory software"""
 
+import decimal
 import re
 
 # standard modules
 from http import HTTPStatus
+from http.client import INTERNAL_SERVER_ERROR
 from io import BytesIO
 from itertools import zip_longest
+from typing import NamedTuple
 
 import mt940
 import requests
@@ -14,7 +17,6 @@ from uweb3.libs.mail import MailSender
 from weasyprint import HTML
 
 from invoices.common import helpers as common_helpers
-from invoices.common.schemas import WarehouseStockChangeSchema
 from invoices.invoice import model
 from invoices.invoice.model import InvoiceStatus
 from invoices.mollie.mollie import helpers as mollie_module
@@ -72,32 +74,6 @@ def create_mollie_request(invoice, amount, connection, mollie_config):
     return mollie_gateway.CreateTransaction(mollie_request_object)["href"]
 
 
-def warehouse_stock_update_request(warehouse_url, warehouse_apikey, invoice, products):
-    """Send a stock update request to the warehouse.
-
-    Args:
-        warehouse_url (str): The API url of the warehouse
-        warehouse_apikey (str): The API key of the warehouse
-        invoice (InvoiceSchema): The invoice data
-        products (ProductSchema): List of products
-
-    Returns:
-        response: Request response
-    """
-    reference = create_invoice_reference_msg(
-        invoice["status"], invoice["sequenceNumber"]
-    )
-    warehouse_products = WarehouseStockChangeSchema(many=True).load(products)
-    return requests.post(
-        f"{warehouse_url}/products/bulk_stock",
-        json={
-            "apikey": warehouse_apikey,
-            "products": warehouse_products,
-            "reference": reference,
-        },
-    )
-
-
 def create_invoice_add_products(connection, data, products):
     """Create a new invoice and add products to that invoice
 
@@ -112,13 +88,6 @@ def create_invoice_add_products(connection, data, products):
     invoice = model.Invoice.Create(connection, data)
     invoice.AddProducts(products)
     return invoice
-
-
-def correct_products_name_key(products):
-    prods = list(products)
-    for product in prods:
-        product["name"] = product.pop("name_field")
-    return prods
 
 
 def to_pdf(html, filename=None):
@@ -272,22 +241,75 @@ class WarehouseApi:
         self.url = url
         self.apikey = apikey
         self.requested_url = None
-        self.endpoints = {"products": "/products"}
+        self.endpoints = {
+            "products": "/products",
+            "bulk_stock": "/products/bulk_stock",
+        }
 
     def get_products(self):
         response = self._request(self.endpoints["products"])
         json_response = response.json()
 
         if response.status_code != 200:
-            self.handle_api_errors(response)
+            return self.handle_api_errors(response)
 
         return json_response["products"]
 
+    def add_order(self, invoice, products):
+        reference = create_invoice_reference_msg(
+            invoice["status"], invoice["sequenceNumber"]
+        )
+        prods = [
+            {
+                "sku": product["sku"],
+                "quantity": -abs(product["quantity"]),
+                "reference": reference,
+            }
+            for product in products
+        ]
+        response = self._post(
+            self.endpoints["bulk_stock"],
+            {
+                "products": prods,
+                "reference": reference,
+            },
+        )
+
+        if response.status_code != 200:
+            return self.handle_api_errors(response)
+        return response
+
+    def cancel_order(self, products, reference):
+        prods = [
+            {
+                "sku": product["sku"],
+                "quantity": product["quantity"],
+                "reference": reference,
+            }
+            for product in products
+        ]
+        response = self._post(
+            self.endpoints["bulk_stock"],
+            json={"products": prods, "reference": reference},
+        )
+
+        if response.status_code != 200:
+            return self.handle_api_errors(response)
+        return response
+
     def _request(self, endpoint):
         self.requested_url = f"{self.url}{endpoint}"
+        return self._execute(requests.get, f"{self.requested_url}?apikey={self.apikey}")
 
+    def _post(self, endpoint, json):
+        self.requested_url = f"{self.url}{endpoint}"
+        return self._execute(
+            requests.post, f"{self.requested_url}?apikey={self.apikey}", json=json
+        )
+
+    def _execute(self, method, *args, **kwargs):
         try:
-            return requests.get(f"{self.requested_url}?apikey={self.apikey}")
+            return method(*args, **kwargs)
         except requests.exceptions.ConnectionError as exc:
             raise WarehouseException(
                 "Could not connect to warehouse API, is the warehouse service running?",
@@ -308,7 +330,54 @@ class WarehouseApi:
                     f"Access denied to page '{self.requested_url}'. Are you using a valid apikey?",
                     HTTPStatus.FORBIDDEN,
                 )
+            case HTTPStatus.INTERNAL_SERVER_ERROR:
+                raise WarehouseException(
+                    "Something went wrong on the warehouse server.",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
             case _:
                 raise WarehouseException(
                     "Unhandled warehouse API exception", response.status_code
                 )
+
+
+def create_invoice(invoice_form, warehouse_products, connection):
+    invoice = model.Invoice.Create(
+        connection,
+        {
+            "client": invoice_form.client.data,
+            "status": model.InvoiceStatus.RESERVATION.value
+            if invoice_form.reservation.data
+            else model.InvoiceStatus.NEW.value,
+            "title": invoice_form.title.data,
+            "description": invoice_form.description.data,
+        },
+    )
+    prods = _create_product_list(invoice_form, warehouse_products, invoice["ID"])
+    invoice.AddProducts(prods)
+    return invoice
+
+
+def _create_product_list(invoice_form, warehouse_products, invoiceID):
+    products = []
+
+    for product in invoice_form.product.data:
+        name = _product_name_from_sku(warehouse_products, product)
+        products.append(
+            dict(
+                name=name,
+                sku=product["sku"],
+                invoice=invoiceID,
+                price=product["price"],
+                vat_percentage=product["vat_percentage"],
+                quantity=product["quantity"],
+            )
+        )
+
+    return products
+
+
+def _product_name_from_sku(warehouse_products, product):
+    for warehouse_product in warehouse_products:
+        if product["sku"] == warehouse_product["sku"]:
+            return warehouse_product["name"]
