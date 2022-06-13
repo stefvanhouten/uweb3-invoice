@@ -3,16 +3,13 @@
 
 import os
 
-# standard modules
-import requests
-
 # uweb modules
 import uweb3
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher, loggedin
 from invoices.common.helpers import transaction
-from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
+from invoices.common.schemas import PaymentSchema
 from invoices.invoice import forms, helpers, model
 from invoices.invoice.decorators import WarehouseRequestWrapper
 from invoices.mollie import model as mollie_model
