@@ -36,14 +36,14 @@
                 {{ for product in [invoice_form:product] }}
                 <tr class="product">
                     <td>
-                        {{ if [product:name_field:errors] }}
+                        {{ if [product:sku:errors] }}
                             <div>
-                                {{ for error in [product:name_field:errors] }}
+                                {{ for error in [product:sku:errors] }}
                                     <p class="error">[error]</p>
                                 {{ endfor }}
                             </div>
                         {{ endif }}
-                        [product:name_field]
+                        [product:sku]
                     </td>
 
                     <td class="number">€&nbsp;
