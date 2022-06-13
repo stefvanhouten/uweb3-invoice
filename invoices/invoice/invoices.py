@@ -81,7 +81,10 @@ class PageMaker(basepages.PageMaker):
             invoice = helpers.create_invoice(
                 invoice_form, warehouse_products, self.connection
             )
-            self.warehouse.add_order(invoice, invoice_form.product.data)
+            reference = helpers.create_invoice_reference_msg(
+                invoice["status"], invoice["sequenceNumber"]
+            )
+            self.warehouse.add_order(invoice_form.product.data, reference)
 
         should_mail = invoice_form.send_mail.data
         payment_request = invoice_form.mollie_payment_request.data

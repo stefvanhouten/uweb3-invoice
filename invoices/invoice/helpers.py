@@ -1,15 +1,12 @@
 #!/usr/bin/python
 """Request handlers for the uWeb3 warehouse inventory software"""
 
-import decimal
 import re
 
 # standard modules
 from http import HTTPStatus
-from http.client import INTERNAL_SERVER_ERROR
 from io import BytesIO
 from itertools import zip_longest
-from typing import NamedTuple
 
 import mt940
 import requests
@@ -123,10 +120,8 @@ def create_invoice_reference_msg(status, sequenceNumber):
         The sequenceNumber of the invoice
     """
     if status == InvoiceStatus.RESERVATION:
-        reference = f"Reservation for pro forma invoice: {sequenceNumber}"
-    else:
-        reference = f"Buy order for invoice: {sequenceNumber}"
-    return reference
+        return f"Reservation for pro forma invoice: {sequenceNumber}"
+    return f"Buy order for invoice: {sequenceNumber}"
 
 
 class MT940_processor:
@@ -258,7 +253,7 @@ class WarehouseApi(BaseApiHelper):
         self.endpoints = {
             "products": "/products",
             "bulk_remove": "/products/bulk_remove_stock",  # Decrement stock
-            "bulk_refund": "/products/bulk_add",  # Refund stock, thus incrementing stock
+            "bulk_add": "/products/bulk_add",  # Refund stock, thus incrementing stock
         }
 
     def get_products(self):
@@ -270,41 +265,16 @@ class WarehouseApi(BaseApiHelper):
 
         return json_response["products"]
 
-    def add_order(self, invoice, products):
-        reference = create_invoice_reference_msg(
-            invoice["status"], invoice["sequenceNumber"]
-        )
-        prods = [
-            {
-                "sku": product["sku"],
-                "quantity": product["quantity"],
-                "reference": reference,
-            }
-            for product in products
-        ]
-        response = self._post(
-            self.endpoints["bulk_remove"],
-            {
-                "products": prods,
-                "reference": reference,
-            },
-        )
-
-        if response.status_code != 200:
-            return self.handle_api_errors(response)
-        return response
+    def add_order(self, products, reference):
+        return self._process(products, reference, self.endpoints["bulk_remove"])
 
     def cancel_order(self, products, reference):
-        prods = [
-            {
-                "sku": product["sku"],
-                "quantity": product["quantity"],
-                "reference": reference,
-            }
-            for product in products
-        ]
+        return self._process(products, reference, self.endpoints["bulk_add"])
+
+    def _process(self, products, reference, endpoint):
+        prods = _create_product_dtos(products, reference)
         response = self._post(
-            self.endpoints["bulk_refund"],
+            endpoint,
             json={"products": prods, "reference": reference},
         )
 
@@ -359,6 +329,17 @@ def create_invoice(invoice_form, warehouse_products, connection):
     prods = _create_product_list(invoice_form, warehouse_products, invoice["ID"])
     invoice.AddProducts(prods)
     return invoice
+
+
+def _create_product_dtos(products, reference):
+    return [
+        {
+            "sku": product["sku"],
+            "quantity": product["quantity"],
+            "reference": reference,
+        }
+        for product in products
+    ]
 
 
 def _create_product_list(invoice_form, warehouse_products, invoiceID):
