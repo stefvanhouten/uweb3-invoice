@@ -257,6 +257,14 @@ class WarehouseApi(BaseApiHelper):
         }
 
     def get_products(self):
+        """Method to extract all products from the warehouse
+
+        Returns:
+            list[dict]: List of dictionaries containing the warehouse products
+
+        Raises:
+            WarehouseException: On any error a WarehouseException is raised.
+        """
         response = self._request(self.endpoints["products"])
         json_response = response.json()
 
@@ -266,12 +274,53 @@ class WarehouseApi(BaseApiHelper):
         return json_response["products"]
 
     def add_order(self, products, reference):
+        """Decrement the stock present in the warehouse.
+        This method is used to place an order for products at the warehouse,
+        using this will decrement the current available stock for a product at the warehouse.
+
+        Args:
+            products (list[ProductForm]): A list containing the products that the user has posted
+            reference (str): The reference for the whole order.
+
+        Returns:
+            Response: An HTTP response object.
+
+        Raises:
+            WarehouseException: On any error a WarehouseException is raised.
+        """
         return self._process(products, reference, self.endpoints["bulk_remove"])
 
     def cancel_order(self, products, reference):
+        """Increment the stock present in the warehouse.
+        This method is used to refund products to the warehouse, for example when an invoice is canceled.
+
+        Args:
+            products (list[ProductForm]): A list containing the products that the user has posted
+            reference (str): The reference for the whole order.
+
+        Returns:
+            Response: An HTTP response object.
+
+        Raises:
+            WarehouseException: On any error a WarehouseException is raised.
+        """
         return self._process(products, reference, self.endpoints["bulk_add"])
 
     def _process(self, products, reference, endpoint):
+        """Pre-processes a post request.
+        This method will create dto objects for the products in the product list.
+
+        Args:
+            products (list[ProductForm]): A list containing the products that the user has posted.
+            reference (str): The reference for the whole order.
+            endpoint (str): The endpoint to which this request should be made
+
+        Returns:
+            Response: An HTTP response object.
+
+        Raises:
+            WarehouseException: On any error a WarehouseException is raised.
+        """
         prods = _create_product_dtos(products, reference)
         response = self._post(
             endpoint,
@@ -283,6 +332,15 @@ class WarehouseApi(BaseApiHelper):
         return response
 
     def handle_api_errors(self, response):
+        """Raises errors for invalid requests to the warehouse api.
+
+        Args:
+            response (HTTP Response): The HTTP response for the request
+
+        Raises:
+            WarehouseException: Contains a generic or a specific error message when an error occured
+                during handling of the request at the warehouse api.
+        """
         match response.status_code:
             case HTTPStatus.NOT_FOUND:
                 raise WarehouseException(
@@ -326,8 +384,8 @@ def create_invoice(invoice_form, warehouse_products, connection):
             "description": invoice_form.description.data,
         },
     )
-    prods = _create_product_list(invoice_form, warehouse_products, invoice["ID"])
-    invoice.AddProducts(prods)
+    products = _create_product_list(invoice_form, warehouse_products, invoice["ID"])
+    invoice.AddProducts(products)
     return invoice
 
 
@@ -343,6 +401,19 @@ def _create_product_dtos(products, reference):
 
 
 def _create_product_list(invoice_form, warehouse_products, invoiceID):
+    """Create a list of products that is ready to be stored in the InvoiceProduct table.
+
+    Processing the current list is required to map the missing values such as invoiceID and
+    product name to the products in the list.
+
+    Args:
+        invoice_form (InvoiceForm): The InvoiceForm object
+        warehouse_products (list[ProductForm]): The list of ProductForm items
+        invoiceID (int): The ID for the invoice to which this product belongs
+
+    Returns:
+        list[dict]: A list of dictionaries that represent a InvoiceProduct
+    """
     products = []
 
     for product in invoice_form.product.data:
@@ -362,6 +433,10 @@ def _create_product_list(invoice_form, warehouse_products, invoiceID):
 
 
 def _product_name_from_sku(warehouse_products, product):
+    """Finds the product name from the given SKU for a product"""
     for warehouse_product in warehouse_products:
         if product["sku"] == warehouse_product["sku"]:
             return warehouse_product["name"]
+    # When sku could not be resolved to a name use the SKU instead.
+    # XXX: This shouldn't happen and should probably raise an error?
+    return product["sku"]
