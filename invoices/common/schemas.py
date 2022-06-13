@@ -46,7 +46,7 @@ class WarehouseStockRefundSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
-    name = fields.Str(required=True, allow_none=False)
+    sku = fields.Str(required=True, allow_none=False)
     quantity = fields.Int(required=True, allow_none=False)
 
 
