@@ -236,14 +236,45 @@ class WarehouseException(Exception):
         self.status_code = status_code
 
 
-class WarehouseApi:
+class BaseApiHelper:
     def __init__(self, url, apikey):
         self.url = url
         self.apikey = apikey
         self.requested_url = None
+        self.endpoints = {}
+
+    def _request(self, endpoint):
+        self.requested_url = f"{self.url}{endpoint}"
+        return self._execute(requests.get, f"{self.requested_url}?apikey={self.apikey}")
+
+    def _post(self, endpoint, json):
+        self.requested_url = f"{self.url}{endpoint}"
+        return self._execute(
+            requests.post, f"{self.requested_url}?apikey={self.apikey}", json=json
+        )
+
+    def _execute(self, method, *args, **kwargs):
+        try:
+            return method(*args, **kwargs)
+        except requests.exceptions.ConnectionError as exc:
+            raise WarehouseException(
+                "Could not connect to warehouse API, is the warehouse service running?",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            ) from exc
+        except requests.exceptions.RequestException as exc:
+            raise WarehouseException("Unhandled warehouse API exception", 0) from exc
+
+    def handle_api_errors(self, response):
+        raise NotImplementedError()
+
+
+class WarehouseApi(BaseApiHelper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.endpoints = {
             "products": "/products",
             "bulk_stock": "/products/bulk_stock",
+            "bulk_refund": "/products/bulk_refund",
         }
 
     def get_products(self):
@@ -289,34 +320,13 @@ class WarehouseApi:
             for product in products
         ]
         response = self._post(
-            self.endpoints["bulk_stock"],
+            self.endpoints["bulk_refund"],
             json={"products": prods, "reference": reference},
         )
 
         if response.status_code != 200:
             return self.handle_api_errors(response)
         return response
-
-    def _request(self, endpoint):
-        self.requested_url = f"{self.url}{endpoint}"
-        return self._execute(requests.get, f"{self.requested_url}?apikey={self.apikey}")
-
-    def _post(self, endpoint, json):
-        self.requested_url = f"{self.url}{endpoint}"
-        return self._execute(
-            requests.post, f"{self.requested_url}?apikey={self.apikey}", json=json
-        )
-
-    def _execute(self, method, *args, **kwargs):
-        try:
-            return method(*args, **kwargs)
-        except requests.exceptions.ConnectionError as exc:
-            raise WarehouseException(
-                "Could not connect to warehouse API, is the warehouse service running?",
-                HTTPStatus.SERVICE_UNAVAILABLE,
-            ) from exc
-        except requests.exceptions.RequestException as exc:
-            raise WarehouseException("Unhandled warehouse API exception", 0) from exc
 
     def handle_api_errors(self, response):
         match response.status_code:
