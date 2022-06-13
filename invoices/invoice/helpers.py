@@ -100,31 +100,6 @@ def warehouse_stock_update_request(warehouse_url, warehouse_apikey, invoice, pro
     )
 
 
-def sanitize_new_invoice_post_data(postdata):
-    """Sanitize post data for invoice creation.
-
-    Args:
-        postdata (IndexedFieldStorage): uweb3 self.post data.
-
-    Raises:
-        marshmallow.exceptions.ValidationError: Marshmallow validation failed
-        ValueError: No products were supplied by the post request
-
-    Returns:
-        sanitized_invoice (dict): Invoice with sanitized data
-        products list(ProductSchema): List of products from the invoice.
-    """
-    unclean_products = get_and_zip_products(postdata)
-
-    sanitized_invoice = InvoiceSchema().load(postdata.__dict__)
-    products = ProductSchema(many=True).load(unclean_products)
-
-    if not products:
-        raise ValueError("cannot create invoice without products")
-
-    return sanitized_invoice, products
-
-
 def create_invoice_add_products(connection, data, products):
     """Create a new invoice and add products to that invoice
 
@@ -139,6 +114,13 @@ def create_invoice_add_products(connection, data, products):
     invoice = model.Invoice.Create(connection, data)
     invoice.AddProducts(products)
     return invoice
+
+
+def correct_products_name_key(products):
+    prods = list(products)
+    for product in prods:
+        product["name"] = product.pop("name_field")
+    return prods
 
 
 def to_pdf(html, filename=None):

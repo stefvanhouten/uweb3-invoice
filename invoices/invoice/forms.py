@@ -13,11 +13,11 @@ from wtforms import (
 )
 
 
-class Test(Form):
+class ProductForm(Form):
     name_field = SelectField("Name")
     price = DecimalField("Price", [validators.NumberRange(min=0)])
-    vat = DecimalField("VAT", [validators.NumberRange(min=0)])
-    quantity = DecimalField("Quantity", [validators.NumberRange(min=0)])
+    vat_percentage = DecimalField("VAT", [validators.NumberRange(min=0)])
+    quantity = DecimalField("Quantity", [validators.NumberRange(min=1)])
 
 
 class InvoiceForm(Form):
@@ -53,12 +53,14 @@ class InvoiceForm(Form):
         description="A general description for on the invoice",
         validators=[validators.InputRequired()],
     )
-    product = FieldList(FormField(Test), min_entries=1)
+    product = FieldList(FormField(ProductForm), min_entries=1)
 
 
 def get_invoice_form(clients, products, postdata=None):
     form = InvoiceForm(postdata)
     form.client.choices = [(c["ID"], c["name"]) for c in clients]
+
     for entry in form.product.entries:
         entry.name_field.choices = [(p["sku"], p["name"]) for p in products]
+        entry.name_field.choices.insert(0, ("", "Select product"))
     return form
