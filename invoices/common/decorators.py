@@ -4,6 +4,8 @@ import requests
 import uweb3
 from marshmallow import ValidationError
 
+from invoices.invoice.helpers import WarehouseException
+
 
 def NotExistsErrorCatcher(f):
     """Decorator to return a 404 if a NotExistError exception was returned."""
@@ -17,16 +19,14 @@ def NotExistsErrorCatcher(f):
     return wrapper
 
 
-def RequestWrapper(f):
-    def wrapper(*args, **kwargs):
+def WarehouseRequestWrapper(f):
+    def wrapper(pagemaker, *args, **kwargs):
         try:
-            return f(*args, **kwargs)
-        except requests.exceptions.ConnectionError:
-            return args[0].Error(
-                error="Could not connect to warehouse API, is the warehouse service running?"
+            return f(pagemaker, *args, **kwargs)
+        except WarehouseException as exc:
+            return pagemaker.WarehouseError(
+                error=exc.args[0], api_status_code=exc.status_code
             )
-        except requests.exceptions.RequestException as error:
-            return args[0].Error(error=error)
 
     return wrapper
 
