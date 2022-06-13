@@ -142,8 +142,7 @@ class PageMaker(basepages.PageMaker):
         """Sets the given invoice to paid."""
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-        invoice["status"] = "paid"
-        invoice.Save()
+        invoice.SetPayed()
         return self.req.Redirect("/invoices", httpcode=303)
 
     @loggedin
