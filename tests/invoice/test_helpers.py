@@ -74,18 +74,6 @@ def mt940_result():
 
 
 class TestApiHelper:
-    def test_product_dtos(self, products):
-        assert helpers._create_product_dtos(
-            products["products"], "This is a test reference"
-        ) == [
-            {"sku": "test", "quantity": 1, "reference": "This is a test reference"},
-            {
-                "sku": "another sku",
-                "quantity": 1,
-                "reference": "This is a test reference",
-            },
-        ]
-
     def test_get_products(self, mock_api: helpers.WarehouseApi, products):
         assert mock_api.get_products() == products["products"]
 
@@ -203,3 +191,15 @@ class TestHelperFunctions:
             products["products"], {"sku": "another sku"}
         )
         assert name == "another product"
+
+    def test_product_dtos(self, products):
+        assert helpers._create_product_dtos(
+            products["products"], "This is a test reference"
+        ) == [
+            {"sku": "test", "quantity": 1, "reference": "This is a test reference"},
+            {
+                "sku": "another sku",
+                "quantity": 1,
+                "reference": "This is a test reference",
+            },
+        ]
