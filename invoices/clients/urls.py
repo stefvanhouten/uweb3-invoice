@@ -21,7 +21,7 @@ urls = [
         "/clients/save",
         (
             clients.PageMaker,
-            "RequestRequestSaveClientPage",
+            "RequestSaveClientPage",
         ),
         "POST",
     ),
