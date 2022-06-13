@@ -74,22 +74,6 @@ def create_mollie_request(invoice, amount, connection, mollie_config):
     return mollie_gateway.CreateTransaction(mollie_request_object)["href"]
 
 
-def create_invoice_add_products(connection, data, products):
-    """Create a new invoice and add products to that invoice
-
-    Args:
-        connection (self.connection): Uweb connection object
-        data (InvoiceSchema): The cleaned data for the new invoice
-        products (ProductSchema(many=True)): A list of products that should be added to the invoice
-
-    Returns:
-        model.Invoice: The newly created invoice object
-    """
-    invoice = model.Invoice.Create(connection, data)
-    invoice.AddProducts(products)
-    return invoice
-
-
 def to_pdf(html, filename=None):
     """Returns a PDF based on the given HTML."""
     result = BytesIO()
@@ -273,8 +257,8 @@ class WarehouseApi(BaseApiHelper):
         super().__init__(*args, **kwargs)
         self.endpoints = {
             "products": "/products",
-            "bulk_stock": "/products/bulk_stock",
-            "bulk_refund": "/products/bulk_refund",
+            "bulk_remove": "/products/bulk_remove_stock",  # Decrement stock
+            "bulk_refund": "/products/bulk_add",  # Refund stock, thus incrementing stock
         }
 
     def get_products(self):
@@ -293,13 +277,13 @@ class WarehouseApi(BaseApiHelper):
         prods = [
             {
                 "sku": product["sku"],
-                "quantity": -abs(product["quantity"]),
+                "quantity": product["quantity"],
                 "reference": reference,
             }
             for product in products
         ]
         response = self._post(
-            self.endpoints["bulk_stock"],
+            self.endpoints["bulk_remove"],
             {
                 "products": prods,
                 "reference": reference,
