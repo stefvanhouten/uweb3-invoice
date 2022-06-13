@@ -5,18 +5,18 @@
 <form class="newinvoice" action="/invoices/new" method="post">
     <input type="hidden" name="xsrf" value="[xsrf]">
     {{ for field in [invoice_form] }}
-    {{ if [field:name] != 'product' }}
-    <p>[field:description]</p>
-    {{ if [field:errors] }}
-    {{ for error in [field:errors] }}
-    <p class="error">[error]</p>
-    {{ endfor }}
-    {{ endif }}
-    <div>
-        [field:label]
-        [field]
-    </div>
-    {{ endif }}
+        {{ if [field:name] != 'product' }}
+                <p>[field:description]</p>
+            {{ if [field:errors] }}
+                {{ for error in [field:errors] }}
+                    <p class="error">[error]</p>
+                {{ endfor }}
+            {{ endif }}
+        <div>
+            [field:label]
+            [field]
+        </div>
+        {{ endif }}
     {{ endfor }}
     <fieldset>
         <legend>Products / services</legend>
@@ -35,26 +35,33 @@
             <tbody>
                 {{ for product in [invoice_form:product] }}
                 <tr class="product">
-                    {{ if [product:errors] }}
-                        {{ for error in [product:errors] }}
-                            <p class="error">[error]</p>
-                        {{ endfor }}
-                    {{ endif }}
                     <td>
+                        {{ if [product:name_field:errors] }}
+                            <div>
+                                {{ for error in [product:name_field:errors] }}
+                                    <p class="error">[error]</p>
+                                {{ endfor }}
+                            </div>
+                        {{ endif }}
                         [product:name_field]
-                        <!-- <select name="products" onFocus="this.dataset.prevval=this.value;" data-prevval=""
-                            id="product_select">
-                            <option value="">None</option>
-                            {{ for product in [products] }}
-                            <option value="[product:sku]">[product:name]</option>
+                    </td>
+
+                    <td class="number">€&nbsp;
+                        [product:price]
+                    </td>
+                    <td class="number">
+                        [product:vat_percentage]%
+                    </td>
+                    <td class="number">
+                        {{ if [product:quantity:errors] }}
+                        <div>
+                            {{ for error in [product:quantity:errors] }}
+                            <p class="error">[error]</p>
                             {{ endfor }}
-                        </select> -->
+                        </div>
+                        {{ endif }}
+                        [product:quantity]
                     </td>
-                    <td class="number">€&nbsp;<input type="number" min="0" name="invoice_prices" step="any" required
-                            readonly></td>
-                    <td class="number"><input type="number" min="0" name="invoice_vat" step="any" required readonly>%
-                    </td>
-                    <td class="number"><input type="number" min="0" name="quantity" step="any" value="[product:quantity:data]" required></td>
 
                     <td class="number"><output></output></td>
                     <td class="number"><output></output></td>

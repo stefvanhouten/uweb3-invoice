@@ -16,6 +16,7 @@
         totalEx: 0,
         totalInc: 0,
         oldVats: [],
+        rows: 1,
 
         create: function (tableEl) {
             var that = Object.create(this);
@@ -23,7 +24,7 @@
             that.el = tableEl;
             that.tbodyEl = that.el.tBodies[0];
             that.tfootEl = that.el.tFoot;
-            that.resetInputs();
+            // that.resetInputs();
             that.productTpl = that.tbodyEl
                 .querySelector("tr.product")
                 .cloneNode(true);
@@ -33,11 +34,11 @@
                 "change",
                 that.handleChange.bind(that)
             );
+            // console.log(that.tbodyEl.rows.length);
         },
 
         resetInputs: function () {
             var inputEls = this.tbodyEl.getElementsByTagName("input");
-
             for (var i = 0; i < inputEls.length; i++) {
                 inputEls[i].value = "";
             }
@@ -57,11 +58,22 @@
             if (this.isRowNeeded()) {
                 let clone = this.productTpl.cloneNode(true);
                 let inputs = clone.getElementsByTagName("input");
+                let select = clone.getElementsByTagName("select");
+
+                select[0].name = this.updateName(select[0]);
+
                 for (let i = 0; i < inputs.length; ++i) {
-                    inputs[i].removeAttribute("required");
+                    inputs[i].name = this.updateName(inputs[i])
+                    inputs[i].value = '';
                 }
+                this.rows++;
                 this.animate(this.tbodyEl.appendChild(clone));
             }
+        },
+        updateName: function(node){
+            const name = node.name;
+            const words = name.split("-")
+            return `${words[0]}-${this.rows}-${words[2]}`;
         },
         determinePrice: function(prices, quantity){
             for (let index = 0; index < prices.length; index++) {
@@ -94,7 +106,6 @@
             const VAT_AMOUNT = 4;
             const SUBTOTAL = 5;
             const STOCK = 6;
-
             if (ioEls[PRODUCT].value === "") {
                 ioEls[PRICE].value = "";
                 ioEls[VAT].value = "";
