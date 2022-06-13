@@ -9,7 +9,7 @@ import os
 import uweb3
 
 from invoices import basepages
-from invoices.common import decorators
+from invoices.common.decorators import NotExistsErrorCatcher
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
 
@@ -46,7 +46,7 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
     def _MollieHandleUnsuccessfulNotification(self, transaction, error):
         return "ok"
 
-    @decorators.NotExistsErrorCatcher
+    @NotExistsErrorCatcher
     def Mollie_Redirect(self, transactionID):
         # TODO: Add logic to check if payment was actually done successfully
         transaction = mollie_model.MollieTransaction.FromPrimary(

@@ -1,10 +1,7 @@
 from http import HTTPStatus
 
-import requests
 import uweb3
 from marshmallow import ValidationError
-
-from invoices.invoice.helpers import WarehouseException
 
 
 def NotExistsErrorCatcher(f):
@@ -15,18 +12,6 @@ def NotExistsErrorCatcher(f):
             return f(*args, **kwargs)
         except uweb3.model.NotExistError as error:
             return args[0].RequestInvalidcommand(error=error)
-
-    return wrapper
-
-
-def WarehouseRequestWrapper(f):
-    def wrapper(pagemaker, *args, **kwargs):
-        try:
-            return f(pagemaker, *args, **kwargs)
-        except WarehouseException as exc:
-            return pagemaker.WarehouseError(
-                error=exc.args[0], api_status_code=exc.status_code
-            )
 
     return wrapper
 

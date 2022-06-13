@@ -10,14 +10,11 @@ import requests
 import uweb3
 
 from invoices import basepages
-from invoices.common.decorators import (
-    NotExistsErrorCatcher,
-    WarehouseRequestWrapper,
-    loggedin,
-)
+from invoices.common.decorators import NotExistsErrorCatcher, loggedin
 from invoices.common.helpers import transaction
 from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
 from invoices.invoice import forms, helpers, model
+from invoices.invoice.decorators import WarehouseRequestWrapper
 from invoices.mollie import model as mollie_model
 
 
@@ -57,6 +54,7 @@ class PageMaker(basepages.PageMaker):
             invoice_form = forms.get_invoice_form(
                 model.Client.List(self.connection), products
             )
+
         return {
             "products": products,
             "errors": errors,
