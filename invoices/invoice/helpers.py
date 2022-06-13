@@ -6,7 +6,6 @@ import re
 # standard modules
 from http import HTTPStatus
 from io import BytesIO
-from itertools import zip_longest
 
 import mt940
 import requests
