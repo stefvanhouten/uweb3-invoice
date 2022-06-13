@@ -216,20 +216,23 @@ class WarehouseException(Exception):
 
 
 class BaseApiHelper:
-    def __init__(self, url, apikey):
+    def __init__(self, url, apikey, context=requests):
         self.url = url
         self.apikey = apikey
         self.requested_url = None
         self.endpoints = {}
+        self.context = context
 
     def _request(self, endpoint):
         self.requested_url = f"{self.url}{endpoint}"
-        return self._execute(requests.get, f"{self.requested_url}?apikey={self.apikey}")
+        return self._execute(
+            self.context.get, f"{self.requested_url}?apikey={self.apikey}"
+        )
 
     def _post(self, endpoint, json):
         self.requested_url = f"{self.url}{endpoint}"
         return self._execute(
-            requests.post, f"{self.requested_url}?apikey={self.apikey}", json=json
+            self.context.post, f"{self.requested_url}?apikey={self.apikey}", json=json
         )
 
     def _execute(self, method, *args, **kwargs):
@@ -364,7 +367,7 @@ class WarehouseApi(BaseApiHelper):
                     msg = json_res["errors"]
                 raise WarehouseException(
                     msg,
-                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    HTTPStatus.CONFLICT,
                 )
             case _:
                 raise WarehouseException(
