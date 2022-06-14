@@ -161,6 +161,7 @@ CREATE TABLE `invoiceProduct` (
   `vat_percentage` smallint NOT NULL,
   `name` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `quantity` mediumint NOT NULL,
+  `sku` varchar(45) COLLATE utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`ID`),
   KEY `invoice` (`invoice`),
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
