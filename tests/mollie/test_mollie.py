@@ -182,10 +182,10 @@ class TestMolliePaymentGateway:
         assert response.post_headers == {"Authorization": "Bearer " + gateway.apikey}
 
     def test_process_response(self, gateway: helpers.MolliePaymentGateway):
-        mock_data = json.dumps({"_links": {"checkout": "test"}})
+        mock_data = json.dumps({"_links": {"checkout": "checkout_gateway_url"}})
         response = utils.MockResponse(data=mock_data, status_code=200)
         result = gateway._ProcessResponse(response)
-        assert result == {"_links": {"checkout": "test"}}
+        assert result == {"_links": {"checkout": "checkout_gateway_url"}}
 
     def test_create_transaction(
         self,
@@ -193,4 +193,4 @@ class TestMolliePaymentGateway:
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
         result = gateway.CreateTransaction(mollie_transaction_object)
-        assert result == "test"
+        assert result == "checkout_gateway_url"

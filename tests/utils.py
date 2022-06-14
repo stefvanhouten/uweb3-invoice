@@ -53,7 +53,7 @@ class MockRequestMollieApi:
         self.status_code = status_code
         self.mock_endpoints = {
             f"{api_url}/payments": MockResponse(
-                json.dumps({"id": 1, "_links": {"checkout": "test"}}),
+                json.dumps({"id": 1, "_links": {"checkout": "checkout_gateway_url"}}),
                 status_code=200,
             )
         }
