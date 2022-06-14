@@ -215,17 +215,17 @@ class MolliePaymentGateway:
 
         return self._status_change_success(payment, transaction)
 
-    def _status_change_success(self, mollie_payment, record):
-        match mollie_payment["status"]:
+    def _status_change_success(self, mollie_transaction, record):
+        match mollie_transaction["status"]:
             case MollieStatus.PAID if (
-                str(mollie_payment["amount"]["value"]) != str(record["amount"])
+                str(mollie_transaction["amount"]["value"]) != str(record["amount"])
             ):
                 self.logger.critical(
                     """Mollie payment was received successfully but there was a mismatch in the values:
                     Mollie payment: %s
                     Stored payment: %s
                     """,
-                    mollie_payment,
+                    mollie_transaction,
                     record,
                 )
                 return True
@@ -235,12 +235,16 @@ class MolliePaymentGateway:
                 raise mollie_model.MollieTransactionFailed("Mollie payment failed")
             case MollieStatus.CANCELED:
                 raise mollie_model.MollieTransactionCanceled(
-                    "Mollie payment was canceled"
+                    f"Mollie transaction: {mollie_transaction} was canceled"
+                )
+            case MollieStatus.EXPIRED:
+                raise mollie_model.MollieTransactionExpired(
+                    f"Mollie transaction: {mollie_transaction} expired"
                 )
             case _:
                 self.logger.critical(
                     "MolliePaymentGateway received an unhandled status %s",
-                    mollie_payment,
+                    mollie_transaction,
                 )
                 raise mollie_model.MollieError("Unhandled status was passed")
 

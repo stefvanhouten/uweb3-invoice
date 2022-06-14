@@ -25,6 +25,10 @@ class MollieTransactionCanceled(MollieError):
     """Raised when a transaction status gets set to canceled"""
 
 
+class MollieTransactionExpired(MollieError):
+    """Raised when the transaction expires"""
+
+
 class MollieConfigError(MollieError):
     """Raises a config error"""
 
