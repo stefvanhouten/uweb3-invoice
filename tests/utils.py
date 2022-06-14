@@ -1,6 +1,11 @@
 import dataclasses
+import decimal
 import json
 from dataclasses import asdict
+
+from uweb3.model import PermissionError
+
+from invoices.mollie import helpers, model
 
 
 class MockResponse:
@@ -89,5 +94,21 @@ class MockMollieTransactionModel(dict):
             return MockMollieTransactionModel(asdict(record))
         return MockMollieTransactionModel(record)
 
+    @classmethod
+    def FromDescription(cls, connection, description):
+        return MockMollieTransactionModel(
+            {
+                "ID": 1,
+                "amount": decimal.Decimal(10.25),
+                "status": helpers.MollieStatus.OPEN.value,
+            }
+        )
+
     def Save(self):
         return self
+
+    def SetState(self, status):
+        model.allow_update(self["status"], status)
+        change = self["status"] != status
+        self["status"] = status
+        return change
