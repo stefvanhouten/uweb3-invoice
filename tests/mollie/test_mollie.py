@@ -110,11 +110,11 @@ class TestMollie:
         }  # This will show the invoice that is referenced on mollie page.
         assert (
             mollie_transaction_obj["redirectUrl"]
-            == f'{mollie_gateway.redirect_url}/{record["ID"]}'
+            == f'{mollie_gateway.redirect_url}/{record["ID"]}/{record["secret"]}'
         )
         assert (
             mollie_transaction_obj["webhookUrl"]
-            == f'{mollie_gateway.webhook_url}/{record["ID"]}'
+            == f'{mollie_gateway.webhook_url}/{record["ID"]}/{record["secret"]}'
         )
 
     def test_create_all_mollie_statuses(self, connection):
@@ -127,6 +127,7 @@ class TestMollie:
                     "amount": 50,
                     "status": status.value,
                     "description": "payment_test",
+                    "secret": "testsecret",
                 },
             )
 
@@ -140,9 +141,10 @@ class TestMolliePaymentGateway:
         db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
         assert db_record == {
             "ID": 1,
-            "status": helpers.MollieStatus.OPEN,
+            "status": helpers.MollieStatus.OPEN.value,
             "invoice": 1,
             "amount": mollie_transaction_object.price,
+            "secret": db_record["secret"],
         }
 
     def test_create_transaction_method(
@@ -161,8 +163,8 @@ class TestMolliePaymentGateway:
             },
             "description": "description for mollie req",
             "metadata": {"order": "reference"},
-            "redirectUrl": f'{gateway.redirect_url}/{db_record["ID"]}',
-            "webhookUrl": f'{gateway.webhook_url}/{db_record["ID"]}',
+            "redirectUrl": f'{gateway.redirect_url}/{db_record["ID"]}/{db_record["secret"]}',
+            "webhookUrl": f'{gateway.webhook_url}/{db_record["ID"]}/{db_record["secret"]}',
             "method": "ideal",
         }
 

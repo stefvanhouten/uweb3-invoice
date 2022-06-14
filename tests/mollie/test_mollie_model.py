@@ -18,6 +18,7 @@ class TestClass:
                 "amount": 50,
                 "status": helpers.MollieStatus.PAID.value,
                 "description": "payment_test",
+                "secret": "testsecret",
             },
         )
         # Prevent changing record state that is already set to paid
@@ -34,6 +35,7 @@ class TestClass:
                 "amount": 50,
                 "status": helpers.MollieStatus.CANCELED.value,
                 "description": "payment_test",
+                "secret": "testsecret",
             },
         )
 
@@ -58,6 +60,7 @@ class TestClass:
                 "amount": 50,
                 "status": helpers.MollieStatus.OPEN.value,
                 "description": "payment_test",
+                "secret": "testsecret",
             },
         )
         original_record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
@@ -87,6 +90,7 @@ class TestClass:
                 "amount": 50,
                 "status": helpers.MollieStatus.OPEN.value,
                 "description": "payment_test",
+                "secret": "testsecret",
             },
         )
 
