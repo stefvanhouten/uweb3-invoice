@@ -168,6 +168,7 @@ def mollie_gateway(connection, mollie_config, default_invoice_and_products):
             "amount": 50,
             "status": mollie_helpers.MollieStatus.OPEN.value,
             "description": "payment_test",
+            "secret": "testsecret",
         },
     )
     return mollie_helpers.mollie_factory(connection, mollie_config)
