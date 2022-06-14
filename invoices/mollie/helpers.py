@@ -159,6 +159,7 @@ class MolliePaymentGateway:
         return response
 
     def _PostPaymentRequest(self, mollietransaction):
+        self.logger.info("Created a payment request for %s", mollietransaction)
         return self.request_lib.post(
             f"{self.api_url}/payments",
             headers={"Authorization": "Bearer " + self.apikey},
