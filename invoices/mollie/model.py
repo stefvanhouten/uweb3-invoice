@@ -29,6 +29,17 @@ class MollieConfigError(MollieError):
     """Raises a config error"""
 
 
+def allow_update(current_status, new_status):
+    if current_status not in (helpers.MollieStatus.OPEN,):
+        if current_status == helpers.MollieStatus.PAID == new_status:
+            raise model.PermissionError("Mollie transaction is already paid for.")
+        raise model.PermissionError(
+            "Cannot update transaction, current state is %r new state %r"
+            % (current_status, new_status)
+        )
+    return True
+
+
 class MollieTransaction(model.Record):
     """Abstraction for the `MollieTransaction` table."""
 
@@ -41,16 +52,7 @@ class MollieTransaction(model.Record):
         self["updateTime"] = time.gmtime()
 
     def SetState(self, status):
-        if self["status"] not in (helpers.MollieStatus.OPEN,):
-            if (
-                self["status"] == helpers.MollieStatus.PAID
-                and status == helpers.MollieStatus.PAID
-            ):
-                raise model.PermissionError("Mollie transaction is already paid for.")
-            raise model.PermissionError(
-                "Cannot update transaction, current state is %r new state %r"
-                % (self["status"], status)
-            )
+        allow_update(self["status"], status)
         change = self["status"] != status  # we return true if a change has happened
         self["status"] = status
         self.Save()
