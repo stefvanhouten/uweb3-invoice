@@ -1,3 +1,4 @@
+import json
 from dataclasses import asdict
 from decimal import Decimal
 
@@ -135,14 +136,61 @@ class TestMolliePaymentGateway:
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
         db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
-        assert db_record["status"] == helpers.MollieStatus.OPEN
-        assert db_record["invoice"] == mollie_transaction_object.id
-        assert db_record["amount"] == mollie_transaction_object.price
+        assert db_record == {
+            "ID": 1,
+            "status": helpers.MollieStatus.OPEN,
+            "invoice": 1,
+            "amount": mollie_transaction_object.price,
+        }
+
+    def test_create_transaction_method(
+        self,
+        gateway: helpers.MolliePaymentGateway,
+        mollie_transaction_object: helpers.MollieTransactionObject,
+    ):
+        db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
+        transaction = gateway._CreateMollieTransaction(
+            mollie_transaction_object, db_record
+        )
+        assert transaction == {
+            "amount": {
+                "currency": "EUR",
+                "value": "10.25",
+            },
+            "description": "description for mollie req",
+            "metadata": {"order": "reference"},
+            "redirectUrl": f'{gateway.redirect_url}/{db_record["ID"]}',
+            "webhookUrl": f'{gateway.webhook_url}/{db_record["ID"]}',
+            "method": "ideal",
+        }
+
+    def test_post_payment_request(self, gateway: helpers.MolliePaymentGateway):
+        transaction = {
+            "amount": {
+                "currency": "EUR",
+                "value": "10.25",
+            },
+            "description": "description for mollie req",
+            "metadata": {"order": "reference"},
+            "redirectUrl": f"{gateway.redirect_url}/1",
+            "webhookUrl": f"{gateway.webhook_url}/1",
+            "method": "ideal",
+        }
+        response = gateway._PostPaymentRequest(transaction)
+
+        assert response.post_data == json.dumps(transaction)
+        assert response.post_headers == {"Authorization": "Bearer " + gateway.apikey}
+
+    def test_process_response(self, gateway: helpers.MolliePaymentGateway):
+        mock_data = json.dumps({"_links": {"checkout": "test"}})
+        response = utils.MockResponse(data=mock_data, status_code=200)
+        result = gateway._ProcessResponse(response)
+        assert result == {"_links": {"checkout": "test"}}
 
     def test_create_transaction(
         self,
         gateway: helpers.MolliePaymentGateway,
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
-        pass
-        # transaction = gateway.CreateTransaction(mollie_transaction_object)
+        result = gateway.CreateTransaction(mollie_transaction_object)
+        assert result == "test"
