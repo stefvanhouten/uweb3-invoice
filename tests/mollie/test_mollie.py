@@ -12,6 +12,29 @@ from tests import utils
 from tests.fixtures import *  # noqa: F401; pylint: disable=unused-variable
 
 
+@pytest.fixture(scope="function")
+def gateway(mollie_config) -> helpers.MolliePaymentGateway:
+    yield helpers.MolliePaymentGateway(
+        connection=None,
+        apikey=mollie_config["apikey"],
+        redirect_url=mollie_config["redirect_url"],
+        webhook_url=mollie_config["webhook_url"],
+        request_lib=utils.MockRequestMollieApi(),
+        transaction_model=utils.MockMollieTransactionModel,
+        debug=True,
+    )
+
+
+@pytest.fixture(scope="module")
+def mollie_transaction_object() -> helpers.MollieTransactionObject:
+    yield helpers.MollieTransactionObject(
+        id=1,
+        price=Decimal(10.25),
+        description="description for mollie req",
+        reference="reference",
+    )
+
+
 class TestMollie:
     def test_mollie_factory(self, connection, mollie_config):
         """Make sure all attributes are set correctly."""
@@ -106,29 +129,6 @@ class TestMollie:
                     "description": "payment_test",
                 },
             )
-
-
-@pytest.fixture(scope="function")
-def gateway(mollie_config) -> helpers.MolliePaymentGateway:
-    yield helpers.MolliePaymentGateway(
-        connection=None,
-        apikey=mollie_config["apikey"],
-        redirect_url=mollie_config["redirect_url"],
-        webhook_url=mollie_config["webhook_url"],
-        request_lib=utils.MockRequestMollieApi(),
-        transaction_model=utils.MockMollieTransactionModel,
-        debug=True,
-    )
-
-
-@pytest.fixture(scope="module")
-def mollie_transaction_object() -> helpers.MollieTransactionObject:
-    yield helpers.MollieTransactionObject(
-        id=1,
-        price=Decimal(10.25),
-        description="description for mollie req",
-        reference="reference",
-    )
 
 
 class TestMolliePaymentGateway:
