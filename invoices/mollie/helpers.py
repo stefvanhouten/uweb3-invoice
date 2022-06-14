@@ -7,16 +7,22 @@ __version__ = "0.1"
 import json
 import logging
 import os
+import secrets
+import string
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 
 import requests
-import uweb3
 from uweb3 import model
 
 from invoices.invoice import model as invoice_model
 from invoices.mollie import model as mollie_model
+
+
+def generate_secret(len: int):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for i in range(len))
 
 
 class MollieStatus(str, Enum):
@@ -143,13 +149,13 @@ class MolliePaymentGateway:
 
     def CreateTransaction(self, obj: MollieTransactionObject):
         """Store the transaction into the database and fetch the unique transaction id"""
-        transaction = self._CreateDatabaseRecord(obj)
-        mollie_transaction = self._CreateMollieTransaction(obj, transaction)
+        record = self._CreateDatabaseRecord(obj)
+        mollie_transaction = self._CreateMollieTransaction(obj, record)
         payment_data = self._PostPaymentRequest(mollie_transaction)
         response = self._ProcessResponse(payment_data)
 
-        transaction["description"] = response["id"]
-        transaction.Save()
+        record["description"] = response["id"]
+        record.Save()
         return response["_links"]["checkout"]
 
     def _ProcessResponse(self, paymentdata):
@@ -173,10 +179,11 @@ class MolliePaymentGateway:
                 "amount": obj.price,
                 "status": MollieStatus.OPEN.value,
                 "invoice": obj.id,
+                "secret": generate_secret(200),
             },
         )
 
-    def _CreateMollieTransaction(self, obj, transaction):
+    def _CreateMollieTransaction(self, obj, record):
         return {
             "amount": {
                 "currency": "EUR",
@@ -184,8 +191,8 @@ class MolliePaymentGateway:
             },
             "description": obj.description,
             "metadata": {"order": obj.reference},
-            "redirectUrl": f'{self.redirect_url}/{transaction["ID"]}',
-            "webhookUrl": f'{self.webhook_url}/{transaction["ID"]}',
+            "redirectUrl": f'{self.redirect_url}/{record["ID"]}/{record["secret"]}',
+            "webhookUrl": f'{self.webhook_url}/{record["ID"]}/{record["secret"]}',
             "method": "ideal",
         }
 
