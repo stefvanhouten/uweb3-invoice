@@ -5,11 +5,14 @@ __author__ = "Jan Klopper <janklopper@underdark.nl>"
 __version__ = "0.1"
 
 import json
+import logging
+import os
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 
 import requests
+import uweb3
 from uweb3 import model
 
 from invoices.invoice import model as invoice_model
@@ -80,6 +83,7 @@ class MolliePaymentGateway:
         webhook_url: str,
         request_lib=requests,
         transaction_model=mollie_model.MollieTransaction,
+        debug=False,
     ):
         """Init the mollie object and set its values
 
@@ -95,7 +99,6 @@ class MolliePaymentGateway:
             raise mollie_model.MollieConfigError(
                 "Missing required mollie API setup field."
             )
-
         self.api_url = "https://api.mollie.nl/v2"
         self.connection = connection
         self.apikey = apikey
@@ -104,6 +107,27 @@ class MolliePaymentGateway:
 
         self.request_lib = request_lib
         self.transaction_model = transaction_model
+        self._logger = None
+        self.debug = debug
+
+    @property
+    def logger(self):
+
+        if not self._logger:
+            logger = logging.getLogger("payment_logs")
+            logger.setLevel(logging.ERROR)
+
+            logpath = os.path.join(os.path.dirname(__file__), "payment_logs.log")
+            fh = logging.FileHandler(logpath, encoding="utf-8", delay=False)
+            fh.setLevel(logging.INFO)
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
+
+            self._logger = logger
+
+        self._logger.disabled = self.debug
+        return self._logger
 
     def CreateTransaction(self, obj: MollieTransactionObject):
         """Store the transaction into the database and fetch the unique transaction id"""
@@ -163,21 +187,39 @@ class MolliePaymentGateway:
         transaction = self.transaction_model.FromDescription(
             self.connection, transaction_description
         )
-        changed = transaction.SetState(payment["status"])
-        if changed:
-            if payment["status"] == MollieStatus.PAID and (
-                payment["amount"]["value"]
-            ) == str(transaction["amount"]):
+        state_changed = transaction.SetState(payment["status"])
+
+        if not state_changed:
+            return False
+
+        return self._status_change_success(payment, transaction)
+
+    def _status_change_success(self, mollie_payment, record):
+        # TODO: We should do something when the amount does not match, this is not for mollie to handle
+        # if mollie_payment["status"] == MollieStatus.PAID and (str(mollie_payment["amount"]["value"]) == str(record["amount"])):
+        match mollie_payment["status"]:
+            case MollieStatus.PAID if (
+                str(mollie_payment["amount"]["value"]) != str(record["amount"])
+            ):
+                self.logger.critical(
+                    """Mollie payment was received successfully but there was a mismatch in the values:
+                    Mollie payment: %s
+                    Stored payment: %s
+                    """,
+                    mollie_payment,
+                    record,
+                )
                 return True
-            if payment["status"] == MollieStatus.FAILED:
-                raise mollie_model.MollieTransactionFailed(
-                    "Mollie payment failed"
-                )  # XXX: Should we throw errors here?
-            if payment["status"] == MollieStatus.CANCELED:
+            case MollieStatus.PAID:
+                return True
+            case MollieStatus.FAILED:
+                raise mollie_model.MollieTransactionFailed("Mollie payment failed")
+            case MollieStatus.CANCELED:
                 raise mollie_model.MollieTransactionCanceled(
                     "Mollie payment was canceled"
                 )
-        return False
+            case _:
+                raise mollie_model.MollieError("Unhandled status was passed")
 
     def GetForm(self, obj: MollieTransactionObject):
         """Stores the current transaction and uses the unique id to return the html
