@@ -20,43 +20,22 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
     def NewMolliePaymentGateway(self):
         return helpers.mollie_factory(self.connection, self.options["mollie"])
 
-    def _Mollie_HookPaymentReturn(self, transaction):
-        """This is the webhook that mollie calls when that transaction is updated."""
-        # This route is used to receive updates from mollie about the transaction status.
-        try:
-            transaction = mollie_model.MollieTransaction.FromPrimary(
-                self.connection, transaction
-            )
-            super()._Mollie_HookPaymentReturn(transaction["description"])
-            helpers.CheckAndAddPayment(self.connection, transaction)
-        except (uweb3.model.NotExistError, Exception) as error:
-            # Prevent leaking data about transactions.
-            uweb3.logging.error(
-                f"Error triggered while processing mollie notification for transaction: {transaction} {error}"
-            )
-        finally:
-            return "ok"
-
-    def _MollieHandleSuccessfulpayment(self, transaction):
-        return "ok"
-
-    def _MollieHandleSuccessfulNotification(self, transaction):
-        return "ok"
-
-    def _MollieHandleUnsuccessfulNotification(self, transaction, error):
-        return "ok"
-
     @NotExistsErrorCatcher
-    def Mollie_Redirect(self, transactionID):
+    def Mollie_Redirect(self, transactionID, secret):
         # TODO: Add logic to check if payment was actually done successfully
         transaction = mollie_model.MollieTransaction.FromPrimary(
             self.connection, transactionID
         )
+        title = "Bestelling niet gevonden"
+        message = "Uw bestelling kon niet gevonden worden."
+
+        if transaction["secret"] != secret:
+            return self.parser.Parse(
+                "payment_status.html", title=title, message=message
+            )
+
         mollie_gateway = self.NewMolliePaymentGateway()
         status = mollie_gateway.GetPayment(transaction["description"])["status"]
-
-        title = None
-        message = None
 
         match status:
             case helpers.MollieStatus.OPEN:
@@ -79,3 +58,33 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
                 message = f"De status van uw betaling is: {status}"
 
         return self.parser.Parse("payment_status.html", title=title, message=message)
+
+    def _Mollie_HookPaymentReturn(self, transaction, secret):
+        """This is the webhook that mollie calls when that transaction is updated."""
+        # This route is used to receive updates from mollie about the transaction status.
+        try:
+            transaction = mollie_model.MollieTransaction.FromPrimary(
+                self.connection, transaction
+            )
+
+            if transaction["secret"] != secret:
+                return "ok"
+
+            super()._Mollie_HookPaymentReturn(transaction["description"])
+            helpers.CheckAndAddPayment(self.connection, transaction)
+        except (uweb3.model.NotExistError, Exception) as error:
+            # Prevent leaking data about transactions.
+            uweb3.logging.error(
+                f"Error triggered while processing mollie notification for transaction: {transaction} {error}"
+            )
+        finally:
+            return "ok"
+
+    def _MollieHandleSuccessfulpayment(self, transaction):
+        return "ok"
+
+    def _MollieHandleSuccessfulNotification(self, transaction):
+        return "ok"
+
+    def _MollieHandleUnsuccessfulNotification(self, transaction, error):
+        return "ok"
