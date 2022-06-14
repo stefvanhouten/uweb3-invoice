@@ -72,7 +72,15 @@ def CheckAndAddPayment(connection, transaction):
 
 
 class MolliePaymentGateway:
-    def __init__(self, connection, apikey, redirect_url, webhook_url):
+    def __init__(
+        self,
+        connection,
+        apikey: str,
+        redirect_url: str,
+        webhook_url: str,
+        request_lib=requests,
+        transaction_model=mollie_model.MollieTransaction,
+    ):
         """Init the mollie object and set its values
 
         Arguments:
@@ -94,6 +102,9 @@ class MolliePaymentGateway:
         self.redirect_url = redirect_url
         self.webhook_url = webhook_url
 
+        self.request_lib = request_lib
+        self.transaction_model = transaction_model
+
     def CreateTransaction(self, obj: MollieTransactionObject):
         """Store the transaction into the database and fetch the unique transaction id"""
         transaction = self._CreateDatabaseRecord(obj)
@@ -112,14 +123,14 @@ class MolliePaymentGateway:
         return response
 
     def _PostPaymentRequest(self, mollietransaction):
-        return requests.post(
+        return self.request_lib.post(
             f"{self.api_url}/payments",
             headers={"Authorization": "Bearer " + self.apikey},
             data=json.dumps(mollietransaction),
         )
 
     def _CreateDatabaseRecord(self, obj):
-        return mollie_model.MollieTransaction.Create(
+        return self.transaction_model.Create(
             self.connection,
             {
                 "amount": obj.price,
@@ -149,7 +160,7 @@ class MolliePaymentGateway:
         returns False if the notification did not change a transaction into an
         authorized state
         """
-        transaction = mollie_model.MollieTransaction.FromDescription(
+        transaction = self.transaction_model.FromDescription(
             self.connection, transaction_description
         )
         changed = transaction.SetState(payment["status"])
@@ -189,7 +200,7 @@ class MolliePaymentGateway:
         }
 
     def GetPayment(self, transaction):
-        data = requests.request(
+        data = self.request_lib.request(
             "GET",
             f"{self.api_url}/payments/%s" % transaction,
             headers={"Authorization": "Bearer " + self.apikey},

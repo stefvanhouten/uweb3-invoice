@@ -1,16 +1,16 @@
+from dataclasses import asdict
 from decimal import Decimal
 
 import pytest
-import uweb3
 
-from invoices.common import helpers as common_helpers
 from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
+from tests import utils
 from tests.fixtures import *  # noqa: F401; pylint: disable=unused-variable
 
 
-class TestClass:
+class TestMollie:
     def test_mollie_factory(self, connection, mollie_config):
         """Make sure all attributes are set correctly."""
         mollie_gateway = helpers.mollie_factory(connection, mollie_config)
@@ -104,3 +104,45 @@ class TestClass:
                     "description": "payment_test",
                 },
             )
+
+
+@pytest.fixture(scope="function")
+def gateway(mollie_config) -> helpers.MolliePaymentGateway:
+    yield helpers.MolliePaymentGateway(
+        connection=None,
+        apikey=mollie_config["apikey"],
+        redirect_url=mollie_config["redirect_url"],
+        webhook_url=mollie_config["webhook_url"],
+        request_lib=utils.MockRequestMollieApi(),
+        transaction_model=utils.MockMollieTransactionModel,
+    )
+
+
+@pytest.fixture(scope="module")
+def mollie_transaction_object() -> helpers.MollieTransactionObject:
+    yield helpers.MollieTransactionObject(
+        id=1,
+        price=Decimal(10.25),
+        description="description for mollie req",
+        reference="reference",
+    )
+
+
+class TestMolliePaymentGateway:
+    def test_create_database_record(
+        self,
+        gateway: helpers.MolliePaymentGateway,
+        mollie_transaction_object: helpers.MollieTransactionObject,
+    ):
+        db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
+        assert db_record["status"] == helpers.MollieStatus.OPEN
+        assert db_record["invoice"] == mollie_transaction_object.id
+        assert db_record["amount"] == mollie_transaction_object.price
+
+    def test_create_transaction(
+        self,
+        gateway: helpers.MolliePaymentGateway,
+        mollie_transaction_object: helpers.MollieTransactionObject,
+    ):
+        pass
+        # transaction = gateway.CreateTransaction(mollie_transaction_object)

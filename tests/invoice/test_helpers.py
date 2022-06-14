@@ -8,42 +8,12 @@ from invoices.invoice import forms
 from invoices.invoice import helpers
 from invoices.invoice import helpers as invoice_helpers
 from tests.invoice.fixtures import products
-
-
-class MockRequestAPI:
-    def __init__(self, products, status_code=200):
-        self.mock_endpoints = {
-            "url/products?apikey=apikey": MockResponse(products, status_code),
-            "url/products/bulk_remove_stock?apikey=apikey": MockResponse(
-                products, status_code
-            ),
-            "url/products/bulk_add?apikey=apikey": MockResponse(products, status_code),
-        }
-
-    def get(self, url):
-        return self.mock_endpoints[url]
-
-    def post(self, url, json):
-        return self.mock_endpoints[url](json)
-
-
-class MockResponse:
-    def __init__(self, data, status_code):
-        self.data = data
-        self.status_code = status_code
-        self.json_data = None
-
-    def json(self):
-        return self.data
-
-    def __call__(self, json, **kwargs):
-        self.json_data = json
-        return self
+from tests.utils import MockWarehouseApi
 
 
 @pytest.fixture(scope="module")
 def mock_api(products) -> helpers.WarehouseApi:
-    yield helpers.WarehouseApi("url", "apikey", MockRequestAPI(products))
+    yield helpers.WarehouseApi("url", "apikey", MockWarehouseApi(products))
 
 
 @pytest.fixture
@@ -116,14 +86,14 @@ class TestApiHelper:
         for status_code in test_status_codes:
             with pytest.raises(helpers.WarehouseException):
                 mock_api = helpers.WarehouseApi(
-                    "url", "apikey", MockRequestAPI(products, status_code)
+                    "url", "apikey", MockWarehouseApi(products, status_code)
                 )
                 mock_api.get_products()
 
     def test_unhandled_api_errors(self, products):
         with pytest.raises(helpers.WarehouseException):
             mock_api = helpers.WarehouseApi(
-                "url", "apikey", MockRequestAPI(products, 10000)
+                "url", "apikey", MockWarehouseApi(products, 10000)
             )
             mock_api.get_products()
 
