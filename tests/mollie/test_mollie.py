@@ -1,3 +1,4 @@
+import decimal
 import json
 from dataclasses import asdict
 from decimal import Decimal
@@ -116,6 +117,7 @@ def gateway(mollie_config) -> helpers.MolliePaymentGateway:
         webhook_url=mollie_config["webhook_url"],
         request_lib=utils.MockRequestMollieApi(),
         transaction_model=utils.MockMollieTransactionModel,
+        debug=True,
     )
 
 
@@ -194,3 +196,54 @@ class TestMolliePaymentGateway:
     ):
         result = gateway.CreateTransaction(mollie_transaction_object)
         assert result == "checkout_gateway_url"
+
+    def test_update_transaction_status(
+        self,
+        gateway: helpers.MolliePaymentGateway,
+    ):
+        payment = {
+            "status": helpers.MollieStatus.OPEN.value,
+            "amount": {"value": decimal.Decimal(10.25)},
+        }
+        assert False is gateway._UpdateTransaction("description", payment)
+
+    def test_update_transaction_status_paid(
+        self,
+        gateway: helpers.MolliePaymentGateway,
+    ):
+        payment = {
+            "status": helpers.MollieStatus.PAID.value,
+            "amount": {"value": decimal.Decimal(10.25)},
+        }
+
+        assert True is gateway._UpdateTransaction("description", payment)
+
+    def test_update_transaction_status_failed(
+        self, gateway: helpers.MolliePaymentGateway
+    ):
+        payment = {
+            "status": helpers.MollieStatus.FAILED.value,
+            "amount": {"value": decimal.Decimal(10.25)},
+        }
+        with pytest.raises(mollie_model.MollieTransactionFailed):
+            gateway._UpdateTransaction("description", payment)
+
+    def test_update_transaction_status_canceled(
+        self, gateway: helpers.MolliePaymentGateway
+    ):
+        payment = {
+            "status": helpers.MollieStatus.CANCELED.value,
+            "amount": {"value": decimal.Decimal(10.25)},
+        }
+        with pytest.raises(mollie_model.MollieTransactionCanceled):
+            gateway._UpdateTransaction("description", payment)
+
+    def test_payment_success_price_mismatch(
+        self, gateway: helpers.MolliePaymentGateway
+    ):
+        payment = {
+            "status": helpers.MollieStatus.PAID.value,
+            "amount": {"value": decimal.Decimal(30)},
+        }
+
+        assert True is gateway._UpdateTransaction("description", payment)
