@@ -183,6 +183,7 @@ CREATE TABLE `mollieTransaction` (
   `description` text,
   `creationTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updateTime` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  `secret` varchar(255) NOT NULL,
   PRIMARY KEY (`ID`),
   KEY `fk_mollieTransaction_1_idx` (`invoice`),
   CONSTRAINT `fk_mollieTransaction_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
