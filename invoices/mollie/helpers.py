@@ -74,6 +74,29 @@ def CheckAndAddPayment(connection, transaction):
     return False
 
 
+def _setup_loggers():
+    logger = logging.getLogger("payment_logs")
+    logger.setLevel(logging.DEBUG)
+
+    error_log_path = os.path.join(os.path.dirname(__file__), "payment_errors.log")
+    requests_log_path = os.path.join(os.path.dirname(__file__), "payment_requests.log")
+
+    error_log = logging.FileHandler(error_log_path, encoding="utf-8", delay=False)
+    error_log.setLevel(logging.ERROR)
+
+    requests_log = logging.FileHandler(requests_log_path, encoding="utf-8", delay=False)
+    requests_log.setLevel(logging.INFO)
+
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    error_log.setFormatter(formatter)
+    requests_log.setFormatter(formatter)
+
+    logger.addHandler(error_log)
+    logger.addHandler(requests_log)
+    return logger
+
+
 class MolliePaymentGateway:
     def __init__(
         self,
@@ -112,19 +135,8 @@ class MolliePaymentGateway:
 
     @property
     def logger(self):
-
         if not self._logger:
-            logger = logging.getLogger("payment_logs")
-            logger.setLevel(logging.ERROR)
-
-            logpath = os.path.join(os.path.dirname(__file__), "payment_logs.log")
-            fh = logging.FileHandler(logpath, encoding="utf-8", delay=False)
-            fh.setLevel(logging.INFO)
-            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-            fh.setFormatter(formatter)
-            logger.addHandler(fh)
-
-            self._logger = logger
+            self._logger = _setup_loggers()
 
         self._logger.disabled = self.debug
         return self._logger
@@ -184,6 +196,14 @@ class MolliePaymentGateway:
         returns False if the notification did not change a transaction into an
         authorized state
         """
+        self.logger.info(
+            """Updating
+                transaction: %s
+                with payment: %s
+            """,
+            transaction_description,
+            payment,
+        )
         transaction = self.transaction_model.FromDescription(
             self.connection, transaction_description
         )
@@ -195,8 +215,6 @@ class MolliePaymentGateway:
         return self._status_change_success(payment, transaction)
 
     def _status_change_success(self, mollie_payment, record):
-        # TODO: We should do something when the amount does not match, this is not for mollie to handle
-        # if mollie_payment["status"] == MollieStatus.PAID and (str(mollie_payment["amount"]["value"]) == str(record["amount"])):
         match mollie_payment["status"]:
             case MollieStatus.PAID if (
                 str(mollie_payment["amount"]["value"]) != str(record["amount"])
@@ -219,6 +237,10 @@ class MolliePaymentGateway:
                     "Mollie payment was canceled"
                 )
             case _:
+                self.logger.critical(
+                    "MolliePaymentGateway received an unhandled status %s",
+                    mollie_payment,
+                )
                 raise mollie_model.MollieError("Unhandled status was passed")
 
     def GetForm(self, obj: MollieTransactionObject):
