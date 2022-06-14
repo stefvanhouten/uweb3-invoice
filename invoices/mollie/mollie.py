@@ -10,7 +10,6 @@ import uweb3
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher
-from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
 
@@ -55,15 +54,28 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
         )
         mollie_gateway = self.NewMolliePaymentGateway()
         status = mollie_gateway.GetPayment(transaction["description"])["status"]
-        if status == helpers.MollieStatus.PAID:
-            return self._PaymentOk()
-        else:
-            return self._PaymentFailed()
 
-    @uweb3.decorators.TemplateParser("payment_success.html")
-    def _PaymentOk(self):
-        return
+        title = None
+        message = None
 
-    @uweb3.decorators.TemplateParser("payment_failed.html")
-    def _PaymentFailed(self):
-        return
+        match status:
+            case helpers.MollieStatus.OPEN:
+                title = "Deze bestelling is nog niet betaald."
+                message = "Als u zojuist betaald heeft dan verzoeken wij u contact op te nemen met ons."
+            case helpers.MollieStatus.PAID:
+                title = "Betaling gelukt!"
+                message = "Bedankt voor uw bestelling."
+            case helpers.MollieStatus.CANCELED:
+                title = "Uw betaling is geannuleerd."
+                message = ""
+            case helpers.MollieStatus.FAILED:
+                title = "Betaling mislukt"
+                message = "Er is iets mis gegaan tijdens het verwerken van uw betaling."
+            case helpers.MollieStatus.EXPIRED:
+                title = "Betaling verlopen"
+                message = "Het betalingsverzoek is verlopen, als u alsnog wilt betalen dan moet u een nieuw betalingsverzoek aanvragen."
+            case _:
+                title = "Helaas is er iets mis gegaan."
+                message = f"De status van uw betaling is: {status}"
+
+        return self.parser.Parse("payment_status.html", title=title, message=message)
