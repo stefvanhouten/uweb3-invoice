@@ -10,6 +10,7 @@ import uweb3
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher
+from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
 

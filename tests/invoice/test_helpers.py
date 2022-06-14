@@ -146,7 +146,7 @@ class TestFormSetup:
 class TestMT940Processer:
     def test_mt940_processing(self, mt940_result):
         data = None
-        with open("tests/test_mt940.sta", "r") as f:
+        with open("tests/invoice/test_mt940.sta", "r") as f:
             data = f.read()
         io_files = [{"filename": "test", "content": data}]
         results = invoice_helpers.MT940_processor(io_files).process_files()
@@ -154,7 +154,7 @@ class TestMT940Processer:
 
     def test_mt940_processing_multi_file(self, mt940_result):
         data = None
-        with open("tests/test_mt940.sta", "r") as f:
+        with open("tests/invoice/test_mt940.sta", "r") as f:
             data = f.read()
         io_files = [
             {"filename": "test", "content": data},
