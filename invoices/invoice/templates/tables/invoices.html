@@ -1,35 +1,46 @@
 <table class="invoices">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Client</th>
-      <th>Title</th>
-      <th>PDF</th>
-      <th>Date created</th>
-      <th>Ex. VAT</th>
-      <th>Inc. VAT</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{ for invoice in [invoices] }}
-    <tr class="{{ if [invoice:status] == 'canceled' }}canceled{{ endif }} [invoice:overdue]">
-      <td><a href="/invoice/payments/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
-      <td><a href="/client/[invoice:client:clientNumber]">[invoice:client:name]</a></td>
-      <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:title]</a></td>
-      <td><a href="/pdfinvoice/[invoice:sequenceNumber]">PDF</a></td>
-      <td>[invoice:dateCreated|DateOnly|html]</td>
-      <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
-      <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
-      <td>[invoice:status]</td>
-      <td>
-        {{ if [invoice:sequenceNumber|isProForma] and not [invoice:status] == 'canceled' }}
-          {{ inline forms/set_invoice_new.html }}
-          {{ inline forms/cancel_reservation.html }}
-        {{ endif }}
-      </td>
-    </tr>
-    {{ endfor }}
-  </tbody>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Client</th>
+            <th>Title</th>
+            <th>PDF</th>
+            <th>Date created</th>
+            <th>Ex. VAT</th>
+            <th>Inc. VAT</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for invoice in [invoices] }}
+        <tr class="{{ if [invoice:status] == 'canceled' }}canceled{{ endif }} [invoice:overdue]">
+            <td><a href="/invoice/payments/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
+            <td><a href="/client/[invoice:client:clientNumber]">[invoice:client:name]</a></td>
+            <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:title]</a></td>
+            <td><a href="/pdfinvoice/[invoice:sequenceNumber]">PDF</a></td>
+            <td>[invoice:dateCreated|DateOnly|html]</td>
+            <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
+            <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
+            <td>[invoice:status]</td>
+            <td>
+                {{ if [invoice:sequenceNumber|isProForma] and not [invoice:status] == 'canceled' }}
+                <form action="/invoices/settonew" method="post"
+                    onsubmit="return confirm('Are you sure you want to change invoice [invoice:sequenceNumber] status from reservation to new?')">
+                    <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
+                    <input type="hidden" name="xsrf" value="[xsrf]" />
+                    <input type="submit" value="Change to normal invoice" />
+                </form>
+                <form action="/invoices/cancel" method="post"
+                    onsubmit="return confirm('Are you sure you want to cancel the reservation for invoice [invoice:sequenceNumber]?')">
+                    <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
+                    <input type="hidden" name="xsrf" value="[xsrf]" />
+                    <input type="submit" value="Cancel reservation" />
+                </form>
+
+                {{ endif }}
+            </td>
+        </tr>
+        {{ endfor }}
+    </tbody>
 </table>
