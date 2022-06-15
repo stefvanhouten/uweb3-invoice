@@ -6,7 +6,7 @@ import uweb3
 from invoices import basepages
 from invoices.clients import model as client_model
 from invoices.common.decorators import NotExistsErrorCatcher, loggedin
-from invoices.pickup import forms, helpers, model
+from invoices.pickup import forms, model
 
 
 class PageMaker(basepages.PageMaker):
