@@ -5,7 +5,7 @@ import uweb3
 
 from invoices import basepages
 from invoices.clients import model as client_model
-from invoices.common.decorators import loggedin
+from invoices.common.decorators import NotExistsErrorCatcher, loggedin
 from invoices.pickup import forms, helpers, model
 
 
@@ -19,8 +19,11 @@ class PageMaker(basepages.PageMaker):
         pickup_slot_form = forms.PickupSlotForm(self.post)
 
         if self.post and pickup_slot_form.validate():
-            model.Pickupslot.Create(self.connection, pickup_slot_form.data)
-            return uweb3.Redirect("/pickupslots", httpcode=303)
+            try:
+                model.Pickupslot.Create(self.connection, pickup_slot_form.data)
+                return uweb3.Redirect("/pickupslots", httpcode=303)
+            except model.PickupDateNotAvailable as exc:
+                pickup_slot_form.date.errors.append(exc)
 
         return dict(
             pickup_slot_form=pickup_slot_form,
@@ -29,26 +32,26 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
+    @NotExistsErrorCatcher
     @uweb3.decorators.TemplateParser("manage_appointments.html")
     def RequestManagePickupSlot(self, slotID):
         slot = model.Pickupslot.FromPrimary(self.connection, slotID)
         appointments = model.PickupSlotAppointment.List(
             self.connection, conditions=f"pickupslot={slotID}"
         )
-
-        clients = client_model.Client.List(self.connection)
-        appointment_form = forms.PickupSlotAppointmentForm(self.post)
-        appointment_form.pickupslot.data = slotID
-        appointment_form.client.choices = [
-            (c["clientNumber"], c["name"]) for c in clients
-        ]
+        appointment_form = forms.setup_pickup_slot_appointment_form(
+            client_model.Client, self.connection, self.post, slotID  # type: ignore
+        )
 
         if self.post and appointment_form.validate():
-            model.PickupSlotAppointment.Create(self.connection, appointment_form.data)
-            return uweb3.Redirect(f'/pickupslot/{slot["ID"]}', httpcode=303)
+            try:
+                model.PickupSlotAppointment.Create(
+                    self.connection, appointment_form.data
+                )
+                return uweb3.Redirect(f'/pickupslot/{slot["ID"]}', httpcode=303)
+            except model.PickupTimeError as exc:
+                appointment_form.time.errors.append(exc)
 
-        slot["start_time"] = datetime.min + slot["start_time"]
-        slot["end_time"] = datetime.min + slot["end_time"]
         pickup_slot_form = forms.PickupSlotForm(data=slot)
 
         return dict(
@@ -60,14 +63,35 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
+    @NotExistsErrorCatcher
     def RequestDeleteAppointment(self, slotID, appointmentID):
-        slot = model.Pickupslot.FromPrimary(self.connection, slotID)
         appointment = model.PickupSlotAppointment.FromPrimary(
-            self.connection, appointmentID
+            self.connection,
+            (
+                appointmentID,
+                slotID,
+            ),
+        )
+        appointment.Delete()
+        return uweb3.Redirect(f"/pickupslot/{slotID}", httpcode=303)
+
+    @loggedin
+    @NotExistsErrorCatcher
+    @uweb3.decorators.checkxsrf
+    @uweb3.decorators.TemplateParser("appointment.html")
+    def RequestAppointment(self, slotID, appointmentID):
+        appointment = model.PickupSlotAppointment.FromPrimary(
+            self.connection,
+            (
+                appointmentID,
+                slotID,
+            ),
         )
 
-        if appointment["pickupslot"]["ID"] != slot["ID"]:
-            return self.Error("Appointment for this slot not found", httpcode=404)
+        appointment_form = forms.setup_pickup_slot_appointment_form(
+            client_model.Client, self.connection, self.post, slotID, data=appointment  # type: ignore
+        )
 
-        appointment.Delete()
-        return uweb3.Redirect(f'/pickupslot/{slot["ID"]}', httpcode=303)
+        return dict(
+            appointment_form=appointment_form,
+        )
