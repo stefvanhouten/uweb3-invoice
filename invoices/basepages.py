@@ -19,6 +19,8 @@ class PageMaker(
         self.parser.RegisterFunction("CentRound", lambda x: "%.2f" % x if x else None)
         self.parser.RegisterFunction("items", lambda x: x.items())
         self.parser.RegisterFunction("DateOnly", lambda x: str(x)[0:10])
+        self.parser.RegisterFunction("TimeOnly", lambda x: str(x)[0:5])
+        self.parser.RegisterFunction("NullString", lambda x: "" if x is None else x)
         self.parser.RegisterFunction(
             "isProForma", lambda x: bool(str(x).startswith(PRO_FORMA_PREFIX))
         )
