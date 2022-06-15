@@ -6,11 +6,23 @@ from uweb3 import model
 KEY_UNIQUE_ERROR = 1062
 
 
-class PickupDateNotAvailable(Exception):
+class PickupError(Exception):
     pass
 
 
-class PickupTimeError(Exception):
+class PickupAppointmentSlotUnavailable(PickupError):
+    pass
+
+
+class PickupDateNotAvailable(PickupError):
+    pass
+
+
+class PickupTimeError(PickupError):
+    pass
+
+
+class PickupSlotModifyError(PickupError):
     pass
 
 
@@ -37,6 +49,18 @@ class Pickupslot(model.Record):
                     "Pickup date is not available because it is already taken"
                 ) from exc
 
+    def Save(self, save_foreign=False):
+        diff = self._Changes()
+        if (
+            "slots" in diff
+            and len(list(self._Children(PickupSlotAppointment))) > diff["slots"]
+        ):
+            self.update(self._record)
+            raise PickupSlotModifyError(
+                "Cannot change the number of slots to less than the current amount of appointments"
+            )
+        super().Save(save_foreign=save_foreign)
+
 
 class PickupSlotAppointment(model.Record):
     """Abstraction class for the pickupslot appointment table."""
@@ -56,8 +80,15 @@ class PickupSlotAppointment(model.Record):
         return record
 
     @classmethod
-    def Create(self, connection, record):
+    def Create(cls, connection, record):
         pickupslot = Pickupslot.FromPrimary(connection, record["pickupslot"])
+        total_appointments = len(
+            list(cls.List(connection, conditions=f"pickupslot={pickupslot['ID']}"))
+        )
+
+        if total_appointments >= pickupslot["slots"]:
+            raise PickupAppointmentSlotUnavailable("Max appointment capacity reached.")
+
         if not appointment_within_slot_time(pickupslot, record):
             raise PickupTimeError(
                 f"Appointment must be between {pickupslot['start_time']} and {pickupslot['end_time']}."
