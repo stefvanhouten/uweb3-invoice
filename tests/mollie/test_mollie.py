@@ -83,7 +83,7 @@ class TestMollie:
             description="description for mollie req",
             reference="reference",
         )
-        mollie_gateway._CreateDatabaseRecord(obj)
+        mollie_gateway._create_database_record(obj)
         record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
         assert obj.id == record["ID"]
         assert obj.price == record["amount"]
@@ -97,8 +97,8 @@ class TestMollie:
             description="description for mollie req",
             reference="reference",
         )
-        record = mollie_gateway._CreateDatabaseRecord(obj)
-        mollie_transaction_obj = mollie_gateway._CreateMollieTransaction(obj, record)
+        record = mollie_gateway._create_database_record(obj)
+        mollie_transaction_obj = mollie_gateway._create_mollie_transaction(obj, record)
 
         assert mollie_transaction_obj["amount"] == {
             "currency": "EUR",
@@ -138,7 +138,7 @@ class TestMolliePaymentGateway:
         gateway: helpers.MolliePaymentGateway,
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
-        db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
+        db_record = gateway._create_database_record(mollie_transaction_object)
         assert db_record == {
             "ID": 1,
             "status": helpers.MollieStatus.OPEN.value,
@@ -152,8 +152,8 @@ class TestMolliePaymentGateway:
         gateway: helpers.MolliePaymentGateway,
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
-        db_record = gateway._CreateDatabaseRecord(mollie_transaction_object)
-        transaction = gateway._CreateMollieTransaction(
+        db_record = gateway._create_database_record(mollie_transaction_object)
+        transaction = gateway._create_mollie_transaction(
             mollie_transaction_object, db_record
         )
         assert transaction == {
@@ -180,7 +180,7 @@ class TestMolliePaymentGateway:
             "webhookUrl": f"{gateway.webhook_url}/1",
             "method": "ideal",
         }
-        response = gateway._PostPaymentRequest(transaction)
+        response = gateway._post_payment_request(transaction)
 
         assert response.post_data == json.dumps(transaction)
         assert response.post_headers == {"Authorization": "Bearer " + gateway.apikey}
@@ -188,7 +188,7 @@ class TestMolliePaymentGateway:
     def test_process_response(self, gateway: helpers.MolliePaymentGateway):
         mock_data = json.dumps({"_links": {"checkout": "checkout_gateway_url"}})
         response = utils.MockResponse(data=mock_data, status_code=200)
-        result = gateway._ProcessResponse(response)
+        result = gateway._process_response(response)
         assert result == {"_links": {"checkout": "checkout_gateway_url"}}
 
     def test_create_transaction(
@@ -196,7 +196,7 @@ class TestMolliePaymentGateway:
         gateway: helpers.MolliePaymentGateway,
         mollie_transaction_object: helpers.MollieTransactionObject,
     ):
-        result = gateway.CreateTransaction(mollie_transaction_object)
+        result = gateway.create_transaction(mollie_transaction_object)
         assert result == "checkout_gateway_url"
 
     def test_update_transaction_status(
@@ -207,7 +207,7 @@ class TestMolliePaymentGateway:
             "status": helpers.MollieStatus.OPEN.value,
             "amount": {"value": decimal.Decimal(10.25)},
         }
-        assert False is gateway._UpdateTransaction("description", payment)
+        assert False is gateway._update_transaction("description", payment)
 
     def test_update_transaction_status_paid(
         self,
@@ -218,7 +218,7 @@ class TestMolliePaymentGateway:
             "amount": {"value": decimal.Decimal(10.25)},
         }
 
-        assert True is gateway._UpdateTransaction("description", payment)
+        assert True is gateway._update_transaction("description", payment)
 
     def test_update_transaction_status_failed(
         self, gateway: helpers.MolliePaymentGateway
@@ -228,7 +228,7 @@ class TestMolliePaymentGateway:
             "amount": {"value": decimal.Decimal(10.25)},
         }
         with pytest.raises(mollie_model.MollieTransactionFailed):
-            gateway._UpdateTransaction("description", payment)
+            gateway._update_transaction("description", payment)
 
     def test_update_transaction_status_canceled(
         self, gateway: helpers.MolliePaymentGateway
@@ -238,7 +238,7 @@ class TestMolliePaymentGateway:
             "amount": {"value": decimal.Decimal(10.25)},
         }
         with pytest.raises(mollie_model.MollieTransactionCanceled):
-            gateway._UpdateTransaction("description", payment)
+            gateway._update_transaction("description", payment)
 
     def test_payment_success_price_mismatch(
         self, gateway: helpers.MolliePaymentGateway
@@ -248,4 +248,4 @@ class TestMolliePaymentGateway:
             "amount": {"value": decimal.Decimal(30)},
         }
 
-        assert True is gateway._UpdateTransaction("description", payment)
+        assert True is gateway._update_transaction("description", payment)

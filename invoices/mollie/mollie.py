@@ -35,7 +35,7 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
             )
 
         mollie_gateway = self.NewMolliePaymentGateway()
-        status = mollie_gateway.GetPayment(transaction["description"])["status"]
+        status = mollie_gateway.get_payment(transaction["description"])["status"]
 
         match status:
             case helpers.MollieStatus.OPEN:

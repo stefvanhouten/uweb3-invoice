@@ -67,7 +67,7 @@ def create_mollie_request(invoice, amount, connection, mollie_config):
         invoice["sequenceNumber"],
     )
     mollie_gateway = mollie_module.mollie_factory(connection, mollie_config)
-    return mollie_gateway.CreateTransaction(mollie_request_object)["href"]
+    return mollie_gateway.create_transaction(mollie_request_object)["href"]
 
 
 def to_pdf(html, filename=None):
