@@ -1,0 +1,21 @@
+[header]
+<section>
+    <h2>Slot details</h2>
+    <form class="pickupslots" action="/pickupslot" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        {{ for field in [appointment_form] }}
+            <p>[field:description]</p>
+            {{ if [field:errors] }}
+                {{ for error in [field:errors] }}
+                    <p class="error">[error]</p>
+                {{ endfor }}
+            {{ endif }}
+            <div>
+                [field:label]
+                [field]
+            </div>
+        {{ endfor }}
+        <input type="submit" value="Update">
+    </form>
+</section>
+[footer]

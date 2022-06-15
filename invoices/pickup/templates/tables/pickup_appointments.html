@@ -9,8 +9,8 @@
     <tbody>
         {{ for appointment in [appointments] }}
         <tr>
-            <td>[appointment:time]</td>
-            <td>[appointment:client:name]</td>
+            <td><a href="/pickupslot/[slot:ID]/appointment/[appointment:ID]">[appointment:time]</a></td>
+            <td><a href="/client/[appointment:client:clientNumber]">[appointment:client:name]</a></td>
             <td>
                 <form action="/pickupslot/[slot:ID]/appointment/[appointment:ID]/delete" method="post">
                     <input type="hidden" name="xsrf" value="[xsrf]">
