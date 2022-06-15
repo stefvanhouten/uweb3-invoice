@@ -3,8 +3,30 @@
     <h2>Appointments</h2>
     {{ inline tables/pickup_appointments.html }}
 </section>
-<section>
-    <h2>Create new appointment</h2>
-    {{ inline forms/create_appointment.html }}
-</section>
+<!-- <section>
+    <h2>Slot details</h2>
+    <form class="pickupslots" action="/pickupslot" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        {{ for field in [pickup_slot_form] }}
+            <p>[field:description]</p>
+            {{ if [field:errors] }}
+                {{ for error in [field:errors] }}
+                    <p class="error">[error]</p>
+                {{ endfor }}
+            {{ endif }}
+            <div>
+                [field:label]
+                [field]
+            </div>
+        {{ endfor }}
+        <input type="submit" value="Update">
+    </form>
+</section> -->
+
+{{ if [slot:slots] > len([appointments]) }}
+    <section>
+        <h2>Create new appointment</h2>
+        {{ inline forms/create_appointment.html }}
+    </section>
+{{ endif }}
 [footer]
