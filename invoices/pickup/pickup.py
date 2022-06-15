@@ -25,9 +25,12 @@ class PageMaker(basepages.PageMaker):
             except model.PickupDateNotAvailable as exc:
                 pickup_slot_form.date.errors.append(exc)
 
+        result = model.Pickupslot.FromDate(self.connection, datetime.now())
         return dict(
             pickup_slot_form=pickup_slot_form,
             slots=model.Pickupslot.List(self.connection),
+            appointments=result.appointments if result else [],
+            slot=result,
         )
 
     @loggedin
@@ -109,6 +112,20 @@ class PageMaker(basepages.PageMaker):
             ),
         )
         appointment.Delete()
+        return uweb3.Redirect(f"/pickupslot/{slotID}", httpcode=303)
+
+    @loggedin
+    @uweb3.decorators.checkxsrf
+    @NotExistsErrorCatcher
+    def RequestCompleteAppointment(self, slotID, appointmentID):
+        appointment = model.PickupSlotAppointment.FromPrimary(
+            self.connection,
+            (
+                appointmentID,
+                slotID,
+            ),
+        )
+        appointment.set_status(model.AppointmentStatus.COMPLETE)
         return uweb3.Redirect(f"/pickupslot/{slotID}", httpcode=303)
 
     @loggedin
