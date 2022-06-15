@@ -124,6 +124,10 @@ class PickupSlotAppointment(model.Record):
         self.Save()
 
 
+class AppointmentDetails(model.Record):
+    pass
+
+
 def appointment_within_slot_time(
     record: Pickupslot, appointment: PickupSlotAppointment
 ):

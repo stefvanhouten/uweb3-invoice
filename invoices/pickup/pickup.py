@@ -25,12 +25,12 @@ class PageMaker(basepages.PageMaker):
             except model.PickupDateNotAvailable as exc:
                 pickup_slot_form.date.errors.append(exc)
 
-        result = model.Pickupslot.FromDate(self.connection, datetime.now())
+        todays_pickup = model.Pickupslot.FromDate(self.connection, datetime.now())
         return dict(
             pickup_slot_form=pickup_slot_form,
             slots=model.Pickupslot.List(self.connection),
-            appointments=result.appointments if result else [],
-            slot=result,
+            appointments=todays_pickup.appointments if todays_pickup else [],
+            slot=todays_pickup,
         )
 
     @loggedin
@@ -147,4 +147,7 @@ class PageMaker(basepages.PageMaker):
 
         return dict(
             appointment_form=appointment_form,
+            details=model.AppointmentDetails.List(
+                self.connection, f"pickupslotappointment = {appointment['ID']}"
+            ),
         )

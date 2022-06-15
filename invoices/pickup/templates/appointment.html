@@ -1,5 +1,28 @@
 [header]
 <section>
+    <h2>Items</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Invoice</th>
+                <th>description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ for detail in [details] }}
+            <tr>
+                <td>
+                    [detail:invoice:sequenceNumber]
+                </td>
+                <td>
+                    [detail:description]
+                </td>
+            </tr>
+            {{ endfor }}
+        </tbody>
+    </table>
+</section>
+<section>
     <h2>Appointment details</h2>
     <form class="pickupslots" action="/pickupslot" method="post">
         <input type="hidden" name="xsrf" value="[xsrf]">
@@ -18,4 +41,5 @@
         <input type="submit" value="Update">
     </form>
 </section>
+
 [footer]
