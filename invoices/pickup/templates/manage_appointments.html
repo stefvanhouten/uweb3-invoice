@@ -1,8 +1,8 @@
 [header]
 <section>
-    <h2>Appointments</h2>
-    {{ if len([appointments]) != 0}}
-        {{ inline tables/pickup_appointments.html }}
+    <h2>Appointments for [slot:date]</h2>
+    {{ if len([appointments]) }}
+        {{ inline tables/appointments.html }}
     {{ else }}
         <p class="info">No appointments found</p>
     {{ endif }}
