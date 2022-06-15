@@ -50,7 +50,7 @@ class TestMollie:
                 "value": "50.00",  # Mollie sends a string value back
             },
         }
-        assert True is mollie_gateway._UpdateTransaction("payment_test", payment)
+        assert True is mollie_gateway._update_transaction("payment_test", payment)
 
     def test_mollie_update_transaction_failed(self, mollie_gateway):
         payment = {
@@ -60,7 +60,7 @@ class TestMollie:
             },
         }
         with pytest.raises(mollie_model.MollieTransactionFailed):
-            mollie_gateway._UpdateTransaction("payment_test", payment)
+            mollie_gateway._update_transaction("payment_test", payment)
 
     def test_mollie_update_transaction_canceled(self, mollie_gateway):
         payment = {
@@ -70,7 +70,7 @@ class TestMollie:
             },
         }
         with pytest.raises(mollie_model.MollieTransactionCanceled):
-            mollie_gateway._UpdateTransaction("payment_test", payment)
+            mollie_gateway._update_transaction("payment_test", payment)
 
     def test_create_db_record(
         self, connection, mollie_config, default_invoice_and_products
