@@ -16,6 +16,7 @@ from invoices.common.decorators import (
     loggedin,
 )
 from invoices.common.schemas import ClientSchema, RequestClientSchema
+from invoices.invoice import model as invoice_model
 
 
 class PageMaker(basepages.PageMaker):
@@ -49,7 +50,7 @@ class PageMaker(basepages.PageMaker):
         client_number = RequestClientSchema().load({"client": client})
 
         client = model.Client.FromClientNumber(self.connection, client_number["client"])
-        return {"client": client}
+        return dict(client=client)
 
     @uweb3.decorators.ContentType("application/json")
     @json_error_wrapper
@@ -103,7 +104,11 @@ class PageMaker(basepages.PageMaker):
           client: int
         """
         client = model.Client.FromClientNumber(self.connection, int(client))
-        return {"title": "Client", "page_id": "client", "client": client}
+        # TODO: Collect all client invoices based on all their ids.
+        invoices = invoice_model.Invoice.List(
+            self.connection, conditions=f"client={client['ID']}"
+        )
+        return dict(client=client, invoices=invoices)
 
     @loggedin
     @uweb3.decorators.checkxsrf
