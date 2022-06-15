@@ -10,4 +10,8 @@ urls = [
         "/pickupslot/(\d+)/appointment/(\d+)/delete",
         (PageMaker, "RequestDeleteAppointment"),
     ),
+    (
+        "/pickupslot/(\d+)/appointment/(\d+)/complete",
+        (PageMaker, "RequestCompleteAppointment"),
+    ),
 ]
