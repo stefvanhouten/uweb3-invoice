@@ -1,0 +1,18 @@
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Slots</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for slot in [slots] }}
+            <tr>
+                <td><a href="/pickupslot/[slot:ID]">[slot:date]</a></td>
+                <td>[slot:start_time] - [slot:end_time]</td>
+                <td>[slot:slots]</td>
+            </tr>
+        {{ endfor }}
+    </tbody>
+</table>

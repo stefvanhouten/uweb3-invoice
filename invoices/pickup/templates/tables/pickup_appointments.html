@@ -1,0 +1,16 @@
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Client</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for appointment in [appointments] }}
+        <tr>
+            <td>[appointment:time]</td>
+            <td>[appointment:client:name]</td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>

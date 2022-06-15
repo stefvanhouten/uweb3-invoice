@@ -1,0 +1,18 @@
+<form class="appointments" action="/appointment/[slot:ID]" method="post">
+    <input type="hidden" name="xsrf" value="[xsrf]">
+    {{ for field in [appointment_form] }}
+        {{ if [field:type] != 'HiddenField' }}
+            <p>[field:description]</p>
+                {{ if [field:errors] }}
+                    {{ for error in [field:errors] }}
+                        <p class="error">[error]</p>
+                    {{ endfor }}
+                {{ endif }}
+            <div>
+                [field:label]
+                [field]
+            </div>
+            {{ endif }}
+        {{ endfor }}
+    <input type="submit" value="Add appointment">
+</form>
