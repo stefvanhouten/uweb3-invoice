@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import TypeVar
 
 from wtforms import (
     DateField,
@@ -10,6 +11,9 @@ from wtforms import (
     TimeField,
     validators,
 )
+
+from invoices.clients import model as client_model
+from invoices.pickup import model
 
 
 class PickupSlotForm(Form):
@@ -53,3 +57,17 @@ class PickupSlotAppointmentForm(Form):
     )
     client = SelectField("Client", validators=[validators.InputRequired()])
     description = TextAreaField("Description", validators=[validators.Optional()])
+
+
+def setup_pickup_slot_appointment_form(
+    context: client_model.Client,
+    connection,
+    postdata,
+    slotID: int,
+    data: model.PickupSlotAppointment | None = None,
+) -> PickupSlotAppointmentForm:
+    clients = context.List(connection)
+    form = PickupSlotAppointmentForm(postdata, data=data)
+    form.pickupslot.data = slotID
+    form.client.choices = [(c["clientNumber"], c["name"]) for c in clients]
+    return form
