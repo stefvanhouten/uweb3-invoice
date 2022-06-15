@@ -1,9 +1,14 @@
 from datetime import datetime
+from enum import Enum
 
 from pymysql import IntegrityError
 from uweb3 import model
 
 KEY_UNIQUE_ERROR = 1062
+
+
+class AppointmentStatus(str, Enum):
+    COMPLETE = "complete"
 
 
 class PickupError(Exception):
@@ -29,6 +34,10 @@ class PickupSlotModifyError(PickupError):
 class Pickupslot(model.Record):
     """Abstraction class for the pickupslot table."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._appointments = None
+
     def _PostSelect(self):
         self["start_time"] = datetime.time(datetime.min + self["start_time"])
         self["end_time"] = datetime.time(datetime.min + self["end_time"])
@@ -38,6 +47,18 @@ class Pickupslot(model.Record):
         record = super().FromPrimary(connection, pkey_value)
         record._PostSelect()
         return record
+
+    @classmethod
+    def FromDate(cls, connection, date):
+        safe_date = connection.EscapeValues(date.strftime("%Y-%m-%d"))
+        with connection as cursor:
+            record = cursor.Select(
+                table=cls.TableName(),
+                conditions=f"date = {safe_date}",
+            )
+        if not record:
+            return None
+        return cls(connection, record[0])
 
     @classmethod
     def Create(self, connection, record):
@@ -51,15 +72,18 @@ class Pickupslot(model.Record):
 
     def Save(self, save_foreign=False):
         diff = self._Changes()
-        if (
-            "slots" in diff
-            and len(list(self._Children(PickupSlotAppointment))) > diff["slots"]
-        ):
+        if "slots" in diff and len(self.appointments) > diff["slots"]:
             self.update(self._record)
             raise PickupSlotModifyError(
                 "Cannot change the number of slots to less than the current amount of appointments"
             )
         super().Save(save_foreign=save_foreign)
+
+    @property
+    def appointments(self):
+        if not self._appointments:
+            self._appointments = list(self._Children(PickupSlotAppointment))
+        return self._appointments
 
 
 class PickupSlotAppointment(model.Record):
@@ -94,6 +118,10 @@ class PickupSlotAppointment(model.Record):
                 f"Appointment must be between {pickupslot['start_time']} and {pickupslot['end_time']}."
             )
         return super().Create(connection, record)
+
+    def set_status(self, status: AppointmentStatus):
+        self["status"] = status.value
+        self.Save()
 
 
 def appointment_within_slot_time(
