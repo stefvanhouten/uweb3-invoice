@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import TypeVar
 
 from wtforms import (
     DateField,
@@ -56,6 +55,12 @@ class PickupSlotAppointmentForm(Form):
         default=datetime.now().time(),
     )
     client = SelectField("Client", validators=[validators.InputRequired()])
+    description = TextAreaField("Description", validators=[validators.Optional()])
+
+
+class AppointmentDetails(Form):
+    pickupslotappointment = HiddenField("Pickup Slot")
+    invoice = SelectField("Invoice", validators=[validators.InputRequired()])
     description = TextAreaField("Description", validators=[validators.Optional()])
 
 

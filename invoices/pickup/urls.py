@@ -7,6 +7,11 @@ urls = [
     ("/pickupslot/(\d+)/appointment", (PageMaker, "RequestCreateAppointment"), "POST"),
     ("/pickupslot/(\d+)/appointment/(\d+)", (PageMaker, "RequestAppointment")),
     (
+        "/pickupslot/(\d+)/appointment/(\d+)/details",
+        (PageMaker, "RequestAddAppointmentDetails"),
+        "POST",
+    ),
+    (
         "/pickupslot/(\d+)/appointment/(\d+)/delete",
         (PageMaker, "RequestDeleteAppointment"),
     ),

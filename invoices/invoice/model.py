@@ -58,6 +58,10 @@ class Invoice(common_model.RichModel):
         "client": {"class": Client, "loader": "FromPrimary", "LookupKey": "ID"},
     }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._products = None
+
     def _PreCreate(self, cursor):
         super(Invoice, self)._PreCreate(cursor)
         self["title"] = self["title"].strip(" ")[:80]
@@ -242,6 +246,12 @@ class Invoice(common_model.RichModel):
             product["index"] = index
             index = index + 1  # TODO implement loop indices in the template parser
             yield product
+
+    @property
+    def prods(self):
+        if not self._products:
+            self._products = list(self.Products())
+        return self._products
 
     def AddProducts(self, products):
         """Add multiple InvoiceProducts to an invoice.

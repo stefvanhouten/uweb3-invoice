@@ -132,7 +132,7 @@ class PageMaker(basepages.PageMaker):
     @NotExistsErrorCatcher
     @uweb3.decorators.checkxsrf
     @uweb3.decorators.TemplateParser("appointment.html")
-    def RequestAppointment(self, slotID, appointmentID):
+    def RequestAppointment(self, slotID, appointmentID, detail_form=None):
         appointment = model.PickupSlotAppointment.FromPrimary(
             self.connection,
             (
@@ -141,13 +141,52 @@ class PageMaker(basepages.PageMaker):
             ),
         )
 
-        appointment_form = forms.setup_pickup_slot_appointment_form(
-            client_model.Client, self.connection, self.post, slotID, data=appointment  # type: ignore
-        )
+        if not detail_form:
+            client = client_model.Client.FromClientNumber(
+                self.connection, appointment["client"]["clientNumber"]
+            )
+            detail_form = forms.AppointmentDetails(self.post)
+            detail_form.pickupslotappointment.data = appointmentID
+            detail_form.invoice.choices = [
+                (i["ID"], i["sequenceNumber"]) for i in client.invoices
+            ]
 
         return dict(
-            appointment_form=appointment_form,
-            details=model.AppointmentDetails.List(
-                self.connection, f"pickupslotappointment = {appointment['ID']}"
+            appointment=appointment,
+            details=list(
+                model.AppointmentDetails.List(
+                    self.connection, f"pickupslotappointment = {appointment['ID']}"
+                )
             ),
+            detail_form=detail_form,
+        )
+
+    @loggedin
+    @NotExistsErrorCatcher
+    @uweb3.decorators.checkxsrf
+    def RequestAddAppointmentDetails(self, slotID, appointmentID):
+        appointment = model.PickupSlotAppointment.FromPrimary(
+            self.connection,
+            (
+                appointmentID,
+                slotID,
+            ),
+        )
+        detail_form = forms.AppointmentDetails(self.post)
+        detail_form.pickupslotappointment.data = appointmentID
+        client = client_model.Client.FromClientNumber(
+            self.connection, appointment["client"]["clientNumber"]
+        )
+        detail_form.invoice.choices = [
+            (i["ID"], i["sequenceNumber"]) for i in client.invoices
+        ]
+
+        if not detail_form.validate():
+            return self.RequestAppointment(
+                slotID=slotID, appointmentID=appointmentID, detail_form=detail_form
+            )
+
+        model.AppointmentDetails.Create(self.connection, detail_form.data)
+        return self.req.Redirect(
+            f"/pickupslot/{slotID}/appointment/{appointmentID}", httpcode=303
         )
