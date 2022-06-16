@@ -3,16 +3,19 @@
         <tr>
             <th>Product</th>
             <th>Quantity</th>
+            <th>Vat</th>
+            <th>Sku</th>
             <th>Price</th>
-
         </tr>
     </thead>
     <tbody>
-        {{ for product in [detail:invoice:products] }}
+        {{ for product in [invoice:products] }}
         <tr>
             <td>[product:name]</td>
             <td>[product:quantity]</td>
-            <td>[product:price]</td>
+            <td>[product:vat_percentage]%</td>
+            <td>[product:sku]</td>
+            <td>&euro;[product:price]</td>
         </tr>
         {{ endfor }}
     </tbody>
