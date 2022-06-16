@@ -233,7 +233,7 @@ class Invoice(common_model.RichModel):
             "vat": vatresults,
         }
 
-    def Products(self):
+    def _get_products(self):
         """Returns all products that are part of this invoice."""
         products = InvoiceProduct.List(
             self.connection, conditions=["invoice=%d" % self]
@@ -248,9 +248,9 @@ class Invoice(common_model.RichModel):
             yield product
 
     @property
-    def prods(self):
+    def products(self):
         if not self._products:
-            self._products = list(self.Products())
+            self._products = list(self._get_products())
         return self._products
 
     def AddProducts(self, products):

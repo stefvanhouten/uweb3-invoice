@@ -199,7 +199,7 @@ class TestClass:
                 {"name": "paneel", "price": 5, "vat_percentage": 25, "quantity": 10},
             ]
         )
-        products = list(inv.Products())
+        products = list(inv.products)
         assert len(products) == 2
         assert products[0]["name"] == "dakpan"
         assert products[0]["price"] == 10

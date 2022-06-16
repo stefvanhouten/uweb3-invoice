@@ -117,7 +117,7 @@ class PageMaker(basepages.PageMaker):
         invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
         return {
             "invoice": invoice,
-            "products": invoice.Products(),
+            "products": invoice.products,
             "totals": invoice.Totals(),
         }
 
@@ -179,7 +179,7 @@ class PageMaker(basepages.PageMaker):
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
         self.warehouse.cancel_order(
-            invoice.Products(),
+            invoice.products,
             f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
         )
         invoice.CancelProFormaInvoice()
