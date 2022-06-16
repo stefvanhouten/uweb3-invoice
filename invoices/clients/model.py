@@ -44,9 +44,9 @@ class Client(common_model.RichVersionedRecord):
     @property
     def invoices(self):
         if not self._invoices:
-            self.client_ids
             self._invoices = invoice_model.Invoice.List(
-                self.connection, conditions=f"client in {self.client_ids}"
+                self.connection,
+                conditions="client in ({})".format(str(list(self.client_ids))[1:-1]),
             )
         return self._invoices
 
