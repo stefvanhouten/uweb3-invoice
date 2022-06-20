@@ -1,6 +1,5 @@
 import decimal
 import json
-from dataclasses import asdict
 from decimal import Decimal
 
 import pytest
