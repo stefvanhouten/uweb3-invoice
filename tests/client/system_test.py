@@ -8,7 +8,7 @@ class TestPickupSystem:
     @pytest.mark.parametrize(
         "page_url",
         [
-            "/pickupslots",
+            "/clients",
         ],
     )
     def test_page_access(self, session, page_url):
