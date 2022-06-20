@@ -1,0 +1,21 @@
+<table>
+    <thead>
+        <tr>
+            <th>Invoice</th>
+            <th>description</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for detail in [details] }}
+        <tr>
+            <td>
+                [detail:invoice:sequenceNumber]
+                {{ inline tables/invoice_product.html }}
+            </td>
+            <td>
+                [detail:description]
+            </td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>

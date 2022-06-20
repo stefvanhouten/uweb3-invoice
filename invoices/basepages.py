@@ -6,8 +6,6 @@ import uweb3
 import invoices.login.model as login_model
 from invoices.invoice.model import PRO_FORMA_PREFIX
 
-API_VERSION = "/api/v1"
-
 
 class PageMaker(
     uweb3.DebuggingPageMaker,
@@ -15,15 +13,14 @@ class PageMaker(
 ):
     """Holds all the request handlers for the application"""
 
-    def __init__(self, *args, **kwds):
-        super(PageMaker, self).__init__(*args, **kwds)
-
     def _PostInit(self):
         """Sets up all the default vars"""
         self.validatexsrf()
         self.parser.RegisterFunction("CentRound", lambda x: "%.2f" % x if x else None)
         self.parser.RegisterFunction("items", lambda x: x.items())
         self.parser.RegisterFunction("DateOnly", lambda x: str(x)[0:10])
+        self.parser.RegisterFunction("TimeOnly", lambda x: str(x)[0:5])
+        self.parser.RegisterFunction("NullString", lambda x: "" if x is None else x)
         self.parser.RegisterFunction(
             "isProForma", lambda x: bool(str(x).startswith(PRO_FORMA_PREFIX))
         )
@@ -80,7 +77,7 @@ class PageMaker(
         )
         if command is None and error is None:
             command = "%s for method %s" % (self.req.path, self.req.method)
-        page_data = self.parser.Parse("404.html", command=command, error=error)
+        page_data = self.parser.Parse("parts/404.html", command=command, error=error)
         return uweb3.Response(content=page_data, httpcode=httpcode)
 
     @uweb3.decorators.ContentType("application/json")
@@ -98,5 +95,14 @@ class PageMaker(
     def Error(self, error="", httpcode=500, link=None):
         """Returns a generic error page based on the given parameters."""
         uweb3.logging.error("Error page triggered: %r", error)
-        page_data = self.parser.Parse("error.html", error=error, link=link)
+        page_data = self.parser.Parse("parts/error.html", error=error, link=link)
+        return uweb3.Response(content=page_data, httpcode=httpcode)
+
+    def WarehouseError(self, error="", httpcode=500, api_status_code=None):
+        uweb3.logging.error(
+            f"Error page triggered: {error} with API status code {api_status_code}"
+        )
+        page_data = self.parser.Parse(
+            "parts/warehouse_error.html", error=error, api_status_code=api_status_code
+        )
         return uweb3.Response(content=page_data, httpcode=httpcode)

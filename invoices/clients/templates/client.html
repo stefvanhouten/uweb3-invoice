@@ -1,0 +1,22 @@
+[header]
+<main>
+  <div>
+    <section>
+      <header>
+        <h1>[client:name]</h1>
+        <p>Client</p>
+      </header>
+     {{ inline forms/client_details.html}}
+    </section>
+  </div>
+
+  <section>
+    <h2>Client invoices</h2>
+    {{ if len([invoices]) }}
+        {{ inline ../../invoice/templates/tables/invoices.html }}
+    {{ else }}
+        <p class="info">This client has no invoices yet.</p>
+    {{ endif }}
+  </section>
+</main>
+[footer]

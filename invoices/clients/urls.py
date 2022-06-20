@@ -1,12 +1,35 @@
 from invoices.clients import clients
 
 urls = [
-    ("/clients", (clients.PageMaker, "RequestClientsPage"), "GET"),
-    ("/clients", (clients.PageMaker, "RequestNewClientPage"), "POST"),
     (
-        "/clients/save",
-        (clients.PageMaker, "RequestRequestSaveClientPage"),
+        "/clients",
+        (
+            clients.PageMaker,
+            "RequestClientsPage",
+        ),
+        "GET",
+    ),
+    (
+        "/clients",
+        (
+            clients.PageMaker,
+            "RequestNewClientPage",
+        ),
         "POST",
     ),
-    ("/client/(.*)", (clients.PageMaker, "RequestClientPage")),
+    (
+        "/clients/save",
+        (
+            clients.PageMaker,
+            "RequestSaveClientPage",
+        ),
+        "POST",
+    ),
+    (
+        "/client/(.*)",
+        (
+            clients.PageMaker,
+            "RequestClientPage",
+        ),
+    ),
 ]

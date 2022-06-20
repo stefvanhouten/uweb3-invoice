@@ -1,0 +1,20 @@
+[header]
+<section>
+    <h2>Appointments today</h2>
+    {{ if [appointments] }}
+        {{ inline tables/appointments.html }}
+    {{ else }}
+        <p class="info">No appointments today</p>
+    {{ endif }}
+</section>
+
+<section>
+    <h2>Pickup slots</h2>
+    {{ inline tables/pickup_slots.html }}
+</section>
+
+<section>
+    <h2>Create new slot</h2>
+    {{ inline forms/pickup_slot.html }}
+</section>
+[footer]

@@ -7,6 +7,7 @@ from invoices.clients.urls import urls as client_urls
 from invoices.invoice.urls import urls as invoice_urls
 from invoices.login.urls import urls as login_urls
 from invoices.mollie.urls import urls as mollie_urls
+from invoices.pickup.urls import urls as pickup_urls
 from invoices.settings.urls import urls as setting_urls
 
 # Application
@@ -29,6 +30,7 @@ def main():
         + client_urls
         + invoice_urls
         + mollie_urls
+        + pickup_urls
         + [
             # Helper files
             ("(/styles/.*)", "Static"),

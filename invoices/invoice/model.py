@@ -58,6 +58,10 @@ class Invoice(common_model.RichModel):
         "client": {"class": Client, "loader": "FromPrimary", "LookupKey": "ID"},
     }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._products = None
+
     def _PreCreate(self, cursor):
         super(Invoice, self)._PreCreate(cursor)
         self["title"] = self["title"].strip(" ")[:80]
@@ -229,7 +233,7 @@ class Invoice(common_model.RichModel):
             "vat": vatresults,
         }
 
-    def Products(self):
+    def _get_products(self):
         """Returns all products that are part of this invoice."""
         products = InvoiceProduct.List(
             self.connection, conditions=["invoice=%d" % self]
@@ -242,6 +246,12 @@ class Invoice(common_model.RichModel):
             product["index"] = index
             index = index + 1  # TODO implement loop indices in the template parser
             yield product
+
+    @property
+    def products(self):
+        if not self._products:
+            self._products = list(self._get_products())
+        return self._products
 
     def AddProducts(self, products):
         """Add multiple InvoiceProducts to an invoice.
@@ -256,9 +266,9 @@ class Invoice(common_model.RichModel):
                       ]
         """
         for product in products:
-            product["invoice"] = self[
-                "ID"
-            ]  # Set the product to the current invoice ID.
+            if not hasattr(product, "invoice"):
+                # Set the product to the current invoice ID.
+                product["invoice"] = self["ID"]
             InvoiceProduct.Create(self.connection, product)
 
     def GetPayments(self):

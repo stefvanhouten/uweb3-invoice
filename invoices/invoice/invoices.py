@@ -1,21 +1,17 @@
 #!/usr/bin/python
 """Request handlers for the uWeb3 warehouse inventory software"""
 
-from http import HTTPStatus
-
-import marshmallow.exceptions
-
-# standard modules
-import requests
+import os
 
 # uweb modules
 import uweb3
 
 from invoices import basepages
-from invoices.common.decorators import NotExistsErrorCatcher, RequestWrapper
+from invoices.common.decorators import NotExistsErrorCatcher, loggedin
 from invoices.common.helpers import transaction
-from invoices.common.schemas import PaymentSchema, WarehouseStockRefundSchema
-from invoices.invoice import helpers, model
+from invoices.common.schemas import PaymentSchema
+from invoices.invoice import forms, helpers, model
+from invoices.invoice.decorators import WarehouseRequestWrapper
 from invoices.mollie import model as mollie_model
 
 
@@ -24,14 +20,19 @@ class WarehouseAPIException(Exception):
 
 
 class PageMaker(basepages.PageMaker):
+    TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.warehouse_api_url = self.config.options["general"]["warehouse_api"]
         self.warehouse_apikey = self.config.options["general"]["apikey"]
+        self.warehouse = helpers.WarehouseApi(
+            self.warehouse_api_url, self.warehouse_apikey
+        )
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("invoices/invoices.html")
+    @uweb3.decorators.TemplateParser("invoices.html")
     def RequestInvoicesPage(self):
         return {
             "invoices": list(
@@ -39,76 +40,54 @@ class PageMaker(basepages.PageMaker):
             ),
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @RequestWrapper
-    @uweb3.decorators.TemplateParser("invoices/create.html")
-    def RequestNewInvoicePage(self, errors=[]):
-        response = requests.get(
-            f"{self.warehouse_api_url}/products?apikey={self.warehouse_apikey}"
-        )
+    @WarehouseRequestWrapper
+    @uweb3.decorators.TemplateParser("create.html")
+    def RequestNewInvoicePage(self, errors=[], invoice_form=None):
+        products = self.warehouse.get_products()
 
-        if response.status_code != 200:
-            return self._handle_api_status_error(response)
+        if not invoice_form:
+            invoice_form = forms.get_invoice_form(
+                model.Client.List(self.connection), products
+            )
 
-        json_response = response.json()
         return {
-            "clients": list(model.Client.List(self.connection)),
-            "products": json_response["products"],
+            "products": products,
             "errors": errors,
             "api_url": self.warehouse_api_url,
             "apikey": self.warehouse_apikey,
+            "invoice_form": invoice_form,
             "scripts": ["/js/invoice.js"],
         }
 
-    def _handle_api_status_error(self, response):
-        json_response = response.json()
-
-        if response.status_code == HTTPStatus.NOT_FOUND:
-            return self.Error(
-                f"Warehouse API at url '{self.warehouse_api_url}' could not be found."
-            )
-        elif response.status_code == HTTPStatus.FORBIDDEN:
-            error = json_response.get(
-                "error",
-                "Not allowed to access this page. Are you using a valid apikey?",
-            )
-            return self.Error(error)
-        return self.Error("Something went wrong!")
-
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @RequestWrapper
+    @WarehouseRequestWrapper
     def RequestCreateNewInvoicePage(self):
         # Check if client exists
         model.Client.FromPrimary(self.connection, int(self.post.getfirst("client")))
+        warehouse_products = self.warehouse.get_products()
 
-        try:
-            sanitized_invoice, products = helpers.sanitize_new_invoice_post_data(
-                self.post
-            )
-        except marshmallow.exceptions.ValidationError as error:
-            return self.RequestNewInvoicePage(errors=[error.messages])
-        except ValueError as error:
-            return self.RequestNewInvoicePage(errors=[str(error)])
+        invoice_form = forms.get_invoice_form(
+            model.Client.List(self.connection), warehouse_products, postdata=self.post
+        )
+
+        if not invoice_form.validate():
+            return self.RequestNewInvoicePage(invoice_form=invoice_form)
 
         # Start a transaction that is rolled back when any unhandled exception occurs
         with transaction(self.connection, model.Invoice):
-            invoice = helpers.create_invoice_add_products(
-                self.connection, sanitized_invoice, products
+            invoice = helpers.create_invoice(
+                invoice_form, warehouse_products, self.connection
             )
-            response = helpers.warehouse_stock_update_request(
-                self.warehouse_api_url, self.warehouse_apikey, invoice, products
+            reference = helpers.create_invoice_reference_msg(
+                invoice["status"], invoice["sequenceNumber"]
             )
+            self.warehouse.add_order(invoice_form.product.data, reference)
 
-            if response.status_code != 200:
-                model.Client.rollback(self.connection)
-                json_response = response.json()
-                if "errors" in json_response:
-                    return self.RequestNewInvoicePage(errors=json_response["errors"])
-
-        should_mail = self.post.getfirst("shouldmail")
-        payment_request = self.post.getfirst("mollie_payment_request")
+        should_mail = invoice_form.send_mail.data
+        payment_request = invoice_form.mollie_payment_request.data
 
         if invoice and (should_mail or payment_request):
             mail_data = {}
@@ -132,17 +111,17 @@ class PageMaker(basepages.PageMaker):
 
         return self.req.Redirect("/invoices", httpcode=303)
 
-    @uweb3.decorators.TemplateParser("invoices/invoice.html")
+    @uweb3.decorators.TemplateParser("invoice.html")
     @NotExistsErrorCatcher
     def RequestInvoiceDetails(self, sequence_number):
         invoice = model.Invoice.FromSequenceNumber(self.connection, sequence_number)
         return {
             "invoice": invoice,
-            "products": invoice.Products(),
+            "products": invoice.products,
             "totals": invoice.Totals(),
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     def RequestPDFInvoice(self, invoice):
         """Returns the invoice as a pdf file.
 
@@ -156,18 +135,17 @@ class PageMaker(basepages.PageMaker):
             )
         return requestedinvoice
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def RequestInvoicePayed(self):
         """Sets the given invoice to paid."""
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-        invoice["status"] = "paid"
-        invoice.Save()
+        invoice.SetPayed()
         return self.req.Redirect("/invoices", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def RequestInvoiceReservationToNew(self):
@@ -192,33 +170,24 @@ class PageMaker(basepages.PageMaker):
         )
         return self.req.Redirect("/invoices", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
+    @WarehouseRequestWrapper
     def RequestInvoiceCancel(self):
         """Sets the given invoice to paid."""
         invoice = self.post.getfirst("invoice")
         invoice = model.Invoice.FromSequenceNumber(self.connection, invoice)
-        products = invoice.Products()
-
-        warehouse_ready_products = WarehouseStockRefundSchema(many=True).load(products)
-        response = requests.post(
-            f"{self.warehouse_api_url}/products/bulk_stock",
-            json={
-                "apikey": self.warehouse_apikey,
-                "reference": f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
-                "products": warehouse_ready_products,
-            },
+        self.warehouse.cancel_order(
+            invoice.products,
+            f"Canceling pro forma invoice: {invoice['sequenceNumber']}",
         )
-        if response.status_code != 200:
-            return self._handle_api_status_error(response)
-
         invoice.CancelProFormaInvoice()
         return self.req.Redirect("/invoices", httpcode=303)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
-    @uweb3.decorators.TemplateParser("invoices/mt940.html")
+    @uweb3.decorators.TemplateParser("mt940.html")
     def RequestMt940(self, payments=[], failed_invoices=[]):
         return {
             "payments": payments,
@@ -226,7 +195,7 @@ class PageMaker(basepages.PageMaker):
             "mt940_preview": True,
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     def RequestUploadMt940(self):
         # TODO: File validation.
@@ -257,10 +226,10 @@ class PageMaker(basepages.PageMaker):
 
         return self.RequestMt940(payments=payments, failed_invoices=failed_payments)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
-    @uweb3.decorators.TemplateParser("invoices/payments.html")
+    @uweb3.decorators.TemplateParser("payments.html")
     def ManagePayments(self, sequenceNumber):
         invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
         return {
@@ -275,7 +244,7 @@ class PageMaker(basepages.PageMaker):
             "platforms": model.PaymentPlatform.List(self.connection),
         }
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def AddPayment(self, sequenceNumber):
@@ -286,7 +255,7 @@ class PageMaker(basepages.PageMaker):
             f'/invoice/payments/{invoice["sequenceNumber"]}', httpcode=303
         )
 
-    @uweb3.decorators.loggedin
+    @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
     def AddMolliePaymentRequest(self, sequenceNumber):

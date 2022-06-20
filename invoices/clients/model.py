@@ -1,6 +1,5 @@
-import uweb3
-
 from invoices.common import model as common_model
+from invoices.invoice import model as invoice_model
 
 
 class Client(common_model.RichVersionedRecord):
@@ -9,6 +8,11 @@ class Client(common_model.RichVersionedRecord):
     _RECORD_KEY = "clientNumber"
     MIN_NAME_LENGTH = 5
     MAX_NAME_LENGTH = 100
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._invoices = None
+        self._client_ids = None
 
     @classmethod
     def IsFirstClient(cls, connection):
@@ -36,3 +40,22 @@ class Client(common_model.RichVersionedRecord):
                 "There is no client with clientnumber %r." % clientnumber
             )
         return cls(connection, client[0])
+
+    @property
+    def invoices(self):
+        if not self._invoices:
+            self._invoices = invoice_model.Invoice.List(
+                self.connection,
+                conditions="client in ({})".format(str(list(self.client_ids))[1:-1]),
+            )
+        return self._invoices
+
+    @property
+    def client_ids(self):
+        if not self._client_ids:
+            with self.connection as cursor:
+                results = cursor.Execute(
+                    f"""SELECT ID FROM client WHERE clientNumber = {self['clientNumber']}"""
+                )
+            self._client_ids = tuple(result["ID"] for result in results)
+        return self._client_ids

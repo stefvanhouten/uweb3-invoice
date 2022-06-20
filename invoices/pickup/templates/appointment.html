@@ -1,0 +1,31 @@
+[header]
+<section>
+    <h2>Items</h2>
+    {{ if [details] }}
+        {{ inline tables/pickup_items.html }}
+    {{ else }}
+        <p class="info">No items for this appointment</p>
+    {{ endif }}
+</section>
+<section>
+    <h2>Add item</h2>
+    <form class="pickupslots" action="/pickupslot/[appointment:pickupslot:ID]/appointment/[appointment:ID]/details" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        {{ for field in [detail_form] }}
+            {{ if [field:name] != 'pickupslotappointment'}}
+                <p>[field:description]</p>
+                {{ if [field:errors] }}
+                    {{ for error in [field:errors] }}
+                        <p class="error">[error]</p>
+                    {{ endfor }}
+                {{ endif }}
+                <div>
+                    [field:label]
+                    [field]
+                </div>
+            {{ endif }}
+        {{ endfor }}
+        <input type="submit" value="Update">
+    </form>
+</section>
+[footer]
