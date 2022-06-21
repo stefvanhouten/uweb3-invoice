@@ -140,6 +140,9 @@ def create_invoice_object(connection, client_object, companydetails_object):
                 "description": "test",
                 "client": client_object["ID"],
                 "status": status,
+                "pro_forma": True
+                if status == invoice_model.InvoiceStatus.RESERVATION.value
+                else False,
             },
         )
 
@@ -153,7 +156,13 @@ def default_invoice_and_products(create_invoice_object):
     ) -> invoice_model.Invoice:
         invoice = create_invoice_object(status=status)
         products = [
-            {"name": "dakpan", "price": 25, "vat_percentage": 10, "quantity": 10},
+            {
+                "name": "dakpan",
+                "price": 25,
+                "vat_percentage": 10,
+                "sku": 1,
+                "quantity": 10,
+            },
         ]
         invoice.AddProducts(products)
         return invoice
