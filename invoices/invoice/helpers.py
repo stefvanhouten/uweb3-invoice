@@ -346,17 +346,21 @@ class WarehouseApi(BaseApiHelper):
 
 
 def create_invoice(invoice_form, warehouse_products, connection):
-    invoice = model.Invoice.Create(
-        connection,
-        {
-            "client": invoice_form.client.data,
-            "status": model.InvoiceStatus.RESERVATION.value
-            if invoice_form.reservation.data
-            else model.InvoiceStatus.NEW.value,
-            "title": invoice_form.title.data,
-            "description": invoice_form.description.data,
-        },
-    )
+    status = model.InvoiceStatus.NEW.value
+
+    if invoice_form.reservation.data:
+        status = model.InvoiceStatus.RESERVATION.value
+
+    record = {
+        "client": invoice_form.client.data,
+        "status": status,
+        "title": invoice_form.title.data,
+        "description": invoice_form.description.data,
+    }
+    if status == model.InvoiceStatus.RESERVATION:
+        record = record | {"pro_forma": True}
+
+    invoice = model.Invoice.Create(connection, record)
     products = _create_product_list(invoice_form, warehouse_products, invoice["ID"])
     invoice.AddProducts(products)
     return invoice

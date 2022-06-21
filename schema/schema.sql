@@ -32,7 +32,7 @@ CREATE TABLE `appointmentDetails` (
   KEY `fk_appointmentDetails_2_idx` (`pickupslotappointment`),
   CONSTRAINT `fk_appointmentDetails_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_appointmentDetails_2` FOREIGN KEY (`pickupslotappointment`) REFERENCES `pickupSlotAppointment` (`ID`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -79,7 +79,7 @@ CREATE TABLE `companydetails` (
   `bankCity` varchar(200) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `invoiceprefix` varchar(45) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -91,7 +91,7 @@ DROP TABLE IF EXISTS `invoice`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `invoice` (
   `ID` int unsigned NOT NULL AUTO_INCREMENT,
-  `sequenceNumber` char(11) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+  `sequenceNumber` char(25) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
   `companydetails` tinyint unsigned NOT NULL,
   `dateCreated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `dateDue` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -99,6 +99,7 @@ CREATE TABLE `invoice` (
   `description` text CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   `client` mediumint unsigned NOT NULL,
   `status` enum('new','sent','paid','reservation','canceled') CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL DEFAULT 'new',
+  `pro_forma` tinyint DEFAULT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `sequenceNumber` (`sequenceNumber`),
   KEY `status` (`status`),
@@ -106,27 +107,8 @@ CREATE TABLE `invoice` (
   KEY `fk_invoice_2_idx` (`companydetails`),
   CONSTRAINT `fk_invoice_1` FOREIGN KEY (`client`) REFERENCES `client` (`ID`),
   CONSTRAINT `fk_invoice_2` FOREIGN KEY (`companydetails`) REFERENCES `companydetails` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=556 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=584 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 definer=`invoices`@`localhost`*/ /*!50003 TRIGGER `invoice_BEFORE_INSERT` BEFORE INSERT ON `invoice` FOR EACH ROW BEGIN
-	IF new.status = 'reservation' AND SUBSTRING(new.sequenceNumber, 1, 2) != 'PF'
-    THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A pro forma invoice sequencenumber must start with a PF prefix.';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `invoicePayment`
@@ -143,7 +125,7 @@ CREATE TABLE `invoicePayment` (
   `creationTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`ID`),
   KEY `fk_invoicePayment_1_idx` (`invoice`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -154,7 +136,7 @@ CREATE TABLE `invoicePayment` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 definer=`invoices`@`localhost`*/ /*!50003 TRIGGER `invoicePayment_AFTER_INSERT` AFTER INSERT ON `invoicePayment` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 DEFINER=`invoices`@`localhost`*/ /*!50003 TRIGGER `invoicePayment_AFTER_INSERT` AFTER INSERT ON `invoicePayment` FOR EACH ROW BEGIN
     CALL CalculateInvoiceTotalPrice(new.invoice, @total_due);
     CALL CalculateInvoicePaymentTotalPrice(new.invoice, @total_paid);
 	IF ((select @total_paid) >= (select @total_due))
@@ -185,7 +167,7 @@ CREATE TABLE `invoiceProduct` (
   PRIMARY KEY (`ID`),
   KEY `invoice` (`invoice`),
   CONSTRAINT `product_ibfk_1` FOREIGN KEY (`invoice`) REFERENCES `invoice` (`ID`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -244,7 +226,7 @@ CREATE TABLE `pickupSlotAppointment` (
   KEY `fk_pickupSlotAppointment_2_idx` (`client`),
   CONSTRAINT `fk_pickupSlotAppointment_1` FOREIGN KEY (`pickupslot`) REFERENCES `pickupslot` (`ID`),
   CONSTRAINT `fk_pickupSlotAppointment_2` FOREIGN KEY (`client`) REFERENCES `client` (`clientNumber`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -262,7 +244,7 @@ CREATE TABLE `pickupslot` (
   `slots` tinyint unsigned NOT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `date_UNIQUE` (`date`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -274,7 +256,7 @@ DROP TABLE IF EXISTS `proFormaSequenceTable`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `proFormaSequenceTable` (
   `ID` smallint NOT NULL AUTO_INCREMENT,
-  `sequenceNumber` varchar(11) NOT NULL,
+  `sequenceNumber` char(25) NOT NULL,
   PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -315,7 +297,7 @@ CREATE TABLE `user` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE definer=`invoices`@`localhost` PROCEDURE `CalculateInvoicePaymentTotalPrice`(IN invoice int, OUT total_paid DECIMAL(10,2))
+CREATE DEFINER=`invoices`@`localhost` PROCEDURE `CalculateInvoicePaymentTotalPrice`(IN invoice int, OUT total_paid DECIMAL(10,2))
 BEGIN
 	SET total_paid = (SELECT sum(amount) total_paid
 	FROM invoicePayment
@@ -336,7 +318,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE definer=`invoices`@`localhost` PROCEDURE `CalculateInvoiceTotalPrice`(IN invoice int, OUT total_due DECIMAL(10, 2))
+CREATE DEFINER=`invoices`@`localhost` PROCEDURE `CalculateInvoiceTotalPrice`(IN invoice int, OUT total_due DECIMAL(10, 2))
 BEGIN
 	SET total_due = (SELECT ROUND(SUM(p.price * p.quantity * (1+p.vat_percentage/100)), 2) as totaal
 	FROM invoice AS inv
@@ -358,4 +340,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-06-16 15:13:10
+-- Dump completed on 2022-06-21 11:42:41

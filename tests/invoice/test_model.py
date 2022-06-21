@@ -1,4 +1,5 @@
 import datetime
+import time
 from datetime import date
 from decimal import Decimal
 
@@ -16,6 +17,24 @@ from tests.fixtures import *
 
 def calc_due_date():
     return datetime.date.today() + invoice_model.PAYMENT_PERIOD
+
+
+class TestSequenceNumber:
+    @pytest.mark.parametrize(
+        "current, prefix, expected",
+        [
+            ("PREFIX-2022-001", "PREFIX", "PREFIX-2022-002"),
+            ("2022-001", "PREFIX", "PREFIX-2022-002"),
+            ("PREFIX-2022-001", None, "2022-002"),
+            ("2022-001", None, "2022-002"),
+            ("2022-001", None, "2022-002"),
+            ("TEST-2022-001", "SOMENAME", "SOMENAME-2022-002"),
+            (None, None, "%s-001" % time.strftime("%Y")),
+            (None, "PREFIX", "PREFIX-%s-001" % time.strftime("%Y")),
+        ],
+    )
+    def test_prefix(self, current, prefix, expected):
+        assert expected == invoice_model.determine_next_sequence_number(current, prefix)
 
 
 class TestClass:
@@ -57,8 +76,10 @@ class TestClass:
         assert inv["status"] == invoice_model.InvoiceStatus.NEW
 
     def test_invoice_sequence_number(self, connection, simple_invoice_dict):
+        """Determine if the model creates the correct sequenceNumber."""
         inv = invoice_model.Invoice.Create(connection, simple_invoice_dict)
-        assert inv["sequenceNumber"] == f"{date.today().year}-001"
+        # test is the companydetails prefix that we use during unittests
+        assert inv["sequenceNumber"] == "%s-%s-001" % ("test", date.today().year)
 
     def test_invoice_sequence_numbers(self, connection, simple_invoice_dict):
         inv1, inv2, inv3 = (
@@ -73,9 +94,9 @@ class TestClass:
         inv1 = invoice_model.Invoice.Create(connection, inv1)
         inv2 = invoice_model.Invoice.Create(connection, inv2)
         inv3 = invoice_model.Invoice.Create(connection, inv3)
-        assert inv1["sequenceNumber"] == f"{date.today().year}-001"
-        assert inv2["sequenceNumber"] == f"{date.today().year}-002"
-        assert inv3["sequenceNumber"] == f"{date.today().year}-003"
+        assert inv1["sequenceNumber"] == f"test-{date.today().year}-001"
+        assert inv2["sequenceNumber"] == f"test-{date.today().year}-002"
+        assert inv3["sequenceNumber"] == f"test-{date.today().year}-003"
 
     def test_pro_forma_invoice_sequence_number(
         self, connection, client_object, companydetails_object
@@ -92,7 +113,7 @@ class TestClass:
         )
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
 
     def test_invoice_and_pro_forma_mix_sequence_number(self, create_invoice_object):
@@ -109,15 +130,15 @@ class TestClass:
             status=invoice_model.InvoiceStatus.RESERVATION.value
         )
 
-        assert real_invoice["sequenceNumber"] == f"{date.today().year}-001"
+        assert real_invoice["sequenceNumber"] == f"test-{date.today().year}-001"
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
-        assert second_real_invoice["sequenceNumber"] == f"{date.today().year}-002"
+        assert second_real_invoice["sequenceNumber"] == f"test-{date.today().year}-002"
         assert (
             second_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
         )
 
     def test_dont_reuse_pro_forma_sequence_number(self, create_invoice_object):
@@ -126,7 +147,7 @@ class TestClass:
         )
         assert (
             first_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
         first_pro_forma.Delete()
         second_pro_forma = create_invoice_object(
@@ -134,7 +155,7 @@ class TestClass:
         )
         assert (
             second_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
         )
 
     def test_datedue(self):
@@ -168,7 +189,7 @@ class TestClass:
 
         pro_forma.SetPayed()
 
-        assert pro_forma["sequenceNumber"] == f"{date.today().year}-001"
+        assert pro_forma["sequenceNumber"] == f"test-{date.today().year}-001"
         assert pro_forma["status"] == invoice_model.InvoiceStatus.PAID
         assert pro_forma["dateDue"] == calc_due_date()
 
@@ -182,7 +203,7 @@ class TestClass:
         # Make sure the sequenceNumber is still a pro forma sequenceNumber
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
 
     def test_real_invoice_to_canceled(self, create_invoice_object):
@@ -195,8 +216,20 @@ class TestClass:
         inv = create_invoice_object(status=invoice_model.InvoiceStatus.NEW.value)
         inv.AddProducts(
             [
-                {"name": "dakpan", "price": 10, "vat_percentage": 100, "quantity": 2},
-                {"name": "paneel", "price": 5, "vat_percentage": 25, "quantity": 10},
+                {
+                    "name": "dakpan",
+                    "price": 10,
+                    "sku": 1,
+                    "vat_percentage": 100,
+                    "quantity": 2,
+                },
+                {
+                    "name": "paneel",
+                    "price": 5,
+                    "sku": 2,
+                    "vat_percentage": 25,
+                    "quantity": 10,
+                },
             ]
         )
         products = list(inv.products)
@@ -214,8 +247,20 @@ class TestClass:
     def test_invoice_with_products(self, connection, simple_invoice_dict):
         inv = invoice_model.Invoice.Create(connection, simple_invoice_dict)
         products = [
-            {"name": "dakpan", "price": 10, "vat_percentage": 100, "quantity": 2},
-            {"name": "paneel", "price": 5, "vat_percentage": 100, "quantity": 10},
+            {
+                "name": "dakpan",
+                "price": 10,
+                "sku": 1,
+                "vat_percentage": 100,
+                "quantity": 2,
+            },
+            {
+                "name": "paneel",
+                "price": 5,
+                "sku": 2,
+                "vat_percentage": 100,
+                "quantity": 10,
+            },
         ]
         inv.AddProducts(products)
 
@@ -230,12 +275,14 @@ class TestClass:
             {
                 "name": "dakpan",
                 "price": 100.34,
+                "sku": 1,
                 "vat_percentage": 20,
                 "quantity": 10,  # 1204.08
             },
             {
                 "name": "paneel",
                 "price": 12.25,
+                "sku": 2,
                 "vat_percentage": 10,
                 "quantity": 10,  # 134.75
             },
@@ -252,7 +299,13 @@ class TestClass:
     def test_invoice_add_payment(self, connection, create_invoice_object):
         inv = create_invoice_object(status=invoice_model.InvoiceStatus.NEW.value)
         products = [
-            {"name": "dakpan", "price": 25, "vat_percentage": 10, "quantity": 10},
+            {
+                "name": "dakpan",
+                "price": 25,
+                "sku": 1,
+                "vat_percentage": 10,
+                "quantity": 10,
+            },
         ]
         inv.AddProducts(products)
         platform = invoice_model.PaymentPlatform.FromName(connection, "contant")

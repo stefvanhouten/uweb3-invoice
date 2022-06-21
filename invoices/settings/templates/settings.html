@@ -141,8 +141,7 @@
                             <div>
                                 <label for="settings_invoiceprefix">Invoice prefix*</label>
                                 <input type="text" name="invoiceprefix" id="settings_invoiceprefix"
-                                    value="{{ifpresent [settings:invoiceprefix]}}[settings:invoiceprefix]{{endif}}"
-                                    required />
+                                    value="{{ifpresent [settings:invoiceprefix]}}[settings:invoiceprefix|NullString]{{endif}}" />
                             </div>
                         </fieldset>
                         <fieldset>

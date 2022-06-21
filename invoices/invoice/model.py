@@ -2,6 +2,7 @@ import datetime
 import decimal
 import time
 from enum import Enum
+from sqlite3 import connect
 
 import pytz
 import uweb3
@@ -15,6 +16,55 @@ from invoices.common.helpers import round_price
 
 PRO_FORMA_PREFIX = "PF"
 PAYMENT_PERIOD = datetime.timedelta(14)
+
+
+def determine_next_sequence_number(current, prefix):
+    """Determine the next sequence number for a given string
+
+    Args:
+        current (str): The current sequence number of an actual invoice
+        prefix (str): The new prefix for the next sequencenumber
+
+    Raises:
+        ValueError: If not sequence number could be generated based on supplied pattern
+
+    Returns:
+        str: A formatted sequence number string
+
+    Examples:
+        >>> determine_next_sequence_number("PREFIX-2022-001", "ANOTHER_PREFIX")
+        >>> "ANOTHER_PREFIX-2022-002"
+    """
+    splitted = None
+    if current:
+        splitted = current.split("-")
+
+    match splitted:
+        # Match PREFIX-YEAR-NUMBER and replace prefix with new prefix
+        case [str(), str(), str()] if prefix:
+            _, year, number = splitted
+            return "%s-%s-%03d" % (prefix, year, int(number) + 1)
+        # Match YEAR-NUMBER and replace prefix with new prefix
+        case [str(), str()] if prefix:
+            year, number = splitted
+            return "%s-%s-%03d" % (prefix, year, int(number) + 1)
+        # Match PREFIX-YEAR-NUMBER and return YEAR-NUMBER
+        case [str(), str(), str()]:
+            _, year, number = splitted
+            return "%s-%03d" % (year, int(number) + 1)
+        # MATCH YEAR-NUMBER and return YEAR-NUMBER
+        case [str(), str()]:
+            year, number = splitted
+            return "%s-%03d" % (year, int(number) + 1)
+        # Matches when this is the first invoice to create and a prefix should be added
+        case None if prefix:
+            return "%s-%s-%03d" % (prefix, time.strftime("%Y"), 1)
+        # Matches when this is the first invoice to create and no prefix should be added
+        case None:
+            return "%s-%03d" % (time.strftime("%Y"), 1)
+        # Throw error in all other cases
+        case _:
+            raise ValueError("Can not determine a correct invoice prefix")
 
 
 class InvoiceStatus(str, Enum):
@@ -100,13 +150,16 @@ class Invoice(common_model.RichModel):
           Invoice: the newly created invoice.
         """
         status = record.get("status", InvoiceStatus.NEW.value)
+        record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
+
         if status and status == InvoiceStatus.RESERVATION:
             record.setdefault(
                 "sequenceNumber", ProFormaSequenceTable.NextProFormaNumber(connection)
             )
+            record.setdefault("pro_forma", True)
         else:
             record.setdefault("sequenceNumber", cls.NextNumber(connection))
-        record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
+
         record.setdefault("dateDue", cls.CalculateDateDue())
         return super(Invoice, cls).Create(connection, record)
 
@@ -121,7 +174,9 @@ class Invoice(common_model.RichModel):
         # Pro forma invoices can be paid for already, only set status to new when the invoice is not paid for yet.
         if self["status"] != InvoiceStatus.PAID:
             self["status"] = InvoiceStatus.NEW.value
+
         self["dateDue"] = self.CalculateDateDue()
+        self["pro_forma"] = None
         self.Save()
 
     def SetPayed(self):
@@ -141,27 +196,30 @@ class Invoice(common_model.RichModel):
         self.Save()
 
     def _isProForma(self):
-        return self["sequenceNumber"][:2] == PRO_FORMA_PREFIX
+        return bool(self["pro_forma"])
 
     @classmethod
     def NextNumber(cls, connection):
         """Returns the sequenceNumber for the next invoice to create."""
+        highestcompanyid = Companydetails.HighestNumber(connection)
+        details = Companydetails.FromPrimary(connection, highestcompanyid)
+        prefix = details.get("invoiceprefix")
+
         with connection as cursor:
             current_max = cursor.Select(
                 table=cls.TableName(),
                 fields="sequenceNumber",
                 conditions=[
                     "YEAR(dateCreated) = YEAR(NOW())",
-                    f'sequenceNumber NOT LIKE "{PRO_FORMA_PREFIX}-%"',
+                    "pro_forma is null or pro_forma is false",
                 ],
                 limit=1,
-                order=[("sequenceNumber", True)],
+                order=[("ID", True)],
                 escape=False,
             )
         if current_max:
-            year, sequence = current_max[0][0].split("-")
-            return "%s-%03d" % (year, int(sequence) + 1)
-        return "%s-%03d" % (time.strftime("%Y"), 1)
+            current_max = current_max[0][0]
+        return determine_next_sequence_number(current=current_max, prefix=prefix)
 
     @classmethod
     def List(cls, connection, *args, **kwds):
@@ -331,14 +389,23 @@ class ProFormaSequenceTable(Record):
         Returns:
             str: The next sequenceNumber for a pro forma invoice.
         """
+
         with connection as cursor:
             record = cursor.Select(table=cls.TableName(), limit=1)
 
         if record:
             current_max = cls(connection, record[0])
             current_max.SetToNextNum()
-            return current_max["sequenceNumber"]
-        return cls.Create(connection)["sequenceNumber"]
+        else:
+            current_max = cls.Create(connection)
+
+        highestcompanyid = Companydetails.HighestNumber(connection)
+        details = Companydetails.FromPrimary(connection, highestcompanyid)
+        prefix = details.get("invoiceprefix")
+
+        if prefix:
+            return f'{prefix}-{current_max["sequenceNumber"]}'
+        return current_max["sequenceNumber"]
 
     @classmethod
     def Create(cls, connection):
