@@ -24,7 +24,7 @@
             <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
             <td>[invoice:status]</td>
             <td>
-                {{ if [invoice:sequenceNumber|isProForma] and not [invoice:status] == 'canceled' }}
+                {{ if [invoice:pro_forma] and not [invoice:status] == 'canceled' }}
                 <form action="/invoices/settonew" method="post"
                     onsubmit="return confirm('Are you sure you want to change invoice [invoice:sequenceNumber] status from reservation to new?')">
                     <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
