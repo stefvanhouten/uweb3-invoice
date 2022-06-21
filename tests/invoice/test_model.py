@@ -113,7 +113,7 @@ class TestClass:
         )
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
 
     def test_invoice_and_pro_forma_mix_sequence_number(self, create_invoice_object):
@@ -133,12 +133,12 @@ class TestClass:
         assert real_invoice["sequenceNumber"] == f"test-{date.today().year}-001"
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
         assert second_real_invoice["sequenceNumber"] == f"test-{date.today().year}-002"
         assert (
             second_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
         )
 
     def test_dont_reuse_pro_forma_sequence_number(self, create_invoice_object):
@@ -147,7 +147,7 @@ class TestClass:
         )
         assert (
             first_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
         first_pro_forma.Delete()
         second_pro_forma = create_invoice_object(
@@ -155,7 +155,7 @@ class TestClass:
         )
         assert (
             second_pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-002"
         )
 
     def test_datedue(self):
@@ -203,7 +203,7 @@ class TestClass:
         # Make sure the sequenceNumber is still a pro forma sequenceNumber
         assert (
             pro_forma["sequenceNumber"]
-            == f"{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
+            == f"test-{invoice_model.PRO_FORMA_PREFIX}-{date.today().year}-001"
         )
 
     def test_real_invoice_to_canceled(self, create_invoice_object):

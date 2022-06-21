@@ -150,6 +150,8 @@ class Invoice(common_model.RichModel):
           Invoice: the newly created invoice.
         """
         status = record.get("status", InvoiceStatus.NEW.value)
+        record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
+
         if status and status == InvoiceStatus.RESERVATION:
             record.setdefault(
                 "sequenceNumber", ProFormaSequenceTable.NextProFormaNumber(connection)
@@ -158,7 +160,6 @@ class Invoice(common_model.RichModel):
         else:
             record.setdefault("sequenceNumber", cls.NextNumber(connection))
 
-        record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
         record.setdefault("dateDue", cls.CalculateDateDue())
         return super(Invoice, cls).Create(connection, record)
 
@@ -388,14 +389,23 @@ class ProFormaSequenceTable(Record):
         Returns:
             str: The next sequenceNumber for a pro forma invoice.
         """
+
         with connection as cursor:
             record = cursor.Select(table=cls.TableName(), limit=1)
 
         if record:
             current_max = cls(connection, record[0])
             current_max.SetToNextNum()
-            return current_max["sequenceNumber"]
-        return cls.Create(connection)["sequenceNumber"]
+        else:
+            current_max = cls.Create(connection)
+
+        highestcompanyid = Companydetails.HighestNumber(connection)
+        details = Companydetails.FromPrimary(connection, highestcompanyid)
+        prefix = details.get("invoiceprefix")
+
+        if prefix:
+            return f'{prefix}-{current_max["sequenceNumber"]}'
+        return current_max["sequenceNumber"]
 
     @classmethod
     def Create(cls, connection):
