@@ -1,4 +1,5 @@
 import datetime
+import time
 from datetime import date
 from decimal import Decimal
 
@@ -16,6 +17,24 @@ from tests.fixtures import *
 
 def calc_due_date():
     return datetime.date.today() + invoice_model.PAYMENT_PERIOD
+
+
+class TestSequenceNumber:
+    @pytest.mark.parametrize(
+        "current, prefix, expected",
+        [
+            ("PREFIX-2022-001", "PREFIX", "PREFIX-2022-002"),
+            ("2022-001", "PREFIX", "PREFIX-2022-002"),
+            ("PREFIX-2022-001", None, "2022-002"),
+            ("2022-001", None, "2022-002"),
+            ("2022-001", None, "2022-002"),
+            ("TEST-2022-001", "SOMENAME", "SOMENAME-2022-002"),
+            (None, None, "%s-001" % time.strftime("%Y")),
+            (None, "PREFIX", "PREFIX-%s-001" % time.strftime("%Y")),
+        ],
+    )
+    def test_prefix(self, current, prefix, expected):
+        assert expected == invoice_model.determine_next_sequence_number(current, prefix)
 
 
 class TestClass:
