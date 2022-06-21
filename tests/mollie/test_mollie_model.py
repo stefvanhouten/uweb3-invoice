@@ -1,11 +1,12 @@
 import pytest
-import uweb3
 
 from invoices.common import helpers as common_helpers
 from invoices.invoice import model as invoice_model
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
 from tests.fixtures import *  # noqa: F401; pylint: disable=unused-variable
+
+invoice_model.Client.PermissionError
 
 
 class TestClass:
@@ -22,7 +23,7 @@ class TestClass:
             },
         )
         # Prevent changing record state that is already set to paid
-        with pytest.raises(uweb3.model.PermissionError):
+        with pytest.raises(mollie_model.MollieTransaction.PermissionError):
             transaction.SetState(helpers.MollieStatus.OPEN.value)
             transaction.SetState(helpers.MollieStatus.CANCELED.value)
 
@@ -41,7 +42,7 @@ class TestClass:
 
         # Do not allow making changes to status when oldstatus and new status are the same
         # This prevents the record updatetime from being updated for no valid reason
-        with pytest.raises(uweb3.model.PermissionError) as excinfo:
+        with pytest.raises(mollie_model.MollieTransaction.PermissionError) as excinfo:
             transaction.SetState(helpers.MollieStatus.CANCELED.value)
         assert True is str(excinfo.value).startswith(
             "Cannot update transaction, current state is"
@@ -100,5 +101,5 @@ class TestClass:
         refetched_record = mollie_model.MollieTransaction.FromPrimary(connection, 1)
 
         assert refetched_record["status"] == helpers.MollieStatus.OPEN
-        with pytest.raises(uweb3.model.NotExistError):
+        with pytest.raises(mollie_model.MollieTransaction.NotExistError):
             invoice_model.InvoicePayment.FromPrimary(connection, 1)
