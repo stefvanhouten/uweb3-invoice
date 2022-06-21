@@ -35,9 +35,7 @@ class PageMaker(basepages.PageMaker):
     @uweb3.decorators.TemplateParser("invoices.html")
     def RequestInvoicesPage(self):
         return {
-            "invoices": list(
-                model.Invoice.List(self.connection, order=["sequenceNumber"])
-            ),
+            "invoices": list(model.Invoice.List(self.connection)),
         }
 
     @loggedin
