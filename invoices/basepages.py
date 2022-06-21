@@ -21,9 +21,6 @@ class PageMaker(
         self.parser.RegisterFunction("DateOnly", lambda x: str(x)[0:10])
         self.parser.RegisterFunction("TimeOnly", lambda x: str(x)[0:5])
         self.parser.RegisterFunction("NullString", lambda x: "" if x is None else x)
-        self.parser.RegisterFunction(
-            "isProForma", lambda x: bool(str(x).startswith(PRO_FORMA_PREFIX))
-        )
         self.parser.RegisterTag("year", time.strftime("%Y"))
         self.parser.RegisterTag(
             "header", self.parser.JITTag(lambda: self.parser.Parse("parts/header.html"))
