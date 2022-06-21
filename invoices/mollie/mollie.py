@@ -9,9 +9,12 @@ import os
 import uweb3
 
 from invoices import basepages
-from invoices.common.decorators import NotExistsErrorCatcher
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
+from invoices.mollie.decorators import (
+    MollieHookErrorCatcher,
+    MollieNotExistsErrorCatcher,
+)
 
 
 class PageMaker(basepages.PageMaker, helpers.MollieMixin):
@@ -20,7 +23,7 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
     def NewMolliePaymentGateway(self):
         return helpers.mollie_factory(self.connection, self.options["mollie"])
 
-    @NotExistsErrorCatcher
+    @MollieNotExistsErrorCatcher
     def Mollie_Redirect(self, transactionID, secret):
         # TODO: Add logic to check if payment was actually done successfully
         transaction = mollie_model.MollieTransaction.FromPrimary(
@@ -59,26 +62,19 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
 
         return self.parser.Parse("payment_status.html", title=title, message=message)
 
+    @MollieHookErrorCatcher
     def _Mollie_HookPaymentReturn(self, transaction, secret):
         """This is the webhook that mollie calls when that transaction is updated."""
-        # This route is used to receive updates from mollie about the transaction status.
-        try:
-            transaction = mollie_model.MollieTransaction.FromPrimary(
-                self.connection, transaction
-            )
+        raise Exception("test")
+        transaction = mollie_model.MollieTransaction.FromPrimary(
+            self.connection, transaction
+        )
 
-            if transaction["secret"] != secret:
-                return "ok"
-
-            super()._Mollie_HookPaymentReturn(transaction["description"])
-            helpers.CheckAndAddPayment(self.connection, transaction)
-        except (uweb3.model.NotExistError, Exception) as error:
-            # Prevent leaking data about transactions.
-            uweb3.logging.error(
-                f"Error triggered while processing mollie notification for transaction: {transaction} {error}"
-            )
-        finally:
+        if transaction["secret"] != secret:
             return "ok"
+
+        super()._Mollie_HookPaymentReturn(transaction["description"])
+        helpers.CheckAndAddPayment(self.connection, transaction)
 
     def _MollieHandleSuccessfulpayment(self, transaction):
         return "ok"
