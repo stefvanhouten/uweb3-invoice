@@ -157,6 +157,7 @@ class Invoice(common_model.RichModel):
             record.setdefault("pro_forma", True)
         else:
             record.setdefault("sequenceNumber", cls.NextNumber(connection))
+
         record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
         record.setdefault("dateDue", cls.CalculateDateDue())
         return super(Invoice, cls).Create(connection, record)
@@ -207,7 +208,10 @@ class Invoice(common_model.RichModel):
             current_max = cursor.Select(
                 table=cls.TableName(),
                 fields="sequenceNumber",
-                conditions=["YEAR(dateCreated) = YEAR(NOW())", "pro_forma is null"],
+                conditions=[
+                    "YEAR(dateCreated) = YEAR(NOW())",
+                    "pro_forma is null or pro_forma is false",
+                ],
                 limit=1,
                 order=[("ID", True)],
                 escape=False,
