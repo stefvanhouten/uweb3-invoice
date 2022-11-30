@@ -130,7 +130,7 @@
       {{ if [invoice:client:vat_number] }}
         <p>[invoice:client:vat_number]</p>
       {{ endif }}
-      <p> [invoice:client:address]</p>
+      <p> [invoice:client:address] [invoice:client:house_number]{{ if [invoice:client:house_number_addition] }}[invoice:client:house_number_addition]{{ endif }}</p>
       <p>[invoice:client:postalCode], [invoice:client:city]</p>
     </div>
     <div class="overig">

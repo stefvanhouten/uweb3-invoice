@@ -62,6 +62,18 @@
             [edit_client_form:address:label]
             [edit_client_form:address]
           </div>
+
+          {{ for error in [edit_client_form:house_number:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          {{ for error in [edit_client_form:house_number_addition:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:house_number:label]
+            [edit_client_form:house_number]
+            [edit_client_form:house_number_addition]
+          </div>
           {{ for error in [edit_client_form:postalCode:errors] }}
           <p class="error">[error]</p>
           {{ endfor }}
@@ -69,6 +81,7 @@
             [edit_client_form:postalCode:label]
             [edit_client_form:postalCode]
           </div>
+
           {{ for error in [edit_client_form:city:errors] }}
           <p class="error">[error]</p>
           {{ endfor }}

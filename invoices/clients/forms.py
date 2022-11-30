@@ -1,6 +1,6 @@
 import re
 
-from wtforms import Form, RadioField, StringField, validators
+from wtforms import Form, IntegerField, RadioField, StringField, validators
 
 VAT_NUMBER_REGEX = re.compile(
     (
@@ -114,12 +114,25 @@ class ClientForm(Form):
         render_kw={"placeholder": "name@email.com"},
     )
     address = StringField(
-        "Address",
+        "Street name",
         validators=[
             validators.InputRequired(),
             validators.Length(max=45),
         ],
-        render_kw={"placeholder": "Clients address"},
+        render_kw={"placeholder": "Clients street, without house number."},
+    )
+    house_number = IntegerField(
+        "House number",
+        validators=[
+            validators.InputRequired(),
+            validators.NumberRange(min=1, max=99999),
+        ],
+        render_kw={"placeholder": "123"},
+    )
+    house_number_addition = StringField(
+        "House number addition",
+        validators=[validators.Optional()],
+        render_kw={"placeholder": "B"},
     )
     postalCode = StringField(
         "Postal code",

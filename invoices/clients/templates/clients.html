@@ -59,12 +59,25 @@
       </fieldset>
       <fieldset>
         <legend>Postal address</legend>
+
         {{ for error in [new_client_form:address:errors] }}
         <p class="error">[error]</p>
         {{ endfor }}
         <div>
           [new_client_form:address:label]
           [new_client_form:address]
+        </div>
+
+        {{ for error in [new_client_form:house_number:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        {{ for error in [new_client_form:house_number_addition:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:house_number:label]
+          [new_client_form:house_number]
+          [new_client_form:house_number_addition]
         </div>
         {{ for error in [new_client_form:postalCode:errors] }}
         <p class="error">[error]</p>
@@ -73,6 +86,7 @@
           [new_client_form:postalCode:label]
           [new_client_form:postalCode]
         </div>
+
         {{ for error in [new_client_form:city:errors] }}
         <p class="error">[error]</p>
         {{ endfor }}
