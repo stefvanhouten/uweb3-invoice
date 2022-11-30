@@ -1,0 +1,26 @@
+{{ for field in [__form] }}
+    {{ if [field:description] }}
+    <p>[field:description]</p>
+    {{ endif }}
+    {{ if [field:type] == 'SubmitField' }}
+            [field]
+    {{ elif [field:type] == 'Legend' }}
+        <legend>[field:label:text]</legend>
+    {{ elif [field:type] == 'BooleanField' }}
+            <div>
+                <label for="[field:name]">
+                    [field] [field:label:text]
+                </label>
+            </div>
+    {{ else }}
+        {{ if [field:errors] }}
+            {{ for error in [field:errors] }}
+                <p class="error">[error]</p>
+            {{ endfor }}
+        {{ endif }}
+        <div>
+            [field:label]
+            [field]
+        </div>
+    {{ endif }}
+{{ endfor }}

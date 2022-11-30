@@ -1,67 +1,90 @@
-tbody > tr:nth-child(even){
-  background-color:#eaeaea;
+tbody > tr:nth-child(even) {
+    background-color: #eaeaea;
 }
-form td{
-  vertical-align:top;
+form td {
+    vertical-align: top;
 }
-main > section:last-child{
-  margin-bottom: 2em;
+main > section:last-child {
+    margin-bottom: 2em;
 }
-form div + table{
-  margin-top:1em;
+form div + table {
+    margin-top: 1em;
 }
-form td input + input{
-  width:auto !important;
-  margin-left:.2em;
+form td input + input {
+    width: auto !important;
+    margin-left: 0.2em;
 }
-table td>p,
-table td>input:nth-child(2){
-  display: inline;
+table td > p,
+table td > input:nth-child(2) {
+    display: inline;
 }
-table td>input:nth-child(2){
-  width:90% !important;
+table td > input:nth-child(2) {
+    width: 90% !important;
 }
-form.lineform input[type=submit] + a.button{
-  min-width:unset;
-  margin-left:1em;
+form.lineform input[type="submit"] + a.button {
+    min-width: unset;
+    margin-left: 1em;
 }
-textarea.error{
-  background-color: hsl(0, 43%, 91%);
+textarea.error {
+    background-color: hsl(0, 43%, 91%);
 }
-textarea.succes{
-  background-color: hsl(103, 44%, 89%);
+textarea.succes {
+    background-color: hsl(103, 44%, 89%);
 }
-#lostpassword + div{
-  display:none;
+#lostpassword + div {
+    display: none;
 }
-#lostpassword:checked + div{
-  display:block;
+#lostpassword:checked + div {
+    display: block;
 }
 
-body > header nav > ul:not(.external) > li input[type=submit] {
-  color: #FFF;
-  font-size: 15px;
-  border-radius: .125rem;
-  background-color: #444;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .2) inset;
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(transparent), color-stop(40%, rgba(0,0,0, 0.05)), to(rgba(0,0,0, 0.10)));
-  background-image: -webkit-linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.10));
-  background-image: -moz-linear-gradient(top, rgba(0,0,0, 0.05) 0%, rgba(0,0,0, 0.10));
-  background-image: -o-linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.10));
-  background-image: linear-gradient(transparent, rgba(0,0,0, 0.05) 40%, rgba(0,0,0, 0.10));
+body > header nav > ul:not(.external) > li input[type="submit"] {
+    color: #fff;
+    font-size: 15px;
+    border-radius: 0.125rem;
+    background-color: #444;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+    background-image: -webkit-gradient(
+        linear,
+        0 0,
+        0 100%,
+        from(transparent),
+        color-stop(40%, rgba(0, 0, 0, 0.05)),
+        to(rgba(0, 0, 0, 0.1))
+    );
+    background-image: -webkit-linear-gradient(
+        transparent,
+        rgba(0, 0, 0, 0.05) 40%,
+        rgba(0, 0, 0, 0.1)
+    );
+    background-image: -moz-linear-gradient(
+        top,
+        rgba(0, 0, 0, 0.05) 0%,
+        rgba(0, 0, 0, 0.1)
+    );
+    background-image: -o-linear-gradient(
+        transparent,
+        rgba(0, 0, 0, 0.05) 40%,
+        rgba(0, 0, 0, 0.1)
+    );
+    background-image: linear-gradient(
+        transparent,
+        rgba(0, 0, 0, 0.05) 40%,
+        rgba(0, 0, 0, 0.1)
+    );
 }
 
 /* products table in form */
 form table.products .number {
-  width: 7.25rem;
+    width: 7.25rem;
 }
 form table.products .number input[type="number"] {
-  width: 6rem;
-  padding-right: .5em;
+    width: 6rem;
+    padding-right: 0.5em;
 }
 form table.products .number input[name$="_prices"] {
-  margin-left: .25rem;
+    margin-left: 0.25rem;
 }
 form table.products .number input[name$="_vat"] {
-  margin-right: .25rem;
+    margin-right: 0.25rem;
 }

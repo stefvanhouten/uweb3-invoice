@@ -4,17 +4,69 @@ import time
 from enum import Enum
 
 import pytz
+import requests
+import requests.auth
 import uweb3
 
 # Custom modules
 from uweb3.model import Record
+from uweb3plugins.core.models import api_model, richmodel
+from uweb3plugins.core.paginators.model import searchable_table
 
 from invoices.clients.model import Client
-from invoices.common import model as common_model
-from invoices.common.helpers import round_price
+from invoices.common.helpers import round_price, transaction
 
 PRO_FORMA_PREFIX = "PF"
 PAYMENT_PERIOD = datetime.timedelta(14)
+
+
+def determine_next_sequence_number(current, prefix):
+    """Determine the next sequence number for a given string
+
+    Args:
+        current (str): The current sequence number of an actual invoice
+        prefix (str): The new prefix for the next sequencenumber
+
+    Raises:
+        ValueError: If not sequence number could be generated based on supplied pattern
+
+    Returns:
+        str: A formatted sequence number string
+
+    Examples:
+        >>> determine_next_sequence_number("PREFIX-2022-001", "ANOTHER_PREFIX")
+        >>> "ANOTHER_PREFIX-2022-002"
+    """
+    splitted = None
+    if current:
+        splitted = current.split("-")
+
+    match splitted:
+        # Match PREFIX-YEAR-NUMBER and replace prefix with new prefix
+        case [str(), str(), str()] if prefix:
+            _, year, number = splitted
+            return "%s-%s-%03d" % (prefix, year, int(number) + 1)
+        # Match YEAR-NUMBER and replace prefix with new prefix
+        case [str(), str()] if prefix:
+            year, number = splitted
+            return "%s-%s-%03d" % (prefix, year, int(number) + 1)
+        # Match PREFIX-YEAR-NUMBER and return YEAR-NUMBER
+        case [str(), str(), str()]:
+            _, year, number = splitted
+            return "%s-%03d" % (year, int(number) + 1)
+        # MATCH YEAR-NUMBER and return YEAR-NUMBER
+        case [str(), str()]:
+            year, number = splitted
+            return "%s-%03d" % (year, int(number) + 1)
+        # Matches when this is the first invoice to create and a prefix should be added
+        case None if prefix:
+            return "%s-%s-%03d" % (prefix, time.strftime("%Y"), 1)
+        # Matches when this is the first invoice to create and no prefix should be added
+        case None:
+            return "%s-%03d" % (time.strftime("%Y"), 1)
+        # Throw error in all other cases
+        case _:
+            raise ValueError("Can not determine a correct invoice prefix")
 
 
 class InvoiceStatus(str, Enum):
@@ -40,7 +92,7 @@ class Companydetails(Record):
         return 0
 
 
-class InvoiceProduct(common_model.RichModel):
+class InvoiceProduct(richmodel.RichModel):
     """Abstraction class for Products that are linked to an invoice"""
 
     def Totals(self):
@@ -50,13 +102,17 @@ class InvoiceProduct(common_model.RichModel):
         ]
 
 
-class Invoice(common_model.RichModel):
+class Invoice(richmodel.RichModel, searchable_table.SearchableTableMixin):
     """Abstraction class for Invoices stored in the database."""
 
     _FOREIGN_RELATIONS = {
         "contract": None,
         "client": {"class": Client, "loader": "FromPrimary", "LookupKey": "ID"},
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._products = None
 
     def _PreCreate(self, cursor):
         super(Invoice, self)._PreCreate(cursor)
@@ -95,16 +151,39 @@ class Invoice(common_model.RichModel):
         Returns:
           Invoice: the newly created invoice.
         """
-        status = record.get("status", InvoiceStatus.NEW.value)
-        if status and status == InvoiceStatus.RESERVATION:
+
+        with transaction(connection, Invoice):
+            # Set the current highest companydetails info to the invoice
             record.setdefault(
-                "sequenceNumber", ProFormaSequenceTable.NextProFormaNumber(connection)
+                "companyDetails", Companydetails.HighestNumber(connection)
             )
-        else:
-            record.setdefault("sequenceNumber", cls.NextNumber(connection))
-        record.setdefault("companyDetails", Companydetails.HighestNumber(connection))
-        record.setdefault("dateDue", cls.CalculateDateDue())
-        return super(Invoice, cls).Create(connection, record)
+            # If the invoice is a pro-forma set the next PF sequence number
+            if record["status"] == InvoiceStatus.RESERVATION:
+                record.setdefault(
+                    "sequenceNumber",
+                    ProFormaSequenceTable.NextProFormaNumber(connection),
+                )
+                record.setdefault("pro_forma", True)
+            else:
+                record.setdefault("sequenceNumber", cls.NextNumber(connection))
+
+            record.setdefault("dateDue", cls.CalculateDateDue())
+
+            invoice = super(Invoice, cls).Create(
+                connection,
+                {
+                    "sequenceNumber": record["sequenceNumber"],
+                    "companyDetails": record["companyDetails"],
+                    "pro_forma": record.get("pro_forma"),
+                    "title": record["title"],
+                    "description": record["description"],
+                    "client": record["client"],
+                    "status": record["status"],
+                    "dateDue": record["dateDue"],
+                },
+            )
+            invoice.AddProducts(record["products"])
+            return invoice
 
     def ProFormaToRealInvoice(self):
         """Changes a pro forma invoice to an actual invoice.
@@ -117,7 +196,9 @@ class Invoice(common_model.RichModel):
         # Pro forma invoices can be paid for already, only set status to new when the invoice is not paid for yet.
         if self["status"] != InvoiceStatus.PAID:
             self["status"] = InvoiceStatus.NEW.value
+
         self["dateDue"] = self.CalculateDateDue()
+        self["pro_forma"] = None
         self.Save()
 
     def SetPayed(self):
@@ -137,33 +218,39 @@ class Invoice(common_model.RichModel):
         self.Save()
 
     def _isProForma(self):
-        return self["sequenceNumber"][:2] == PRO_FORMA_PREFIX
+        return bool(self["pro_forma"])
 
     @classmethod
     def NextNumber(cls, connection):
         """Returns the sequenceNumber for the next invoice to create."""
+        highestcompanyid = Companydetails.HighestNumber(connection)
+        details = Companydetails.FromPrimary(connection, highestcompanyid)
+        prefix = details.get("invoiceprefix")
+
         with connection as cursor:
             current_max = cursor.Select(
                 table=cls.TableName(),
                 fields="sequenceNumber",
                 conditions=[
                     "YEAR(dateCreated) = YEAR(NOW())",
-                    f'sequenceNumber NOT LIKE "{PRO_FORMA_PREFIX}-%"',
+                    "pro_forma is null or pro_forma is false",
                 ],
                 limit=1,
-                order=[("sequenceNumber", True)],
+                order=[("ID", True)],
                 escape=False,
             )
         if current_max:
-            year, sequence = current_max[0][0].split("-")
-            return "%s-%03d" % (year, int(sequence) + 1)
-        return "%s-%03d" % (time.strftime("%Y"), 1)
+            current_max = current_max[0][0]
+        return determine_next_sequence_number(current=current_max, prefix=prefix)
 
     @classmethod
-    def List(cls, connection, *args, **kwds):
+    def List(cls, connection, *args, **kwds) -> list["Invoice"]:
         invoices = list(super().List(connection, *args, **kwds))
         today = pytz.utc.localize(datetime.datetime.utcnow())
+
         for invoice in invoices:
+            if not isinstance(invoice, cls):
+                continue
             invoice["totals"] = invoice.Totals()
             invoice["dateDue"] = invoice["dateDue"].replace(
                 tzinfo=datetime.timezone.utc
@@ -173,9 +260,9 @@ class Invoice(common_model.RichModel):
                 today > invoice["dateDue"]
                 and invoice["status"] != InvoiceStatus.PAID.value
             ):
-                invoice["overdue"] = "overdue"
+                invoice["overdue"] = True
             else:
-                invoice["overdue"] = ""
+                invoice["overdue"] = False
         return invoices
 
     def Totals(self):
@@ -229,7 +316,7 @@ class Invoice(common_model.RichModel):
             "vat": vatresults,
         }
 
-    def Products(self):
+    def _get_products(self):
         """Returns all products that are part of this invoice."""
         products = InvoiceProduct.List(
             self.connection, conditions=["invoice=%d" % self]
@@ -242,6 +329,12 @@ class Invoice(common_model.RichModel):
             product["index"] = index
             index = index + 1  # TODO implement loop indices in the template parser
             yield product
+
+    @property
+    def products(self):
+        if not self._products:
+            self._products = list(self._get_products())
+        return self._products
 
     def AddProducts(self, products):
         """Add multiple InvoiceProducts to an invoice.
@@ -256,9 +349,9 @@ class Invoice(common_model.RichModel):
                       ]
         """
         for product in products:
-            product["invoice"] = self[
-                "ID"
-            ]  # Set the product to the current invoice ID.
+            if not hasattr(product, "invoice"):
+                # Set the product to the current invoice ID.
+                product["invoice"] = self["ID"]
             InvoiceProduct.Create(self.connection, product)
 
     def GetPayments(self):
@@ -277,6 +370,19 @@ class Invoice(common_model.RichModel):
                 "amount": round_price(amount),
             },
         )
+
+    @classmethod
+    def FromClient(cls, connection, client):
+        """_summary_: Returns all invoices for a given client object.
+
+        Args:
+            connection (PageMaker.connection): The connection to the database.
+            client (model.Client): The client object to get the invoices for.
+
+        Returns:
+            generator: model.Invoice: The invoices for the given client.
+        """
+        return Invoice.List(connection, conditions=f"client in ({client.client_ids})")
 
 
 class PaymentPlatform(Record):
@@ -297,7 +403,7 @@ class PaymentPlatform(Record):
         return cls(connection, platform[0])
 
 
-class InvoicePayment(common_model.RichModel):
+class InvoicePayment(richmodel.RichModel):
     _FOREIGN_RELATIONS = {
         "invoice": {"class": Invoice, "loader": "FromPrimary", "LookupKey": "ID"},
         "platform": {
@@ -321,14 +427,23 @@ class ProFormaSequenceTable(Record):
         Returns:
             str: The next sequenceNumber for a pro forma invoice.
         """
+
         with connection as cursor:
             record = cursor.Select(table=cls.TableName(), limit=1)
 
         if record:
             current_max = cls(connection, record[0])
             current_max.SetToNextNum()
-            return current_max["sequenceNumber"]
-        return cls.Create(connection)["sequenceNumber"]
+        else:
+            current_max = cls.Create(connection)
+
+        highestcompanyid = Companydetails.HighestNumber(connection)
+        details = Companydetails.FromPrimary(connection, highestcompanyid)
+        prefix = details.get("invoiceprefix")
+
+        if prefix:
+            return f'{prefix}-{current_max["sequenceNumber"]}'
+        return current_max["sequenceNumber"]
 
     @classmethod
     def Create(cls, connection):
@@ -352,3 +467,79 @@ class ProFormaSequenceTable(Record):
 
 
 NotExistError = uweb3.model.NotExistError
+
+
+class WarehouseAuth(requests.auth.AuthBase):
+    """Requests auth service set the apikey for an outgoing
+    warehouse request."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def __call__(self, req) -> requests.Request:
+        req.headers["apikey"] = self.connection["apikey"]
+        return req
+
+
+class WarehouseProduct(Record, api_model.ModelSessionMixin):
+    @classmethod
+    def Products(cls, connection):
+        response = cls.request.get(
+            f"{connection['url']}/products",
+            auth=WarehouseAuth(connection),
+            timeout=10,
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        for product in data["products"]:
+            yield WarehouseProduct(connection, product)
+
+    @classmethod
+    def FromSku(cls, connection, sku):
+        response = cls.request.post(
+            f"{connection['url']}/search_product/{sku}",
+            auth=WarehouseAuth(connection),
+            timeout=10,
+        )
+
+        response.raise_for_status()
+        return response.json()
+
+
+class WarehouseOrder(Record, api_model.ModelSessionMixin):
+    @classmethod
+    def Create(cls, connection, record):
+        response = cls.request.post(
+            f"{connection['url']}/order/create",
+            auth=WarehouseAuth(connection),
+            json=record,
+            timeout=10,
+        )
+
+        response.raise_for_status()
+        return response.json()
+
+    @classmethod
+    def Cancel(cls, connection, record):
+        response = cls.request.post(
+            f"{connection['url']}/order/cancel",
+            json=record,
+            auth=WarehouseAuth(connection),
+        )
+
+        response.raise_for_status()
+        return response.json()
+
+    @classmethod
+    def ConfirmReservation(cls, connection, record):
+        response = cls.request.post(
+            f"{connection['url']}/order/convert",
+            auth=WarehouseAuth(connection),
+            json=record,
+            timeout=10,
+        )
+
+        response.raise_for_status()
+        return response.json()

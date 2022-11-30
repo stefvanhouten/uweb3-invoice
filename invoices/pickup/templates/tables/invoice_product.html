@@ -1,0 +1,19 @@
+<table>
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Price</th>
+
+        </tr>
+    </thead>
+    <tbody>
+        {{ for product in [detail:invoice:products] }}
+        <tr>
+            <td>[product:name]</td>
+            <td>[product:quantity]</td>
+            <td>[product:price]</td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>

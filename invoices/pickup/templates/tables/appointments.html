@@ -1,0 +1,34 @@
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Client</th>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for appointment in [appointments] }}
+        <tr>
+            <td><a href="/pickupslot/[slot:ID]/appointment/[appointment:ID]">[appointment:time|TimeOnly]</a></td>
+            <td><a href="/client/[appointment:client:clientNumber]">[appointment:client:name]</a></td>
+            <td>[appointment:status|NullString]</td>
+            <td>[appointment:description|NullString]</td>
+            <td>
+                {{ if not [appointment:status] }}
+                <form action="/pickupslot/[slot:ID]/appointment/[appointment:ID]/delete" method="post">
+                    <input type="hidden" name="xsrf" value="[xsrf]">
+                    <input type="submit" class="error" value="Delete"
+                        onclick="return confirm('Are you sure you want to delete this appointment?');">
+                </form>
+                <form action="/pickupslot/[slot:ID]/appointment/[appointment:ID]/complete" method="post">
+                    <input type="hidden" name="xsrf" value="[xsrf]">
+                    <input type="submit" class="primary" value="Complete" onclick="return confirm('Are you sure you want to mark this appointment as complete?');">
+                </form>
+                {{ endif }}
+            </td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>

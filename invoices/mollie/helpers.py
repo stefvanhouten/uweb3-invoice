@@ -5,6 +5,10 @@ __author__ = "Jan Klopper <janklopper@underdark.nl>"
 __version__ = "0.1"
 
 import json
+import logging
+import os
+import secrets
+import string
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
@@ -14,6 +18,11 @@ from uweb3 import model
 
 from invoices.invoice import model as invoice_model
 from invoices.mollie import model as mollie_model
+
+
+def generate_secret(len: int):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for i in range(len))
 
 
 class MollieStatus(str, Enum):
@@ -49,7 +58,7 @@ def mollie_factory(connection, config):
 
 def new_mollie_request(connection, config, obj: MollieTransactionObject):
     mollie = mollie_factory(connection, config)
-    return mollie.GetForm(obj)
+    return mollie.get_form(obj)
 
 
 def get_request_url(mollie_request):
@@ -71,8 +80,40 @@ def CheckAndAddPayment(connection, transaction):
     return False
 
 
+def _setup_loggers():
+    logger = logging.getLogger("payment_logs")
+    logger.setLevel(logging.DEBUG)
+
+    error_log_path = os.path.join(os.path.dirname(__file__), "payment_errors.log")
+    requests_log_path = os.path.join(os.path.dirname(__file__), "payment_requests.log")
+
+    error_log = logging.FileHandler(error_log_path, encoding="utf-8", delay=False)
+    error_log.setLevel(logging.ERROR)
+
+    requests_log = logging.FileHandler(requests_log_path, encoding="utf-8", delay=False)
+    requests_log.setLevel(logging.INFO)
+
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    error_log.setFormatter(formatter)
+    requests_log.setFormatter(formatter)
+
+    logger.addHandler(error_log)
+    logger.addHandler(requests_log)
+    return logger
+
+
 class MolliePaymentGateway:
-    def __init__(self, connection, apikey, redirect_url, webhook_url):
+    def __init__(
+        self,
+        connection,
+        apikey: str,
+        redirect_url: str,
+        webhook_url: str,
+        request_lib=requests,
+        transaction_model=mollie_model.MollieTransaction,
+        debug=False,
+    ):
         """Init the mollie object and set its values
 
         Arguments:
@@ -87,48 +128,62 @@ class MolliePaymentGateway:
             raise mollie_model.MollieConfigError(
                 "Missing required mollie API setup field."
             )
-
         self.api_url = "https://api.mollie.nl/v2"
         self.connection = connection
         self.apikey = apikey
         self.redirect_url = redirect_url
         self.webhook_url = webhook_url
 
-    def CreateTransaction(self, obj: MollieTransactionObject):
-        """Store the transaction into the database and fetch the unique transaction id"""
-        transaction = self._CreateDatabaseRecord(obj)
-        mollie_transaction = self._CreateMollieTransaction(obj, transaction)
-        payment_data = self._PostPaymentRequest(mollie_transaction)
-        response = self._ProcessResponse(payment_data)
+        self.request_lib = request_lib
+        self.transaction_model = transaction_model
+        self._logger = None
+        self.debug = debug
 
-        transaction["description"] = response["id"]
-        transaction.Save()
+    @property
+    def logger(self):
+        if not self._logger:
+            self._logger = _setup_loggers()
+
+        self._logger.disabled = self.debug
+        return self._logger
+
+    def create_transaction(self, obj: MollieTransactionObject):
+        """Store the transaction into the database and fetch the unique transaction id"""
+        record = self._create_database_record(obj)
+        mollie_transaction = self._create_mollie_transaction(obj, record)
+        payment_data = self._post_payment_request(mollie_transaction)
+        response = self._process_response(payment_data)
+
+        record["description"] = response["id"]
+        record.Save()
         return response["_links"]["checkout"]
 
-    def _ProcessResponse(self, paymentdata):
+    def _process_response(self, paymentdata):
         response = json.loads(paymentdata.text)
         if paymentdata.status_code >= 300:
             raise Exception(response["detail"])  # TODO:Better API exceptions
         return response
 
-    def _PostPaymentRequest(self, mollietransaction):
-        return requests.post(
+    def _post_payment_request(self, mollietransaction):
+        self.logger.info("Created a payment request for %s", mollietransaction)
+        return self.request_lib.post(
             f"{self.api_url}/payments",
             headers={"Authorization": "Bearer " + self.apikey},
             data=json.dumps(mollietransaction),
         )
 
-    def _CreateDatabaseRecord(self, obj):
-        return mollie_model.MollieTransaction.Create(
+    def _create_database_record(self, obj):
+        return self.transaction_model.Create(
             self.connection,
             {
                 "amount": obj.price,
                 "status": MollieStatus.OPEN.value,
                 "invoice": obj.id,
+                "secret": generate_secret(200),
             },
         )
 
-    def _CreateMollieTransaction(self, obj, transaction):
+    def _create_mollie_transaction(self, obj, record):
         return {
             "amount": {
                 "currency": "EUR",
@@ -136,12 +191,12 @@ class MolliePaymentGateway:
             },
             "description": obj.description,
             "metadata": {"order": obj.reference},
-            "redirectUrl": f'{self.redirect_url}/{transaction["ID"]}',
-            "webhookUrl": f'{self.webhook_url}/{transaction["ID"]}',
+            "redirectUrl": f'{self.redirect_url}/{record["ID"]}/{record["secret"]}',
+            "webhookUrl": f'{self.webhook_url}/{record["ID"]}/{record["secret"]}',
             "method": "ideal",
         }
 
-    def _UpdateTransaction(self, transaction_description, payment):
+    def _update_transaction(self, transaction_description, payment):
         """Update the transaction in the database and trigger a succesfull payment
         if the payment has progressed into an authorized state
 
@@ -149,26 +204,58 @@ class MolliePaymentGateway:
         returns False if the notification did not change a transaction into an
         authorized state
         """
-        transaction = mollie_model.MollieTransaction.FromDescription(
+        self.logger.info(
+            """Updating
+                transaction: %s
+                with payment: %s
+            """,
+            transaction_description,
+            payment,
+        )
+        transaction = self.transaction_model.FromDescription(
             self.connection, transaction_description
         )
-        changed = transaction.SetState(payment["status"])
-        if changed:
-            if payment["status"] == MollieStatus.PAID and (
-                payment["amount"]["value"]
-            ) == str(transaction["amount"]):
-                return True
-            if payment["status"] == MollieStatus.FAILED:
-                raise mollie_model.MollieTransactionFailed(
-                    "Mollie payment failed"
-                )  # XXX: Should we throw errors here?
-            if payment["status"] == MollieStatus.CANCELED:
-                raise mollie_model.MollieTransactionCanceled(
-                    "Mollie payment was canceled"
-                )
-        return False
+        state_changed = transaction.SetState(payment["status"])
 
-    def GetForm(self, obj: MollieTransactionObject):
+        if not state_changed:
+            return False
+
+        return self._status_change_success(payment, transaction)
+
+    def _status_change_success(self, mollie_transaction, record):
+        match mollie_transaction["status"]:
+            case MollieStatus.PAID if (
+                str(mollie_transaction["amount"]["value"]) != str(record["amount"])
+            ):
+                self.logger.critical(
+                    """Mollie payment was received successfully but there was a mismatch in the values:
+                    Mollie payment: %s
+                    Stored payment: %s
+                    """,
+                    mollie_transaction,
+                    record,
+                )
+                return True
+            case MollieStatus.PAID:
+                return True
+            case MollieStatus.FAILED:
+                raise mollie_model.MollieTransactionFailed("Mollie payment failed")
+            case MollieStatus.CANCELED:
+                raise mollie_model.MollieTransactionCanceled(
+                    f"Mollie transaction: {mollie_transaction} was canceled"
+                )
+            case MollieStatus.EXPIRED:
+                raise mollie_model.MollieTransactionExpired(
+                    f"Mollie transaction: {mollie_transaction} expired"
+                )
+            case _:
+                self.logger.critical(
+                    "MolliePaymentGateway received an unhandled status %s",
+                    mollie_transaction,
+                )
+                raise mollie_model.MollieError("Unhandled status was passed")
+
+    def get_form(self, obj: MollieTransactionObject):
         """Stores the current transaction and uses the unique id to return the html
                 form containing the redirect and information for mollie
 
@@ -182,14 +269,14 @@ class MolliePaymentGateway:
             @ referenceID: char(11)
                 The sequenceNumber used to identify an invoice with
         """
-        url = self.CreateTransaction(obj)
+        url = self.create_transaction(obj)
         return {
             "url": url,
             "html": '<a href="%s">Klik hier om door te gaan.</a>' % (url),
         }
 
-    def GetPayment(self, transaction):
-        data = requests.request(
+    def get_payment(self, transaction):
+        data = self.request_lib.request(
             "GET",
             f"{self.api_url}/payments/%s" % transaction,
             headers={"Authorization": "Bearer " + self.apikey},
@@ -197,11 +284,11 @@ class MolliePaymentGateway:
         payment = json.loads(data.text)
         return payment
 
-    def Notification(self, transaction):
+    def notification(self, transaction):
         """Handles a notification from Mollie, either by a server to server call or
         a client returning to our notification url"""
-        payment = self.GetPayment(transaction)
-        return self._UpdateTransaction(transaction, payment)
+        payment = self.get_payment(transaction)
+        return self._update_transaction(transaction, payment)
 
 
 class MollieMixin:

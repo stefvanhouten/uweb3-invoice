@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>[title] - Invoices</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+  <link rel="manifest" href="/favicon/site.webmanifest">
+  <link href="https://css.underdark.nl/stable/base.css" rel="stylesheet">
+  <link href="https://css.underdark.nl/stable/layout.css" rel="stylesheet">
+  <link href="https://css.underdark.nl/stable/module.css" rel="stylesheet">
+  <link href="https://css.underdark.nl/stable/theme.css" rel="stylesheet">
+  <link href="/styles/admin.css" rel="stylesheet">
+  <link href="/styles/theme.css" rel="stylesheet">
+  {{ ifpresent [styles] }}
+      {{ for style in [styles] }}
+          <link href="[style]" rel="stylesheet">
+      {{ endfor }}
+  {{ endif }}
+</head>
+
+<body>
+  <header>
+    <div>
+      <div class="logo">
+        <a href="/" title="Invoice system">Invoices</a>
+      </div>
+      <nav>
+        {{ if [user] }}
+        <ul>
+          <li><a href="/clients">Clients</a></li>
+          <li>
+            <button class="invoices">Invoices</button>
+            <ul style="border: None">
+              <li><a href="/invoices">Overview</a></li>
+              <li><a href="/invoices/mt940">Import bank transfers</a></li>
+            </ul>
+          </li>
+          <li><a href="/settings">Settings</a></li>
+          <li><a href="/pickupslots">Pickups</a></li>
+          <li>
+            <form method="post" action="/logout" onsubmit="return confirm('Are you sure you want to logout.')">
+              <input type="hidden" id="xsrf" name="xsrf" value="[xsrf]">
+              <input type="hidden" id="logout" name="action" value="logout">
+              <input type="submit" value="Log out">
+            </form>
+          </li>
+        </ul>
+        {{ else }}
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/login">Login</a></li>
+        </ul>
+        {{ endif }}
+      </nav>
+      <button class="toggle">Menu</button>
+    </div>
+  </header>
+  <main>
+    <section>
+      {{ if [is_development] }}
+      <p class="warning">Running in development mode.</p>
+      {{ endif }}
+    </section>

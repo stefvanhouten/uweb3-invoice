@@ -1,10 +1,12 @@
 from datetime import date
 
 import pytest
+import requests
 from uweb3 import SettingsManager
 from uweb3.libs.sqltalk import mysql
 
 from invoices.invoice import model as invoice_model
+from invoices.login import model as login_model
 from invoices.mollie import helpers as mollie_helpers
 from invoices.mollie import model as mollie_model
 
@@ -15,13 +17,15 @@ __all__ = [
     "client_object",
     "run_before_and_after_tests",
     "companydetails_object",
-    "simple_invoice_dict",
     "create_invoice_object",
     "default_invoice_and_products",
     "mollie_gateway",
+    "session",
+    "url",
 ]
 
 current_year = date.today().year
+url = "http://127.0.0.1:8001"
 
 
 @pytest.fixture
@@ -58,6 +62,21 @@ def connection():
             "INSERT INTO test_invoices.paymentPlatform (name) VALUES ('ideal'),('marktplaats'),('mollie'),('contant')"
         )
     yield connection
+
+
+@pytest.fixture(scope="module")
+def create_unittest_user(connection):
+    try:
+        login_model.User.FromEmail(connection, "unittestuser@gmail.com")
+    except login_model.User.NotExistError:
+        login_model.User.Create(
+            connection,
+            {
+                "email": "unittestuser@gmail.com",
+                "password": "password",
+                "active": "true",
+            },
+        )
 
 
 @pytest.fixture
@@ -116,19 +135,12 @@ def companydetails_object(connection) -> invoice_model.Companydetails:
 
 
 @pytest.fixture
-def simple_invoice_dict(client_object, companydetails_object) -> dict:
-    return {
-        "ID": 1,
-        "title": "test invoice",
-        "description": "test",
-        "client": client_object["ID"],
-        "status": "new",
-    }
-
-
-@pytest.fixture
 def create_invoice_object(connection, client_object, companydetails_object):
-    def create(status=invoice_model.InvoiceStatus.NEW.value) -> invoice_model.Invoice:
+    def create(
+        status=invoice_model.InvoiceStatus.NEW.value, products=None
+    ) -> invoice_model.Invoice:
+        if not products:
+            products = []
         return invoice_model.Invoice.Create(
             connection,
             {
@@ -136,6 +148,10 @@ def create_invoice_object(connection, client_object, companydetails_object):
                 "description": "test",
                 "client": client_object["ID"],
                 "status": status,
+                "pro_forma": True
+                if status == invoice_model.InvoiceStatus.RESERVATION.value
+                else False,
+                "products": products,
             },
         )
 
@@ -147,11 +163,18 @@ def default_invoice_and_products(create_invoice_object):
     def create_default_invoice(
         status=invoice_model.InvoiceStatus.NEW.value,
     ) -> invoice_model.Invoice:
-        invoice = create_invoice_object(status=status)
-        products = [
-            {"name": "dakpan", "price": 25, "vat_percentage": 10, "quantity": 10},
-        ]
-        invoice.AddProducts(products)
+        invoice = create_invoice_object(
+            status=status,
+            products=[
+                {
+                    "name": "dakpan",
+                    "price": 25,
+                    "vat_percentage": 10,
+                    "product_sku": 1,
+                    "quantity": 10,
+                },
+            ],
+        )
         return invoice
 
     return create_default_invoice
@@ -168,6 +191,18 @@ def mollie_gateway(connection, mollie_config, default_invoice_and_products):
             "amount": 50,
             "status": mollie_helpers.MollieStatus.OPEN.value,
             "description": "payment_test",
+            "secret": "testsecret",
         },
     )
     return mollie_helpers.mollie_factory(connection, mollie_config)
+
+
+@pytest.fixture(scope="function")
+def session():
+    session = requests.Session()
+    session.post(
+        url + "/login",
+        data={"email": "admin@underdark.nl", "password": "password"},
+        headers={"Accept": "application/json"},
+    )
+    yield session

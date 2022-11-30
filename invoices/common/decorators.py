@@ -1,8 +1,11 @@
+import os
 from http import HTTPStatus
 
-import requests
 import uweb3
 from marshmallow import ValidationError
+
+from invoices import basepages
+from invoices.common import helpers
 
 
 def NotExistsErrorCatcher(f):
@@ -13,20 +16,6 @@ def NotExistsErrorCatcher(f):
             return f(*args, **kwargs)
         except uweb3.model.NotExistError as error:
             return args[0].RequestInvalidcommand(error=error)
-
-    return wrapper
-
-
-def RequestWrapper(f):
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except requests.exceptions.ConnectionError:
-            return args[0].Error(
-                error="Could not connect to warehouse API, is the warehouse service running?"
-            )
-        except requests.exceptions.RequestException as error:
-            return args[0].Error(error=error)
 
     return wrapper
 
@@ -74,3 +63,26 @@ def json_error_wrapper(func):
             )
 
     return wrapper_schema_validation
+
+
+def loggedin(f):
+    """Decorator that checks if the user requesting the page is logged in based on set cookie."""
+
+    def wrapper(pagemaker, *args, **kwargs):
+        if not pagemaker.user:
+            return uweb3.Redirect("/login", httpcode=303)
+        return f(pagemaker, *args, **kwargs)
+
+    return wrapper
+
+
+def ParseView(f):
+    def Wrapper(pagemaker: basepages.PageMaker, *args, **kwargs):
+        view = f(pagemaker, *args, **kwargs) or {}
+        if isinstance(view, helpers.BaseView):
+            return pagemaker.parser.Parse(
+                os.path.join(pagemaker.TEMPLATE_DIR, view.template), **view.asdict()
+            )
+        return view
+
+    return Wrapper

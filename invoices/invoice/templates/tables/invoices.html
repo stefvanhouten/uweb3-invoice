@@ -1,0 +1,37 @@
+{{ for invoice in [table:items] }}
+<tr class="{{ if [invoice:status] == 'canceled' }} canceled {{ elif [invoice:pro_forma] == 1 }}pro-forma {{ endif }}">
+  <td><a href="/invoice/payments/[invoice:sequenceNumber]">[invoice:sequenceNumber]</a></td>
+  <td><a href="/client/[invoice:client:clientNumber]">[invoice:client:name]</a></td>
+  <td><a href="/invoice/[invoice:sequenceNumber]">[invoice:title]</a></td>
+  <td><a href="/pdfinvoice/[invoice:sequenceNumber]">PDF</a></td>
+  <td>[invoice:dateCreated|DateOnly|html]</td>
+  <td class="number">€&nbsp;[invoice:totals:total_price_without_vat|CentRound|html]</td>
+  <td class="number">€&nbsp;[invoice:totals:total_price|CentRound|html]</td>
+  <td>
+    <div>
+      [invoice:status]
+    </div>
+    {{ if [invoice:overdue] }}
+    <div>
+      overdue
+    </div>
+    {{ endif }}
+  </td>
+  <td class="actions">
+    {{ if [invoice:pro_forma] and not [invoice:status] == 'canceled' }}
+    <form action="/invoices/settonew" method="post"
+      onsubmit="return confirm('Are you sure you want to change invoice [invoice:sequenceNumber] status from reservation to new?')">
+      <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
+      <input type="hidden" name="xsrf" value="[xsrf]" />
+      <input class="convert" type="submit" value="Change to normal invoice" />
+    </form>
+    <form action="/invoices/cancel" method="post"
+      onsubmit="return confirm('Are you sure you want to cancel the reservation for invoice [invoice:sequenceNumber]?')">
+      <input type="hidden" name="invoice" value="[invoice:sequenceNumber]" />
+      <input type="hidden" name="xsrf" value="[xsrf]" />
+      <input class="cancel " type="submit" value="Cancel reservation" />
+    </form>
+    {{ endif }}
+  </td>
+</tr>
+{{ endfor }}

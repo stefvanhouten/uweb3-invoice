@@ -1,0 +1,98 @@
+{{ externalinline templates/parts/header.html }}
+<main>
+  <div>
+    <section id="payment">
+      <ul class="breadcrumb">
+        <li><a href="/invoices">Invoices</a></li>
+        <li><a href="/invoice/payments/[invoice:sequenceNumber]">Payments for [invoice:sequenceNumber]</a></li>
+      </ul>
+      <header>
+        <h1>[invoice:title]</h1>
+        <p>Invoice: [invoice:sequenceNumber]</p>
+      </header>
+      <div id="payment-details">
+        <h2>Details</h2>
+        <p><strong>Klant: </strong>[invoice:client:name]</p>
+        <p><strong>Total due: </strong>&euro; [totals:total_price]</p>
+        <p><strong>Total paid: </strong>&euro; [totals:total_paid]</p>
+        <p><strong>Remaining: </strong>&euro; [totals:remaining]</p>
+        <p><strong>Status: </strong>[invoice:status]</p>
+      </div>
+    </section>
+  </div>
+  <div>
+    <section>
+      <h2>Products</h2>
+      {{ inline tables/invoice_products.html }}
+    </section>
+  </div>
+  <div>
+    <section>
+      <header>
+        <h2>Payments</h2>
+      </header>
+      {{ if len([payments]) == 0 }}
+      <p>No payments available for this invoice</p>
+      {{ else}}
+      {{ inline tables/payments.html }}
+      {{ endif }}
+    </section>
+  </div>
+  <div>
+    <section>
+      <header>
+        <h2>Create payment</h2>
+      </header>
+      <form class="newinvoice" action="/invoice/payments/[invoice:sequenceNumber]" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        <fieldset>
+          <div>
+            <label for="platform">Platform</label>
+            <select name="platform" id="platform">
+              {{ for platform in [platforms] }}
+              <option value="[platform:ID]">[platform:name]</option>
+              {{ endfor }}
+            </select>
+          </div>
+          <div>
+            <label for="amount">amount</label>
+            <input name="amount" id="amount" pattern="^\d*(\.\d{0,2})?$" value="[totals:remaining]" required min="0"></input>
+          </div>
+        </fieldset>
+        <input type="submit" value="Add payment">
+      </form>
+
+    </section>
+  </div>
+  <div>
+    <section>
+      <header>
+        <h2>Create new mollie payment request</h2>
+      </header>
+      <form action="/invoice/payments/mollie/[invoice:sequenceNumber]" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        <fieldset>
+          <div>
+            <label for="amount">amount</label>
+            <input name="amount" id="amount" pattern="^\d*(\.\d{0,2})?$" value="[totals:remaining]" required min="0"></input>
+          </div>
+        </fieldset>
+        <input type="submit" value="Create new request">
+      </form>
+
+    </section>
+  </div>
+  <div>
+    <section>
+      <header>
+        <h2>Mollie payments</h2>
+      </header>
+      {{ if len([mollie_payments]) == 0 }}
+      <p>No payments available for this invoice</p>
+      {{ else}}
+      {{ inline tables/mollie_payments.html }}
+      {{ endif}}
+    </section>
+  </div>
+</main>
+{{ externalinline templates/parts/footer.html }}

@@ -1,27 +1,122 @@
 /* table */
 tbody tr.overdue td {
-  color: hsl(0, 43%, 51%);
-  background-color: hsl(0, 43%, 92%);
+	color: hsl(0, 43%, 51%);
+	background-color: hsl(0, 43%, 92%);
 }
 tbody tr.overdue:nth-child(odd) td {
-  background-color: hsl(0, 43%, 90%);
+	background-color: hsl(0, 43%, 90%);
 }
 
 tbody tr.canceled td {
-  color: hsl(0, 73%, 18%);
-    background-color: hsl(6, 69%, 74%);
+	color: hsl(0, 73%, 18%);
+	background-color: hsl(6, 69%, 74%);
 }
 tbody tr.canceled:nth-child(odd) td {
-  background-color: hsl(6, 69%, 76%);
+	background-color: hsl(6, 69%, 76%);
+}
+
+.actions > form {
+	margin: 2px;
 }
 
 #payment {
-  padding-bottom: 5px;
+	padding-bottom: 5px;
 }
 #payment-details {
-
 }
 
 #payment-details p {
-  line-height: 0.6em;
+	line-height: 0.6em;
+}
+
+input:required {
+	border: 1px solid rgb(29, 3, 3);
+}
+
+/* Style the list */
+ul.breadcrumb {
+	padding: 10px 16px;
+	list-style: none;
+	background-color: #eee;
+}
+
+/* Display list items side by side */
+ul.breadcrumb li {
+	display: inline;
+	font-size: 18px;
+}
+
+/* Add a slash symbol (/) before/behind each list item */
+ul.breadcrumb li + li:before {
+	padding: 4px;
+	color: black;
+	content: "/\00a0";
+}
+
+/* Add a color to all links inside the list */
+ul.breadcrumb li a {
+	color: #0275d8;
+	text-decoration: none;
+}
+
+/* Add a color on mouse-over */
+ul.breadcrumb li a:hover {
+	color: #01447e;
+	text-decoration: underline;
+}
+
+.cancel {
+	background-color: #e11d48;
+	color: #e5e5e5;
+}
+.convert {
+	background-color: #0891b2;
+	color: #e5e5e5;
+}
+
+.pro-forma {
+	background: #cffafe !important;
+}
+
+.gg-clipboard {
+	box-sizing: border-box;
+	position: relative;
+	display: block;
+	transform: scale(var(--ggs, 1));
+	width: 18px;
+	height: 20px;
+	border: 2px solid;
+	border-radius: 2px;
+
+}
+.gg-clipboard::after,
+.gg-clipboard::before {
+	content: "";
+	display: block;
+	box-sizing: border-box;
+	position: absolute;
+	border-radius: 2px;
+	width: 10px;
+	left: 2px;
+}
+.gg-clipboard::before {
+	border: 2px solid;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+	top: -2px;
+	height: 6px;
+}
+.gg-clipboard::after {
+	height: 2px;
+	background: currentColor;
+	box-shadow: 0 -4px 0 0;
+	bottom: 2px;
+}
+.gg-clipboard:hover {
+    transform: scale(1.1);
+}
+.mollie-url {
+	display: flex;
+	flex-direction: row;
+	gap: 5px;
 }

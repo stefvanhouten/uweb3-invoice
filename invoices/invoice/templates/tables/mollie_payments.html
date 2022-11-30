@@ -1,0 +1,36 @@
+<table class="payments">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>description</th>
+      <th>Created</th>
+      <th>Updated</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ for payment in [mollie_payments] }}
+    <tr>
+      <td>[payment:ID]</td>
+      <td>&euro; [payment:amount]</td>
+      <td>[payment:status]</td>
+
+      <td>
+        <div class="mollie-url">
+          [payment:description]
+          <span class="gg-clipboard" data-description="[payment:description]" onclick="copyToClipboard(this)"></span>
+        </div>
+      </td>
+      <td>[payment:creationTime|DateOnly]</td>
+      <td>[payment:updateTime|DateOnly]</td>
+    </tr>
+    {{ endfor }}
+  </tbody>
+</table>
+
+<script>
+  function copyToClipboard(element){
+    navigator.clipboard.writeText(`https://www.mollie.com/checkout/select-issuer/ideal/${element.dataset.description}`);
+  }
+</script>

@@ -2,6 +2,7 @@ import marshmallow.exceptions
 import uweb3
 
 from invoices import basepages
+from invoices.common.decorators import loggedin
 from invoices.common.schemas import CompanyDetailsSchema
 from invoices.invoice import model as invoice_model
 from invoices.login import model
@@ -11,19 +12,10 @@ class PageMaker(basepages.PageMaker):
     def __init__(self, *args, **kwargs):
         super(PageMaker, self).__init__(*args, **kwargs)
 
-    @uweb3.decorators.loggedin
+    @loggedin
     def RequestIndex(self):
         """Returns the homepage"""
         return self.req.Redirect("/invoices", httpcode=303)
-
-    @uweb3.decorators.TemplateParser("login.html")
-    def RequestLogin(self, url=None):
-        """Please login"""
-        if self.user:
-            return self.RequestIndex()
-        if not url and "url" in self.get:
-            url = self.get.getfirst("url")
-        return {"url": url}
 
     @uweb3.decorators.checkxsrf
     @uweb3.decorators.TemplateParser("logout.html")
@@ -36,7 +28,7 @@ class PageMaker(basepages.PageMaker):
                 session = model.Session(self.connection)
                 session.Delete()
                 return self.req.Redirect("/login")
-        return {"message": message}
+        return {"message": message, "title": "Logout"}
 
     @uweb3.decorators.checkxsrf
     def HandleLogin(self):

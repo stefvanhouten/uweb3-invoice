@@ -1,0 +1,110 @@
+{{ externalinline templates/parts/header.html }}
+<main>
+  <div>
+    <section>
+      <ul class="breadcrumb">
+        <li><a href="/clients">Clients</a></li>
+        <li><a href="/client/[client:clientNumber]">[client:name]</a></li>
+      </ul>
+      <header>
+        <h1>[client:name]</h1>
+        <p>Client</p>
+      </header>
+      {{ if [success] }}
+      <p class="info">Successfully updated client data</p>
+      {{ endif }}
+      <form action="/client/[client:clientNumber]" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]" />
+        <fieldset>
+          <legend>General</legend>
+          {{ for error in [edit_client_form:name:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:name:label]
+            [edit_client_form:name]
+          </div>
+          {{ for error in [edit_client_form:telephone:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:telephone:label]
+            [edit_client_form:telephone]
+          </div>
+          {{ for error in [edit_client_form:email:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:email:label]
+            [edit_client_form:email]
+          </div>
+          {{ for error in [edit_client_form:client_type:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:client_type:label]
+            [edit_client_form:client_type]
+          </div>
+          {{ for error in [edit_client_form:vat_number:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div class="hidden" id="vat_number_fields">
+            [edit_client_form:vat_number:label]
+            [edit_client_form:vat_number]
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Postal address</legend>
+          {{ for error in [edit_client_form:address:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:address:label]
+            [edit_client_form:address]
+          </div>
+
+          {{ for error in [edit_client_form:house_number:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          {{ for error in [edit_client_form:house_number_addition:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:house_number:label]
+            [edit_client_form:house_number]
+            [edit_client_form:house_number_addition]
+          </div>
+          {{ for error in [edit_client_form:postalCode:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:postalCode:label]
+            [edit_client_form:postalCode]
+          </div>
+
+          {{ for error in [edit_client_form:city:errors] }}
+          <p class="error">[error]</p>
+          {{ endfor }}
+          <div>
+            [edit_client_form:city:label]
+            [edit_client_form:city]
+          </div>
+        </fieldset>
+        <input type="submit" value="Save changes" />
+      </form>
+
+    </section>
+  </div>
+  <section>
+    <header>
+      <h2>Client invoices</h2>
+      <div>
+        <a href="/invoices/create/[client:clientNumber]">Create new invoice for client</a>
+      </div>
+    </header>
+    [invoices_table:render]
+  </section>
+</main>
+
+<script src="/js/clients.js" defer></script>
+{{ externalinline templates/parts/footer.html }}
