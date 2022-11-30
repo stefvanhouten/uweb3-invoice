@@ -1,6 +1,8 @@
 import abc
 from dataclasses import dataclass
+from http import HTTPStatus
 
+import requests
 from loguru import logger
 
 from invoices.clients import model
@@ -56,11 +58,6 @@ class ViesService:
             )
 
         return ViesResult(is_valid=True, errors=None)
-
-
-class ResidentialBuildingService:
-    def __init__(self):
-        ...
 
 
 class IVatRule(abc.ABC):
@@ -210,3 +207,107 @@ class VatRuleIndividualNonResidential(IVatRule):
     def process(self, client: model.Client) -> int | None:
         if client["client_type"] == "Individual" and not client["residential"]:
             return self.vat_amount
+
+
+class BAGProcessingService:
+    """Service for extracting the address information out of the BAG
+    API response."""
+
+    def adresseerbaar_object(self, json_response: dict):
+        """Extract the adresseerbaar object from the BAG response."""
+        return json_response["_embedded"]["adressen"][0][
+            "adresseerbaarObjectIdentificatie"
+        ]
+
+    def gebruiksdoelen(self, json_response: dict):
+        """Extract the gebruiksdoelen from the BAG response."""
+        return json_response["verblijfsobject"]["gebruiksdoelen"]
+
+
+class BAGRequestService:
+    """Service for making requests to the BAG API."""
+
+    def __init__(self, apikey: str, endpoint: str):
+        self.apikey = apikey
+        self.endpoint = endpoint
+
+        self.s = requests.Session()
+        self.s.headers.update({"X-Api-Key": self.apikey})
+
+    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | None:
+        """Send a request to the BAG API for the given postcode and huisnummer.
+
+        Args:
+            postcode (str): The zipcode for the address.
+            huisnummer (str): The house number for the address.
+
+        Returns:
+            dict: The JSON response from the BAG API.
+        """
+        response = self.s.get(
+            f"{self.endpoint}/adressen?postcode={postcode}&huisnummer={huisnummer}",
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            return
+
+        return response.json()
+
+    def verblijfsobjecten(self, identificatie: str) -> dict | None:
+        """Send a request to the verblijfsobjecten endpoint of the BAG API.
+
+        Args:
+            identificatie (str): The 'adresseerbaarObjectIdentificatie' value from the
+                address endpoint.
+
+        Returns:
+            dict: The JSON response from the BAG API.
+        """
+        response = self.s.get(
+            f"{self.endpoint}/verblijfsobjecten/{identificatie}",
+            headers={"Accept-Crs": "epsg:28992"},
+        )
+
+        if response.status_code != HTTPStatus.OK:
+            return
+
+        return response.json()
+
+
+class BAGService:
+    """Service that is responsible for validation that a given address is a residential
+    area."""
+
+    def __init__(
+        self,
+        bag_api_key: str,
+        endpoint: str = "https://api.bag.acceptatie.kadaster.nl/lvbag/individuelebevragingen/v2",
+        request: BAGRequestService | None = None,
+        processing: BAGProcessingService | None = None,
+    ):
+        if not request:
+            request = BAGRequestService(
+                apikey=bag_api_key,
+                endpoint=endpoint,
+            )
+
+        if not processing:
+            processing = BAGProcessingService()
+
+        self.request = request
+        self.processing = processing
+
+    def is_residential_area(self, postcode: str, huisnummer: str) -> bool:
+        response = self.request.postcode_huisnummer(postcode, huisnummer)
+
+        if not response:
+            return False
+
+        object = self.processing.adresseerbaar_object(response)
+        response = self.request.verblijfsobjecten(object)
+
+        if not response:
+            return False
+
+        doeleind = self.processing.gebruiksdoelen(response)
+        return "woonfunctie" in doeleind

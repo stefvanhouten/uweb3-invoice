@@ -17,6 +17,11 @@ class Client(
         super().__init__(*args, **kwargs)
         self._client_ids = None
 
+    def _PreSave(self, cursor):
+        bag = helpers.BAGService(bag_api_key="placeholder")
+        self["residential"] = bag.is_residential_area("8401RS", "16")
+        super()._PreSave(cursor)
+
     @classmethod
     def IsFirstClient(cls, connection):
         with connection as cursor:
