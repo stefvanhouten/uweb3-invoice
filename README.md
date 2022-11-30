@@ -69,6 +69,9 @@ redirect_url = The URL the client is redirected to after a payment.
 allowed_paths = /path/to/project    # This is the path to the template folder from which
                                      # externalinline may import.
 
+
+[bag]
+apikey = str
 ```
 
 ## Installation
