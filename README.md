@@ -78,10 +78,10 @@ Clone the uweb3 repository and choose the branch that you want to use.
 
 Setup the Invoice repostiry
 > git clone https://github.com/underdarknl/uweb3-invoice.git
-> python3.10 -m venv env
-> source env/bin/activate
-> (env) >>> pip3 install -r ../uweb3/requirements.txt
-> (env) >>> pip3 install -r requirements.txt
+python3.10 -m venv env
+source env/bin/activate
+(env) >>> pip3 install -r ../uweb3/requirements.txt
+(env) >>> pip3 install -r requirements.txt
 
 Setup the database:
 -  `./schema/schema.sql`
