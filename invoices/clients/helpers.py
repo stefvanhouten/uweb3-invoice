@@ -215,12 +215,26 @@ class BAGProcessingService:
 
     def adresseerbaar_object(self, json_response: dict):
         """Extract the adresseerbaar object from the BAG response."""
+
+        # TODO: Handle responses with no results
+        if "_embedded" not in json_response:
+            return
+
+        if "adressen" not in json_response["_embedded"]:
+            return
+
         return json_response["_embedded"]["adressen"][0][
             "adresseerbaarObjectIdentificatie"
         ]
 
     def gebruiksdoelen(self, json_response: dict):
         """Extract the gebruiksdoelen from the BAG response."""
+        if "verblijfsobject" not in json_response:
+            return
+
+        if "gebruiksdoelen" not in json_response["verblijfsobject"]:
+            return
+
         return json_response["verblijfsobject"]["gebruiksdoelen"]
 
 
@@ -298,16 +312,25 @@ class BAGService:
         self.processing = processing
 
     def is_residential_area(self, postcode: str, huisnummer: str) -> bool:
+        # TODO: Handle responses with no results, handle errors
         response = self.request.postcode_huisnummer(postcode, huisnummer)
 
         if not response:
             return False
 
         object = self.processing.adresseerbaar_object(response)
+
+        if not object:
+            return False
+
         response = self.request.verblijfsobjecten(object)
 
         if not response:
             return False
 
         doeleind = self.processing.gebruiksdoelen(response)
+
+        if not doeleind:
+            return False
+
         return "woonfunctie" in doeleind
