@@ -18,8 +18,11 @@ class Client(
         self._client_ids = None
 
     def _PreSave(self, cursor):
-        bag = helpers.BAGService(bag_api_key="placeholder")
-        self["residential"] = bag.is_residential_area("8401RS", "16")
+        bag = helpers.BAGService()
+        self["residential"] = bag.is_residential_area(
+            postcode=self["postalCode"],
+            huisnummer=self["house_number"],
+        )
         super()._PreSave(cursor)
 
     @classmethod

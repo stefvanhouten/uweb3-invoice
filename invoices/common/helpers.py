@@ -1,6 +1,9 @@
+import configparser
 import decimal
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import wtforms
 
@@ -107,3 +110,15 @@ class BaseView:
             for key, value in self.__dict__.items()
             if key not in ("template",)
         }
+
+
+def get_config_path() -> Path:
+    cwd = Path(os.path.dirname(__file__))
+    return Path(cwd.parent / "config.ini")
+
+
+def load_config():
+    path = get_config_path()
+    config = configparser.ConfigParser()
+    config.read(path)
+    return config

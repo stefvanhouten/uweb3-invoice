@@ -6,6 +6,7 @@ import requests
 from loguru import logger
 
 from invoices.clients import model
+from invoices.common import helpers as common_helpers
 from invoices.common.libs import pyvies
 
 
@@ -294,11 +295,27 @@ class BAGService:
 
     def __init__(
         self,
-        bag_api_key: str,
         endpoint: str = "https://api.bag.acceptatie.kadaster.nl/lvbag/individuelebevragingen/v2",
+        bag_api_key: str | None = None,
         request: BAGRequestService | None = None,
         processing: BAGProcessingService | None = None,
     ):
+        """Initialize the BAG service.
+
+        Arguments:
+            endpoint (str | None): The endpoint to use for the BAG API.
+            bag_api_key (str | None): The API key to use for the BAG API.
+                If no key is provided one will be read from the config.
+            request (BAGRequestService | None): The request service to use for the BAG,
+                if no RequestService is provided a default one will be used.
+            processing (BAGProcessingService | None): The processing service to use for
+                the BAG, if no ProcessingService is provided a default one will be used.
+        """
+        if not bag_api_key:
+            logger.info("No BAG API key provided, loading from config file.")
+            config = common_helpers.load_config()
+            bag_api_key = config["bag"]["apikey"]
+
         if not request:
             request = BAGRequestService(
                 apikey=bag_api_key,
