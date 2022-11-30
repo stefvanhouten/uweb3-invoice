@@ -210,7 +210,31 @@ class VatRuleIndividualNonResidential(IVatRule):
             return self.vat_amount
 
 
-class BAGProcessingService:
+class IBAGProcessing(abc.ABC):
+    @abc.abstractmethod
+    def adresseerbaar_object(self, json_response: dict) -> str:
+        pass
+
+    @abc.abstractmethod
+    def gebruiksdoelen(self, json_response: dict) -> list[str]:
+        pass
+
+
+class IBAGRequest(abc.ABC):
+    def __init__(self, apikey: str, endpoint: str):
+        self.apikey = apikey
+        self.endpoint = endpoint
+
+    @abc.abstractmethod
+    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | None:
+        pass
+
+    @abc.abstractmethod
+    def verblijfsobjecten(self, identificatie: str) -> dict | None:
+        pass
+
+
+class BAGProcessingService(IBAGProcessing):
     """Service for extracting the address information out of the BAG
     API response."""
 
@@ -239,12 +263,11 @@ class BAGProcessingService:
         return json_response["verblijfsobject"]["gebruiksdoelen"]
 
 
-class BAGRequestService:
+class BAGRequestService(IBAGRequest):
     """Service for making requests to the BAG API."""
 
     def __init__(self, apikey: str, endpoint: str):
-        self.apikey = apikey
-        self.endpoint = endpoint
+        super().__init__(apikey, endpoint)
 
         self.s = requests.Session()
         self.s.headers.update({"X-Api-Key": self.apikey})
@@ -297,8 +320,8 @@ class BAGService:
         self,
         endpoint: str = "https://api.bag.acceptatie.kadaster.nl/lvbag/individuelebevragingen/v2",
         bag_api_key: str | None = None,
-        request: BAGRequestService | None = None,
-        processing: BAGProcessingService | None = None,
+        request: IBAGRequest | None = None,
+        processing: IBAGProcessing | None = None,
     ):
         """Initialize the BAG service.
 
