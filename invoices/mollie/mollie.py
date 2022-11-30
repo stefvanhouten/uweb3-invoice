@@ -6,8 +6,6 @@ __version__ = "0.1"
 
 import os
 
-import uweb3
-
 from invoices import basepages
 from invoices.mollie import helpers
 from invoices.mollie import model as mollie_model
@@ -65,7 +63,6 @@ class PageMaker(basepages.PageMaker, helpers.MollieMixin):
     @MollieHookErrorCatcher
     def _Mollie_HookPaymentReturn(self, transaction, secret):
         """This is the webhook that mollie calls when that transaction is updated."""
-        raise Exception("test")
         transaction = mollie_model.MollieTransaction.FromPrimary(
             self.connection, transaction
         )

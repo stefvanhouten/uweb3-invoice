@@ -67,6 +67,24 @@ class TestClass:
                 "description": "test",
                 "client": client_object["ID"],
                 "status": invoice_model.InvoiceStatus.NEW.value,
+                "products": [
+                    {
+                        "invoice": 1,
+                        "name": "dakpan",
+                        "price": 10,
+                        "product_sku": 1,
+                        "vat_percentage": 100,
+                        "quantity": 2,
+                    },
+                    {
+                        "invoice": 1,
+                        "name": "paneel",
+                        "price": 5,
+                        "product_sku": 2,
+                        "vat_percentage": 25,
+                        "quantity": 10,
+                    },
+                ],
             },
         )
         assert inv["ID"] == 1
@@ -75,41 +93,26 @@ class TestClass:
         assert inv["client"]["ID"] == client_object["ID"]
         assert inv["status"] == invoice_model.InvoiceStatus.NEW
 
-    def test_invoice_sequence_number(self, connection, simple_invoice_dict):
+    def test_invoice_sequence_number(self, connection, default_invoice_and_products):
         """Determine if the model creates the correct sequenceNumber."""
-        inv = invoice_model.Invoice.Create(connection, simple_invoice_dict)
+        inv = default_invoice_and_products()
         # test is the companydetails prefix that we use during unittests
         assert inv["sequenceNumber"] == "%s-%s-001" % ("test", date.today().year)
 
-    def test_invoice_sequence_numbers(self, connection, simple_invoice_dict):
-        inv1, inv2, inv3 = (
-            simple_invoice_dict.copy(),
-            simple_invoice_dict.copy(),
-            simple_invoice_dict.copy(),
-        )
-        inv1["ID"] = 1
-        inv2["ID"] = 2
-        inv3["ID"] = 3
+    def test_invoice_sequence_numbers(self, connection, default_invoice_and_products):
+        inv1 = default_invoice_and_products()
+        inv2 = default_invoice_and_products()
+        inv3 = default_invoice_and_products()
 
-        inv1 = invoice_model.Invoice.Create(connection, inv1)
-        inv2 = invoice_model.Invoice.Create(connection, inv2)
-        inv3 = invoice_model.Invoice.Create(connection, inv3)
         assert inv1["sequenceNumber"] == f"test-{date.today().year}-001"
         assert inv2["sequenceNumber"] == f"test-{date.today().year}-002"
         assert inv3["sequenceNumber"] == f"test-{date.today().year}-003"
 
     def test_pro_forma_invoice_sequence_number(
-        self, connection, client_object, companydetails_object
+        self, connection, client_object, default_invoice_and_products
     ):
-        pro_forma = invoice_model.Invoice.Create(
-            connection,
-            {
-                "ID": 1,
-                "title": "test invoice",
-                "description": "test",
-                "client": client_object["ID"],
-                "status": "reservation",
-            },
+        pro_forma = default_invoice_and_products(
+            status=invoice_model.InvoiceStatus.RESERVATION.value
         )
         assert (
             pro_forma["sequenceNumber"]
@@ -219,14 +222,14 @@ class TestClass:
                 {
                     "name": "dakpan",
                     "price": 10,
-                    "sku": 1,
+                    "product_sku": 1,
                     "vat_percentage": 100,
                     "quantity": 2,
                 },
                 {
                     "name": "paneel",
                     "price": 5,
-                    "sku": 2,
+                    "product_sku": 2,
                     "vat_percentage": 25,
                     "quantity": 10,
                 },
@@ -244,50 +247,36 @@ class TestClass:
         assert products[1]["vat_percentage"] == 25
         assert products[1]["quantity"] == 10
 
-    def test_invoice_with_products(self, connection, simple_invoice_dict):
-        inv = invoice_model.Invoice.Create(connection, simple_invoice_dict)
-        products = [
-            {
-                "name": "dakpan",
-                "price": 10,
-                "sku": 1,
-                "vat_percentage": 100,
-                "quantity": 2,
-            },
-            {
-                "name": "paneel",
-                "price": 5,
-                "sku": 2,
-                "vat_percentage": 100,
-                "quantity": 10,
-            },
-        ]
-        inv.AddProducts(products)
+    def test_invoice_with_products_decimal(
+        self, connection, companydetails_object, client_object
+    ):
 
-        result = inv.Totals()
-        assert result["total_price_without_vat"] == 70  # 2*10 + 5*10
-        assert result["total_price"] == 140  # 2(2*10 + 5*10)
-        assert result["total_vat"] == 70
-
-    def test_invoice_with_products_decimal(self, connection, simple_invoice_dict):
-        inv = invoice_model.Invoice.Create(connection, simple_invoice_dict)
-        products = [
+        inv = invoice_model.Invoice.Create(
+            connection,
             {
-                "name": "dakpan",
-                "price": 100.34,
-                "sku": 1,
-                "vat_percentage": 20,
-                "quantity": 10,  # 1204.08
+                "title": "test invoice",
+                "description": "test",
+                "client": client_object["ID"],
+                "status": invoice_model.InvoiceStatus.RESERVATION.value,
+                "pro_forma": True,
+                "products": [
+                    {
+                        "name": "dakpan",
+                        "price": 100.34,
+                        "product_sku": 1,
+                        "vat_percentage": 20,
+                        "quantity": 10,  # 1204.08
+                    },
+                    {
+                        "name": "paneel",
+                        "price": 12.25,
+                        "product_sku": 2,
+                        "vat_percentage": 10,
+                        "quantity": 10,  # 134.75
+                    },
+                ],
             },
-            {
-                "name": "paneel",
-                "price": 12.25,
-                "sku": 2,
-                "vat_percentage": 10,
-                "quantity": 10,  # 134.75
-            },
-        ]
-        inv.AddProducts(products)
+        )
 
         result = inv.Totals()
         assert result["total_price_without_vat"] == helpers.round_price(
@@ -302,7 +291,7 @@ class TestClass:
             {
                 "name": "dakpan",
                 "price": 25,
-                "sku": 1,
+                "product_sku": 1,
                 "vat_percentage": 10,
                 "quantity": 10,
             },

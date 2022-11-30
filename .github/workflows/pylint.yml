@@ -4,7 +4,7 @@
 name: Python application
 on:
   push:
-    branches: 
+    branches:
       - dev
   pull_request:
     branches:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-  
+
     runs-on: ubuntu-latest
     services:
       mysql:

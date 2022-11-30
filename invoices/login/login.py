@@ -28,7 +28,7 @@ class PageMaker(basepages.PageMaker):
                 session = model.Session(self.connection)
                 session.Delete()
                 return self.req.Redirect("/login")
-        return {"message": message}
+        return {"message": message, "title": "Logout"}
 
     @uweb3.decorators.checkxsrf
     def HandleLogin(self):

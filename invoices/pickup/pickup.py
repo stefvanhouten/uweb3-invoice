@@ -6,6 +6,7 @@ import uweb3
 from invoices import basepages
 from invoices.clients import model as client_model
 from invoices.common.decorators import NotExistsErrorCatcher, loggedin
+from invoices.invoice import model as invoice_model
 from invoices.pickup import forms, model
 
 
@@ -27,6 +28,7 @@ class PageMaker(basepages.PageMaker):
 
         todays_pickup = model.Pickupslot.FromDate(self.connection, datetime.now())
         return dict(
+            title="Pickup slots",
             pickup_slot_form=pickup_slot_form,
             slots=model.Pickupslot.List(self.connection),
             appointments=todays_pickup.appointments if todays_pickup else [],
@@ -51,6 +53,7 @@ class PageMaker(basepages.PageMaker):
             pickup_slot_form = forms.PickupSlotForm(data=slot)
 
         return dict(
+            title=f"Slots {slot['date']}",
             slot=slot,
             appointments=list(
                 model.PickupSlotAppointment.List(
@@ -148,7 +151,8 @@ class PageMaker(basepages.PageMaker):
             detail_form = forms.AppointmentDetails(self.post)
             detail_form.pickupslotappointment.data = appointmentID
             detail_form.invoice.choices = [
-                (i["ID"], i["sequenceNumber"]) for i in client.invoices
+                (i["ID"], i["sequenceNumber"])
+                for i in invoice_model.Invoice.FromClient(self.connection, client)
             ]
 
         return dict(
@@ -178,7 +182,8 @@ class PageMaker(basepages.PageMaker):
             self.connection, appointment["client"]["clientNumber"]
         )
         detail_form.invoice.choices = [
-            (i["ID"], i["sequenceNumber"]) for i in client.invoices
+            (i["ID"], i["sequenceNumber"])
+            for i in invoice_model.Invoice.FromClient(self.connection, client)
         ]
 
         if not detail_form.validate():

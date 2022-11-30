@@ -1,10 +1,10 @@
-from invoices.invoice import invoices
+from invoices.invoice.pagemakers import invoices, payments
 
 urls = [
     ("/invoices", (invoices.PageMaker, "RequestInvoicesPage"), "GET"),
-    ("/invoices/new", (invoices.PageMaker, "RequestNewInvoicePage"), "GET"),
+    ("/invoices/create/(.*)", (invoices.PageMaker, "RequestNewInvoicePage"), "GET"),
     (
-        "/invoices/new",
+        "/invoices/create/(.*)",
         (invoices.PageMaker, "RequestCreateNewInvoicePage"),
         "POST",
     ),
@@ -18,9 +18,9 @@ urls = [
         (invoices.PageMaker, "RequestInvoiceReservationToNew"),
         "POST",
     ),
-    ("/invoice/payments/mollie/(.*)", (invoices.PageMaker, "AddMolliePaymentRequest")),
-    ("/invoice/payments/(.*)", (invoices.PageMaker, "ManagePayments"), "GET"),
-    ("/invoice/payments/(.*)", (invoices.PageMaker, "AddPayment"), "POST"),
+    ("/invoice/payments/mollie/(.*)", (payments.PageMaker, "AddMolliePaymentRequest")),
+    ("/invoice/payments/(.*)", (payments.PageMaker, "ManagePayments"), "GET"),
+    ("/invoice/payments/(.*)", (payments.PageMaker, "AddPayment"), "POST"),
     ("/invoice/(.*)", (invoices.PageMaker, "RequestInvoiceDetails"), "GET"),
     ("/invoices/cancel", (invoices.PageMaker, "RequestInvoiceCancel"), "POST"),
     ("/invoices/mt940", (invoices.PageMaker, "RequestMt940"), "GET"),

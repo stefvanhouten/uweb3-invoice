@@ -13,11 +13,20 @@ from wtforms import (
     validators,
 )
 
+from invoices.invoice.model import InvoiceStatus
+
 
 class ProductForm(Form):
-    sku = SelectField("Name")
-    price = DecimalField("Price", [validators.NumberRange(min=0)])
-    vat_percentage = DecimalField("VAT", [validators.NumberRange(min=0)])
+    name = StringField("name", validators=[validators.InputRequired()])
+    product_sku = StringField("sku", validators=[validators.InputRequired()])
+    price = DecimalField(
+        "Price",
+        [validators.NumberRange(min=0)],
+    )
+    vat_percentage = DecimalField(
+        "VAT",
+        [validators.NumberRange(min=0)],
+    )
     quantity = IntegerField("Quantity", [validators.NumberRange(min=1)])
 
 
@@ -27,40 +36,40 @@ class InvoiceForm(Form):
         description="The name of the client",
         validators=[validators.InputRequired()],
     )
-    reservation = BooleanField(
-        "Reservation",
-        description="Is this a pro-forma invoice?",
-        validators=[validators.optional()],
+    status = SelectField(
+        "Status",
+        choices=[
+            (InvoiceStatus.NEW.value, "New invoice"),
+            (InvoiceStatus.RESERVATION.value, "Pro forma"),
+        ],
+        validators=[validators.InputRequired()],
+    )
+    title = StringField(
+        "Title",
+        description="The title of the invoice",
+        validators=[validators.InputRequired(), validators.Length(min=5, max=80)],
+        render_kw={"placeholder": "Invoice title"},
     )
     send_mail = BooleanField(
         "Send mail",
         description="Send an email to the client?",
         validators=[validators.Optional()],
     )
-    title = StringField(
-        "Title",
-        description="The title of the invoice",
-        validators=[validators.DataRequired(), validators.Length(min=5, max=80)],
-    )
     mollie_payment_request = DecimalField(
         "Mollie payment request",
         places=2,
         rounding=decimal.ROUND_UP,
-        description="The amount of the payment request",
+        description=(
+            "The amount for the payment request. "
+            "Setting this value will also send an email to the client containing the mollie payment url."
+        ),
         validators=[validators.optional(), validators.NumberRange(min=0)],
+        render_kw={"placeholder": "0.00"},
     )
     description = TextAreaField(
         "Description",
         description="A general description for on the invoice",
         validators=[validators.InputRequired()],
+        render_kw={"placeholder": "Details about the invoice."},
     )
-    product = FieldList(FormField(ProductForm), min_entries=1)
-
-
-def get_invoice_form(clients, products, postdata=None):
-    form = InvoiceForm(postdata)
-    form.client.choices = [(c["ID"], c["name"]) for c in clients]
-    for entry in form.product.entries:
-        entry.sku.choices = [(p["sku"], p["name"]) for p in products]
-        entry.sku.choices.insert(0, ("", "Select product"))
-    return form
+    products = FieldList(FormField(ProductForm), min_entries=1)

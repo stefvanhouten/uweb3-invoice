@@ -1,0 +1,167 @@
+#overlay {
+	display: none;
+	position: fixed;
+	opacity: 1;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: rgba(0, 0, 0, 0.7);
+}
+.form-popup,
+.form-popup label {
+	color: #3b3b3b;
+}
+
+.form-popup label {
+	font-weight: 600;
+}
+.form-popup {
+	display: none;
+	position: fixed;
+	flex-direction: column;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	background-color: #dadde2;
+	border-radius: 5px;
+	z-index: 200;
+}
+
+.form-close button:after {
+	display: inline-block;
+	content: "\00d7";
+	transform: scale(2);
+	color: red;
+}
+
+.form-close button {
+	min-width: unset;
+	min-height: unset;
+	background: transparent;
+	border: none;
+	outline: none;
+	box-shadow: none;
+}
+
+.form-close button:hover {
+	transform: scale(1.5);
+	transition: transform 0.2s;
+}
+
+.form-close,
+.form-apply {
+	position: absolute;
+	right: 0;
+}
+
+.form-apply {
+	bottom: 0;
+}
+
+.form-apply button {
+	min-width: unset;
+}
+
+.form-popup input {
+	margin: 0px;
+}
+
+.form-popup form {
+	background-color: transparent;
+	border: None;
+	margin: 0px;
+	padding: 0px;
+}
+
+.form-popup .product-result-container > li {
+	background-color: #43655a;
+	border-radius: 5px;
+	padding: 5px;
+	margin: 5px 10px 5px 5px;
+	-webkit-user-select: none; /* Safari */
+	-ms-user-select: none; /* IE 10 and IE 11 */
+	user-select: none; /* Standard syntax */
+}
+.form-popup .product-result-container > li:hover {
+	transform: scale(1.01);
+	box-shadow: 2px 2px 5px #628281;
+}
+.form-popup .product-result-container > li:active {
+	box-shadow: 2px 2px 5px #889fa5;
+}
+.product-result {
+	display: flex;
+	flex-direction: column;
+}
+.product-result span {
+	color: #dadde2;
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.form-popup .product-result-container {
+	overflow-y: scroll;
+	height: clamp(300px, 350px, 400px);
+	padding: 0px;
+    margin: 0px;
+}
+.form-container {
+	margin: 0px 20px 20px 20px;
+	width: 700px;
+	height: 720px;
+	height: clamp(720px, 900px, 100%);
+}
+
+.form-container h2 {
+	margin: 10px 0px 10px 0px;
+}
+
+.form-popup .search-field {
+	width: calc(100% - 5px);
+}
+
+.register form {
+	display: flex;
+	flex-direction: column;
+}
+
+.register label {
+	margin-bottom: 15px;
+	position: relative;
+	border-bottom: 1px solid #ddd;
+}
+.register input {
+	width: 100%;
+	padding: 10px;
+	margin-top: 20px;
+	border: none;
+	outline: none;
+	background-color: transparent;
+    font-weight: 400;
+}
+.register input::placeholder {
+	opacity: 0;
+}
+.register span {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform: translateY(30px);
+	font-size: 0.825em;
+	transition-duration: 300ms;
+}
+.register button {
+	padding: 15px 0px;
+	margin-top: 20px;
+	background: purple;
+	color: #fff;
+	border: 1px solid purple;
+	cursor: pointer;
+	border-radius: 3px;
+}
+.register label:focus-within > span,
+input:not(:placeholder-shown) + span {
+	color: purple;
+	transform: translateY(0px);
+}

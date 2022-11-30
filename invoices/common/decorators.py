@@ -1,7 +1,11 @@
+import os
 from http import HTTPStatus
 
 import uweb3
 from marshmallow import ValidationError
+
+from invoices import basepages
+from invoices.common import helpers
 
 
 def NotExistsErrorCatcher(f):
@@ -70,3 +74,15 @@ def loggedin(f):
         return f(pagemaker, *args, **kwargs)
 
     return wrapper
+
+
+def ParseView(f):
+    def Wrapper(pagemaker: basepages.PageMaker, *args, **kwargs):
+        view = f(pagemaker, *args, **kwargs) or {}
+        if isinstance(view, helpers.BaseView):
+            return pagemaker.parser.Parse(
+                os.path.join(pagemaker.TEMPLATE_DIR, view.template), **view.asdict()
+            )
+        return view
+
+    return Wrapper

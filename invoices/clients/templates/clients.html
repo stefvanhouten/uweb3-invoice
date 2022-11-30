@@ -1,25 +1,88 @@
-[header]
-<main>
-    <div>
-        <section class="[page_id]_list">
-            <header>
-                <h1>Clients</h1>
-            </header>
-            {{ if len([clients]) > 0 }}
-                {{ inline tables/clients.html }}
-            {{ else }}
-                <p>You have no clients.</p>
-            {{ endif }}
-            </section>
-    </div>
-    <div>
-        <section id="new" class="[page_id]_new">
-            <header>
-                <h1>New client</h1>
-                <p>Register a new client</p>
-            </header>
-        {{ inline forms/register_client.html}}
-        </section>
-    </div>
-</main>
-[footer]
+{{ externalinline templates/parts/header.html }}
+<script src="/js/clients.js" defer></script>
+<section>
+  <header>
+    <h1>Clients</h1>
+  </header>
+  <div>
+    {{ if [success] }}
+    <p class="info">Successfully created a new client</p>
+    {{ endif }}
+    [clients_table:render]
+  </div>
+</section>
+<section>
+  <header>
+    <h2>New client</h2>
+    <p>Register a new client</p>
+  </header>
+  <div>
+    <form action="/clients" method="post">
+      <input type="hidden" name="xsrf" value="[xsrf]" />
+      <fieldset>
+        <legend>General</legend>
+        {{ for error in [new_client_form:name:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:name:label]
+          [new_client_form:name]
+        </div>
+        {{ for error in [new_client_form:telephone:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:telephone:label]
+          [new_client_form:telephone]
+        </div>
+        {{ for error in [new_client_form:email:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:email:label]
+          [new_client_form:email]
+        </div>
+        {{ for error in [new_client_form:client_type:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:client_type:label]
+          [new_client_form:client_type]
+        </div>
+        {{ for error in [new_client_form:vat_number:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div class="hidden" id="vat_number_fields">
+          [new_client_form:vat_number:label]
+          [new_client_form:vat_number]
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Postal address</legend>
+        {{ for error in [new_client_form:address:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:address:label]
+          [new_client_form:address]
+        </div>
+        {{ for error in [new_client_form:postalCode:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:postalCode:label]
+          [new_client_form:postalCode]
+        </div>
+        {{ for error in [new_client_form:city:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        <div>
+          [new_client_form:city:label]
+          [new_client_form:city]
+        </div>
+      </fieldset>
+      <input type="submit" value="Register client" />
+    </form>
+  </div>
+</section>
+{{ externalinline templates/parts/footer.html }}

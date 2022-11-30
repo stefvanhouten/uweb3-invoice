@@ -20,7 +20,7 @@ def MollieHookErrorCatcher(f):
         try:
             return f(pagemaker, transaction, *args, **kwargs)
         except (uweb3.model.NotExistError, Exception) as error:
-            uweb3.logging.error(
+            pagemaker.logger.error(
                 f"Error triggered while processing mollie notification for transaction: {transaction} {error}"
             )
         finally:

@@ -1,252 +1,364 @@
 (function () {
-    "use strict";
-    if (APIKEY === "[apikey]" || API_URL === "[api_url]") {
-        throw Error(
-            "APIKEY or API_URL was not set propperly. This page will not function."
-        );
-    }
-    var tableEls = document.querySelectorAll("table.products");
-    var productsTable = {
-        el: null,
-        tbodyEl: null,
-        tfootEl: null,
-        productTpl: null,
-        vatTpl: null,
-        vats: [],
-        totalEx: 0,
-        totalInc: 0,
-        oldVats: [],
-        rows: 1,
+	"use strict";
+	if (APIKEY === "[apikey]" || API_URL === "[api_url]") {
+		throw Error(
+			"APIKEY or API_URL was not set propperly. This page will not function."
+		);
+	}
+	async function findProduct(product) {
+		return fetch(`${API_URL}/find_product/${product}?apikey=${APIKEY}`, {
+			mode: "cors",
+			method: "GET",
+		}).then((response) => {
+			if (response.ok) {
+				return response.json();
+			}
+			throw new Error("Something went wrong");
+		});
+	}
 
-        create: function (tableEl) {
-            var that = Object.create(this);
+	async function productFromSku(product) {
+		return fetch(`${API_URL}/product/${product}?apikey=${APIKEY}`, {
+			mode: "cors",
+			method: "GET",
+		}).then((response) => {
+			if (response.ok) {
+				return response.json();
+			}
+			throw new Error("Something went wrong");
+		});
+	}
 
-            that.el = tableEl;
-            that.tbodyEl = that.el.tBodies[0];
-            that.tfootEl = that.el.tFoot;
-            // that.resetInputs();
-            that.productTpl = that.tbodyEl
-                .querySelector("tr.product")
-                .cloneNode(true);
-            that.vatTpl = that.tfootEl.querySelector("tr.vat").cloneNode(true);
-            that.removeVatRows();
-            that.tbodyEl.addEventListener(
-                "change",
-                that.handleChange.bind(that)
-            );
-            // console.log(that.tbodyEl.rows.length);
-        },
+	function calcVat(productPrice, quantity, vat) {
+		return ((productPrice * quantity) / 100) * vat;
+	}
 
-        resetInputs: function () {
-            var inputEls = this.tbodyEl.getElementsByTagName("input");
-            for (var i = 0; i < inputEls.length; i++) {
-                inputEls[i].value = "";
-            }
-        },
+	const productsTable = {
+		rowCount: 0,
+		products: {},
+		elements: {
+			table: document.getElementById("products-table"),
+			subtotalExc: document.getElementById("total-ex-display"),
+			subtotalInc: document.getElementById("total-inc-display"),
+			totalVat: document.getElementById("total-vat"),
+		},
+		subtotalExc: 0,
+		subtotalInc: 0,
+		totalVat: 0,
+		addNewProduct: function (product) {
+			this.updateTable(product);
+		},
+		resetCalculations: function () {
+			this.subtotalExc = 0;
+			this.subtotalInc = 0;
+			this.totalVat = 0;
+			this.totalVatInc = 0;
+		},
+		updateTable: function (product) {
+			const VAT = calcVat(
+				product.inputs.price,
+				product.inputs.quantity,
+				product.inputs.vat
+			);
+			const SUBTOTALEXC = product.inputs.price * product.inputs.quantity;
+			const SUBTOTALINC = SUBTOTALEXC + VAT;
 
-        handleChange: function () {
-            this.totalEx = 0;
-            this.totalInc = 0;
-            this.vats = [];
-            for (var i = 0; i < this.tbodyEl.children.length; i++) {
-                this.update(
-                    this.tbodyEl.children[i].querySelectorAll(
-                        "input, output, select"
-                    )
-                );
-            }
-            if (this.isRowNeeded()) {
-                let clone = this.productTpl.cloneNode(true);
-                let inputs = clone.getElementsByTagName("input");
-                let select = clone.getElementsByTagName("select");
+			this.subtotalExc += SUBTOTALEXC;
+			this.subtotalInc += SUBTOTALINC;
+			this.totalVat += VAT;
 
-                select[0].name = this.updateName(select[0]);
+			this.createNewRow(product, SUBTOTALEXC, SUBTOTALINC, VAT);
+			this.updateTableFooter();
+		},
+		createNewRow: function (product, SUBTOTALEXC, SUBTOTALINC, VAT) {
+			const row = document.createElement("tr");
+			row.innerHTML = `
+                <input type="hidden" name="products-${this.rowCount}-name" value="${product.selected.name}" readonly>
+                <input type="hidden" name="products-${this.rowCount}-product_sku" value="${product.selected.sku}" readonly>
+                <input type="hidden" name="products-${this.rowCount}-price" value="${product.inputs.price}" readonly>
+                <input type="hidden" name="products-${this.rowCount}-vat_percentage" value="${product.inputs.vat}" readonly>
+                <input type="hidden" name="products-${this.rowCount}-quantity" value="${product.inputs.quantity}" readonly>
+                `;
+			row.setAttribute("id", `product-entry-${this.rowCount}`);
+			const name = document.createElement("td");
+			const sku = document.createElement("td");
+			const price = document.createElement("td");
+			const vatEl = document.createElement("td");
+			const quantity = document.createElement("td");
+			const subtotalExc = document.createElement("td");
+			const totalVatEl = document.createElement("td");
+			const subtotalInc = document.createElement("td");
+			const actions = document.createElement("td");
+			const deleteBtn = document.createElement("button");
+			deleteBtn.classList.add("error");
+			deleteBtn.innerHTML = "Delete";
+			deleteBtn.setAttribute("type", "button");
+			deleteBtn.addEventListener(
+				"click",
+				this.deleteRow.bind(this, row, this.rowCount)
+			);
 
-                for (let i = 0; i < inputs.length; ++i) {
-                    inputs[i].name = this.updateName(inputs[i])
-                    inputs[i].value = '';
-                }
-                this.rows++;
-                this.animate(this.tbodyEl.appendChild(clone));
-            }
-        },
-        updateName: function(node){
-            const name = node.name;
-            const words = name.split("-")
-            return `${words[0]}-${this.rows}-${words[2]}`;
-        },
-        determinePrice: function(prices, quantity){
-            for (let index = 0; index < prices.length; index++) {
-                const current_element = prices[index];
-                const next_element = prices[index + 1];
+			// const editBtn = document.createElement("button");
+			// editBtn.classList.add("info");
+			// editBtn.innerHTML = "Edit";
+			// editBtn.setAttribute("type", "button");
+			// editBtn.addEventListener("click",
+			//     this.editRow.bind(this, row, this.rowCount)
+			// )
 
-                if(quantity == current_element.start_range){
-                    return current_element.price;
-                }
+			name.innerHTML = product.selected.name;
+			sku.innerHTML = product.selected.sku;
+			price.innerHTML = `€&nbsp; ${product.inputs.price}`;
+			vatEl.innerHTML = `${product.inputs.vat}%`;
+			quantity.innerHTML = product.inputs.quantity;
 
-                if (
-                    quantity > current_element.start_range &&
-                    next_element &&
-                    quantity < next_element.start_range
-                ) {
-                    return current_element.price;
-                }
+			subtotalExc.innerHTML = `€&nbsp; ${SUBTOTALEXC.toFixed(2)}`;
+			totalVatEl.innerHTML = `€&nbsp; ${VAT.toFixed(2)}`;
+			subtotalInc.innerHTML = `€&nbsp; ${SUBTOTALINC.toFixed(2)}`;
 
-                if(next_element === undefined){
-                    return current_element.price;
-                }
-            }
-            return 0;
-        },
-        update: async function (ioEls) {
-            const PRODUCT = 0;
-            const PRICE = 1;
-            const VAT = 2;
-            const QUANTITY = 3;
-            const VAT_AMOUNT = 4;
-            const SUBTOTAL = 5;
-            const STOCK = 6;
-            if (ioEls[PRODUCT].value === "") {
-                ioEls[PRICE].value = "";
-                ioEls[VAT].value = "";
-                ioEls[QUANTITY].value = "";
-                ioEls[STOCK].value = "";
-                return;
-            }
-            if(ioEls[QUANTITY].value === "" && ioEls[PRODUCT].value != ""){
-                ioEls[QUANTITY].value = 1;
-            }
-            let data = await this.fetchProductInfo(ioEls[PRODUCT].value);
-            let price = this.determinePrice(data.prices, Number(ioEls[QUANTITY].value));
-            ioEls[PRICE].value = price;
-            ioEls[VAT].value = Number(data["vat"]);
-            // Only update the value and vat when the selected product has changed.
-            // This allows custom pricing.
-            // if (ioEls[PRODUCT].value !== ioEls[PRODUCT].dataset.prevval) {
-            // }
+			actions.appendChild(deleteBtn);
+			// actions.appendChild(editBtn);
+			row.appendChild(name);
+			row.appendChild(sku);
+			row.appendChild(price);
+			row.appendChild(vatEl);
+			row.appendChild(quantity);
+			row.appendChild(subtotalExc);
+			row.appendChild(totalVatEl);
+			row.appendChild(subtotalInc);
+			row.appendChild(actions);
 
-            // var price = ioEls[PRICE].valueAsNumber;
-            var vat = ioEls[VAT].valueAsNumber;
-            ioEls[
-                STOCK
-            ].value = `current: ${data["stock"]} possible: +${data["possible_stock"]}`;
-            let quantity = ioEls[QUANTITY].valueAsNumber;
-            var vatAmount = ((price * quantity) / 100) * vat;
-            var subtotal = price * quantity + vatAmount;
+			this.products[this.rowCount] = product;
+			this.rowCount++;
+			this.elements.table.tBodies[0].appendChild(row);
+		},
+		updateTableFooter: function () {
+			this.elements.subtotalExc.innerHTML = `€&nbsp; ${this.subtotalExc.toFixed(
+				2
+			)}`;
+			this.elements.totalVat.innerHTML = `€&nbsp; ${this.totalVat.toFixed(
+				2
+			)}`;
+			this.elements.subtotalInc.innerHTML = `€&nbsp; ${this.subtotalInc.toFixed(
+				2
+			)}`;
+		},
+		deleteRow: function (row, rowIndex) {
+			row.remove();
+			delete this.products[rowIndex];
 
-            if (!isNaN(vat) && !isNaN(vatAmount)) {
-                if (!this.vats[vat]) {
-                    this.vats[vat] = vatAmount;
-                } else {
-                    this.vats[vat] += vatAmount;
-                }
-                ioEls[VAT_AMOUNT].value = "€ " + vatAmount.toFixed(2);
-                ioEls[SUBTOTAL].value = "€ " + subtotal.toFixed(2);
-                this.totalEx += price * quantity;
-                this.totalInc += subtotal;
-            } else {
-                ioEls[VAT_AMOUNT].value = "";
-                ioEls[SUBTOTAL].value = "";
-            }
-            this.updateVatRows();
-            this.tfootEl.querySelector("tr.totalex output").value =
-                "€ " + this.totalEx.toFixed(2);
-            this.tfootEl.querySelector("tr.totalinc output").value =
-                "€ " + this.totalInc.toFixed(2);
-            ioEls[PRODUCT].dataset.prevval = ioEls[PRODUCT].value;
-        },
-        fetchProductInfo: async (product) => {
-            return fetch(
-                `${API_URL}/search_product/${product}?apikey=${APIKEY}`,
-                {
-                    mode: "cors",
-                    method: "GET",
-                }
-            ).then((response) => {
-                if (response.ok) {
-                    return response.json();
-                }
-                throw new Error("Something went wrong");
-            });
-        },
-        updateVatRows: function () {
-            var totalIncEl = this.tfootEl.querySelector("tr.totalinc");
+			this.resetCalculations();
+			for (const [key, product] of Object.entries(this.products)) {
+				const VAT = calcVat(
+					product.inputs.price,
+					product.inputs.quantity,
+					product.inputs.vat
+				);
+				const SUBTOTALEXC =
+					product.inputs.price * product.inputs.quantity;
+				const SUBTOTALINC = SUBTOTALEXC + VAT;
 
-            this.removeVatRows();
-            this.vats.forEach(
-                function (value, index) {
-                    var vatEl = this.vatTpl.cloneNode(true);
+				this.subtotalExc += SUBTOTALEXC;
+				this.subtotalInc += SUBTOTALINC;
+				this.totalVat += VAT;
+			}
+			this.updateTableFooter();
+		},
+		// editRow: function(row, rowIndex) {
+		//     console.log(this.products[rowIndex]);
+		// }
+	};
 
-                    vatEl.children[0].querySelector("output").value = index;
-                    vatEl.children[1].querySelector("output").value =
-                        "€ " + value.toFixed(2);
-                    this.tfootEl.insertBefore(vatEl, totalIncEl);
-                    if (!this.oldVats[index]) {
-                        this.animate(
-                            vatEl,
-                            function () {
-                                this.oldVats[index] = value;
-                            }.bind(this)
-                        );
-                    }
-                }.bind(this)
-            );
-        },
+	const popupform = {
+		results: [],
+		selected: null,
+		table: null,
+		elements: {
+            overlay: document.getElementById("overlay"),
+			form: document.getElementById("myForm"),
+			resultsDiv: document.getElementById("results"),
+			findProductInput: document.querySelector(
+				"input[name='find_product']"
+			),
+			selectedProduct: document.querySelector(
+				"input[name='selected-product']"
+			),
+			selectedProductSku: document.querySelector(
+				"input[name='selected-product-sku']"
+			),
+			selectedProductPrice: document.querySelector(
+				"input[name='selected-product-price']"
+			),
+			selectedProductVat: document.querySelector(
+				"input[name='selected-product-vat']"
+			),
+			selectedProductQuantity: document.querySelector(
+				"input[name='selected-product-quantity']"
+			),
+			saveButton: document.getElementById("save-form"),
+		},
+		init: function (table) {
+			this.table = table;
+			document
+				.getElementById("close-form")
+				.addEventListener("click", this.close.bind(this));
+			document
+				.getElementById("open-form")
+				.addEventListener("click", this.open.bind(this));
 
-        removeVatRows: function () {
-            var vatEls = this.tfootEl.querySelectorAll("tr.vat");
+			this.elements.findProductInput.addEventListener(
+				"keyup",
+				this.find.bind(this)
+			);
+			this.elements.selectedProductQuantity.addEventListener(
+				"change",
+				this.determinePrice.bind(this)
+			);
+			this.elements.saveButton.addEventListener(
+				"click",
+				this.save.bind(this)
+			);
+		},
+		find: function () {
+			if (this.elements.findProductInput.value.length <= 2) {
+				return;
+			}
+			findProduct(this.elements.findProductInput.value).then((data) => {
+                if (data.products) {
+					this.results = data.products;
+				} else {
+					this.results = [];
+				}
+                this.displayResults();
+			});
+		},
+		displayResults: function () {
+			this.elements.resultsDiv.innerHTML = "";
+			this.results.map((product) => {
+				this.elements.resultsDiv.appendChild(
+					this.createResultNode(product)
+				);
+			});
+		},
+		createResultNode: function (product) {
+			const li = document.createElement("li");
+			const container = document.createElement("div");
+			container.classList.add("product-result");
+			container.innerHTML = `
+                <span><strong>Product: </strong>${product.name}</span>
+                <span><strong>SKU: </strong>${product.sku}</span>
+                <span><strong>Stock: </strong>${product.currentstock}</span>
+            `;
+			li.appendChild(container);
+			li.addEventListener(
+				"click",
+				this.handleResultClick.bind(this, product)
+			);
+			return li;
+		},
+		handleResultClick: function (product) {
+			this.selected = product;
+			this.update();
+		},
+		update: function () {
+			this.elements.selectedProduct.value = this.selected.name;
+			this.elements.selectedProductSku.value = this.selected.sku;
+			this.elements.selectedProductPrice.value =
+				this.selected?.prices[0].price;
 
-            for (var i = 0; i < vatEls.length; i++) {
-                vatEls[i].parentNode.removeChild(vatEls[i]);
-            }
-        },
+            //VAT_AMOUNT is loaded in from create.html
+			this.elements.selectedProductVat.value = VAT_AMOUNT;
+			if (!this.elements.selectedProductQuantity.value) {
+				this.elements.selectedProductQuantity.value = 1;
+			}
+		},
+		determinePrice: function () {
+			if (!this.selected || !this.selected?.prices) {
+				return;
+			}
 
-        isRowNeeded: function () {
-            var rowEmpty = true,
-                rowNeeded = true,
-                inputEls;
+			for (let index = 0; index < this.selected.prices.length; index++) {
+				const current_element = this.selected.prices[index];
+				const next_element = this.selected.prices[index + 1];
+				const quantity = this.elements.selectedProductQuantity.value;
 
-            for (var i = 0; i < this.tbodyEl.children.length; i++) {
-                inputEls =
-                    this.tbodyEl.children[i].getElementsByTagName("input");
-                for (var j = 0; j < inputEls.length; j++) {
-                    if (inputEls[j].value !== "") {
-                        rowEmpty = false;
-                    }
-                }
-                if (rowEmpty) {
-                    rowNeeded = false;
-                }
-                rowEmpty = true;
-            }
-            return rowNeeded;
-        },
+				if (quantity == current_element.start_range) {
+					this.elements.selectedProductPrice.value =
+						current_element.price;
+					return;
+				}
 
-        animate: function (rowEl, callback) {
-            rowEl.classList.add("is-closed");
-            for (var i = 0; i < rowEl.children.length; i++) {
-                this.wrapInner(rowEl.children[i]);
-            }
-            window.requestAnimationFrame(function () {
-                rowEl.classList.remove("is-closed");
-                if (callback) {
-                    callback();
-                }
-            });
-        },
+				if (
+					quantity > current_element.start_range &&
+					next_element &&
+					quantity < next_element.start_range
+				) {
+					this.elements.selectedProductPrice.value =
+						current_element.price;
+					return;
+				}
 
-        wrapInner: function (el) {
-            var wrapper = document.createElement("div");
+				if (next_element === undefined) {
+					this.elements.selectedProductPrice.value =
+						current_element.price;
+					return;
+				}
+			}
+		},
+		save: function () {
+			this.table.addNewProduct({
+				selected: this.selected,
+				inputs: {
+					quantity: this.elements.selectedProductQuantity.value,
+					vat: this.elements.selectedProductVat.value,
+					price: this.elements.selectedProductPrice.value,
+				},
+			});
+			this.close();
+		},
+		open: function () {
+			this.reset();
+            this.elements.overlay.style.display = "block";
+			this.elements.form.style.display = "flex";
+            this.elements.findProductInput.focus()
+            document.body.style.overflow = 'hidden';
+		},
+		close: function () {
+			this.reset();
+            this.elements.overlay.style.display = "none";
+			this.elements.form.style.display = "none";
+            document.body.style.overflow = '';
+		},
+		reset: function () {
+			this.selected = null;
+			this.results = [];
+			this.elements.findProductInput.value = "";
+			this.elements.resultsDiv.innerHTML = "";
+			this.elements.selectedProduct.value = "";
+			this.elements.selectedProductSku.value = "";
+			this.elements.selectedProductPrice.value = "";
+			this.elements.selectedProductVat.value = "";
+			this.elements.selectedProductQuantity.value = "";
+		},
+	};
 
-            while (el.firstChild) {
-                wrapper.appendChild(el.firstChild);
-            }
-            el.appendChild(wrapper);
-            return wrapper;
-        },
-    };
+	popupform.init(productsTable);
 
-    for (var i = 0; i < tableEls.length; i++) {
-        productsTable.create(tableEls[i]);
-    }
+	const form = JSON.parse(FORM_DATA);
+
+	form.forEach((product, index) => {
+		if (product.name === null) {
+			return;
+		}
+		productFromSku(product.product_sku).then((data) => {
+			productsTable.addNewProduct({
+				selected: data,
+				inputs: {
+					quantity: product.quantity,
+					vat: product.vat_percentage,
+					price: product.price,
+				},
+			});
+		});
+	});
 })();

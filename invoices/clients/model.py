@@ -1,8 +1,12 @@
-from invoices.common import model as common_model
-from invoices.invoice import model as invoice_model
+from uweb3plugins.core.models import richversionrecord
+from uweb3plugins.core.paginators.model import searchable_table
+
+from invoices.clients import helpers
 
 
-class Client(common_model.RichVersionedRecord):
+class Client(
+    richversionrecord.RichVersionedRecord, searchable_table.SearchableTableMixin
+):
     """Abstraction class for Clients stored in the database."""
 
     _RECORD_KEY = "clientNumber"
@@ -11,7 +15,6 @@ class Client(common_model.RichVersionedRecord):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._invoices = None
         self._client_ids = None
 
     @classmethod
@@ -25,7 +28,7 @@ class Client(common_model.RichVersionedRecord):
             )
 
     @classmethod
-    def FromClientNumber(cls, connection, clientnumber):
+    def FromClientNumber(cls, connection, clientnumber) -> "Client":
         """Returns the client belonging to the given clientnumber."""
         client = list(
             Client.List(
@@ -42,15 +45,6 @@ class Client(common_model.RichVersionedRecord):
         return cls(connection, client[0])
 
     @property
-    def invoices(self):
-        if not self._invoices:
-            self._invoices = invoice_model.Invoice.List(
-                self.connection,
-                conditions="client in ({})".format(str(list(self.client_ids))[1:-1]),
-            )
-        return self._invoices
-
-    @property
     def client_ids(self):
         if not self._client_ids:
             with self.connection as cursor:
@@ -58,4 +52,22 @@ class Client(common_model.RichVersionedRecord):
                     f"""SELECT ID FROM client WHERE clientNumber = {self['clientNumber']}"""
                 )
             self._client_ids = tuple(result["ID"] for result in results)
-        return self._client_ids
+        return ",".join(str(client_id) for client_id in self._client_ids)
+
+    @property
+    def get_vat(self):
+        """This property is used to determine the % of VAT to be applied to the client.
+
+        This amount is determined by the following things:
+            - If the client is a company, the VAT is 19%.
+            - If the client is a person, the VAT is 21%.
+            - If the client is a person, but the building is not a residential area
+                the vat is 21%.
+        """
+        v = helpers.VatCalculator()
+        return v.check(self).vat_amount
+
+    @property
+    def explain_vat(self):
+        v = helpers.VatCalculator()
+        return v.explain_rules(self)

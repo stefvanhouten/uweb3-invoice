@@ -1,4 +1,4 @@
-[header]
+{{ externalinline templates/parts/header.html }}
 <section>
     <h2>Appointments for [slot:date]</h2>
     {{ if len([appointments]) }}
@@ -34,4 +34,4 @@
         <input type="submit" value="Update">
     </form>
 </section>
-[footer]
+{{ externalinline templates/parts/footer.html }}

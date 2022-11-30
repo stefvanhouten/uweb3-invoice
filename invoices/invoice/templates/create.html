@@ -1,18 +1,132 @@
-[header]
+{{ externalinline templates/parts/header.html }}
 <main>
   <div>
     <section>
+      <ul class="breadcrumb">
+        <li><a href="/invoices">Invoices</a></li>
+        <li><a href="/invoices/create/[client:clientNumber]">Create new invoice</a></li>
+      </ul>
       <header>
         <h1>Create new invoice</h1>
       </header>
-      {{ inline forms/new_invoice.html }}
+      <span>Relevant VAT rules for this client</span>
+      {{ for rule in [client:explain_vat] }}
+        <p class="info">
+          [rule]
+        </p>
+      {{ endfor }}
+      {{ for errors in [invoice_form:products:errors] }}
+        {{ for key, errors_for_key in [errors|items] }}
+          {{ for error in [errors_for_key] }}
+            <p class="error">[key]: [error]</p>
+          {{ endfor }}
+        {{ endfor }}
+      {{ endfor }}
+      <form class="newinvoice" action="/invoices/create/[client:clientNumber]" method="post">
+        <input type="hidden" name="xsrf" value="[xsrf]">
+        {{ for field in [invoice_form] }}
+        {{ if [field:name] != 'products' }}
+        <p>[field:description]</p>
+        {{ if [field:errors] }}
+        {{ for error in [field:errors] }}
+        <p class="error">[error]</p>
+        {{ endfor }}
+        {{ endif }}
+        <div>
+          [field:label]
+          [field]
+        </div>
+        {{ endif }}
+        {{ endfor }}
+        <fieldset>
+          <legend>Products / services</legend>
+          <table id="products-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th class="number">Price</th>
+                <th class="number">VAT</th>
+                <th class="number">Quantity</th>
+                <th class="number">Subtotal (exc. VAT)</th>
+                <th class="number">VAT amount</th>
+                <th class="number">Subtotal</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <button class="open-button info" type="button" id="open-form">Add product</button>
+            </tbody>
+            <tfoot>
+              <tr class="totalex">
+                <th colspan="5" class="number">Total (exc. VAT)</th>
+                <td class="number"><output id="total-ex-display"></output></td>
+                <td colspan="3"></td>
+              </tr>
+              <tr class="vat">
+                <th colspan="5" class="number">Total VAT</th>
+                <td class="number"><output id="total-vat"></output></td>
+                <td colspan="3"></td>
+              </tr>
+              <tr class="totalinc">
+                <th colspan="5" class="number">Total (inc. VAT)</th>
+                <td class="number"><output id="total-inc-display"></output></td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </fieldset>
+        <input type="submit" class="info" value="Create invoice">
+      </form>
     </section>
   </div>
 </main>
+
+
+<div id="overlay">
+  <div class="form-popup" id="myForm">
+    <div class="form-close">
+      <button id="close-form"></button>
+    </div>
+    <div class="form-container">
+      <h2>Search warehouse products</h2>
+      <input type="text" class="search-field" name="find_product" placeholder="Find a warehouse product" />
+      <ul class="product-result-container" id="results">
+      </ul>
+      <div class="register">
+        <form>
+          <label for="selected-product">
+            <input type="text" name="selected-product" placeholder="Product" readonly>
+            <span>Product</span>
+          </label>
+          <label for="selected-product-sku">
+            <input type="text" name="selected-product-sku" placeholder="Product sku" readonly>
+            <span>SKU</span>
+          </label>
+          <label for="selected-product-price">
+            <input type="number" name="selected-product-price" placeholder="Price" readonly>
+            <span>Price</span>
+          </label>
+          <label for="selected-product-vat">
+            <input type="number" name="selected-product-vat" placeholder="VAT">
+            <span>VAT</span>
+          </label>
+          <label for="selected-product-quantity">
+            <input type="number" name="selected-product-quantity" placeholder="Quantity" min="1">
+            <span>Quantity</span>
+          </label>
+          <button id="save-form" type="button">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
   // Set these constants so that we can use them in products.js
   const APIKEY = "[apikey]";
   const API_URL = "[api_url]";
+  const FORM_DATA = `[invoice_form:products:data|json|raw]`;
+  const VAT_AMOUNT = `[vat_amount]`;
 </script>
 <script src="/js/products.js"></script>
-[footer]
+{{ externalinline templates/parts/footer.html }}

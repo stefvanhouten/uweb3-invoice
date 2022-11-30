@@ -3,7 +3,7 @@ from invoices.mollie import mollie
 API_VERSION = "/api/v1"
 
 urls = [
-    ## Mollie routes
+    # Mollie routes
     (
         f"{API_VERSION}/mollie/redirect/(\d+)/([\w\-\.]+)",
         (mollie.PageMaker, "Mollie_Redirect"),

@@ -16,6 +16,7 @@
         height: 1cm;
       }
     }
+
     * {
       font-size: 12px;
       font-family: verdana, sans-serif;
@@ -72,7 +73,8 @@
       font-size: 18px;
     }
 
-    h1, h2 {
+    h1,
+    h2 {
       color: rgb(48, 45, 45);
     }
 
@@ -80,9 +82,11 @@
       display: flex;
       justify-content: space-between;
     }
+
     .details p {
       line-height: 0.5em;
     }
+
     .details strong {
       color: rgb(48, 45, 45);
     }
@@ -98,14 +102,13 @@
 
     @media screen and (max-width: 650px) {
       body {
-          padding: 2em;
-        }
+        padding: 2em;
+      }
 
       .details {
         flex-direction: column;
       }
     }
-
   </style>
   <title>[invoice:companydetails:name], Factuurnummer: {{if [invoice:companydetails:invoiceprefix]
     }}[invoice:companydetails:invoiceprefix]{{ endif }}[invoice:sequenceNumber] – [invoice:description]</title>
@@ -118,14 +121,17 @@
 
   <section class="details">
     <div>
-        <p><strong>[invoice:companydetails:address]</strong></p>
-        <p><strong>[invoice:companydetails:postalCode], [invoice:companydetails:city]</strong></p>
-        <p><strong>[invoice:companydetails:telephone]</strong></p>
-        <p><strong>Nederland</strong></p>
-        <br>
-        <p><strong>[invoice:client:name]</strong></p>
-        <p> [invoice:client:address]</p>
-        <p>[invoice:client:postalCode], [invoice:client:city]</p>
+      <p><strong>[invoice:companydetails:address]</strong></p>
+      <p><strong>[invoice:companydetails:postalCode], [invoice:companydetails:city]</strong></p>
+      <p><strong>[invoice:companydetails:telephone]</strong></p>
+      <p><strong>Nederland</strong></p>
+      <br>
+      <p><strong>[invoice:client:name]</strong></p>
+      {{ if [invoice:client:vat_number] }}
+        <p>[invoice:client:vat_number]</p>
+      {{ endif }}
+      <p> [invoice:client:address]</p>
+      <p>[invoice:client:postalCode], [invoice:client:city]</p>
     </div>
     <div class="overig">
       <p><strong>Bank:</strong> [invoice:companydetails:bank]</p>
@@ -140,7 +146,7 @@
   <hr>
   <section class="description">
     {{ if [invoice:status] == 'reservation' }}
-      <h1 class="warning">Pro forma factuur</h1>
+    <h1 class="warning">Pro forma factuur</h1>
     {{ endif }}
     <h2>Omschrijving</h2>
     <p>[invoice:description]</p>
@@ -200,13 +206,15 @@
   <hr>
   <footer>
     {{ if [invoice:status] == 'reservation' }}
-      <p class="warning" g>Dit is een pro forma factuur van uw reservering met factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
+    <p class="warning" g>Dit is een pro forma factuur van uw reservering met factuurnummer
+      <strong>[invoice:sequenceNumber]</strong></p>
     {{ elif [invoice:status] == 'canceled' }}
-      <p class="warning">Deze factuur is geannuleerd.</p>
+    <p class="warning">Deze factuur is geannuleerd.</p>
     {{ else }}
-      <p>Gelieve te betalen binnen 14 dagen (voor [invoice:dateDue|DateOnly]) op rekeningnummer <br><strong>[invoice:companydetails:bankAccount]</strong>
-        onder vermelding van het factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
-      </p>
+    <p>Gelieve te betalen binnen 14 dagen (voor [invoice:dateDue|DateOnly]) op rekeningnummer
+      <br><strong>[invoice:companydetails:bankAccount]</strong>
+      onder vermelding van het factuurnummer <strong>[invoice:sequenceNumber]</strong></p>
+    </p>
     {{ endif }}
   </footer>
 </body>

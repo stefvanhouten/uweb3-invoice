@@ -57,7 +57,7 @@ class CompanyDetailsSchema(Schema):
     bankAccount = fields.Str(required=True, allow_none=False)
     bank = fields.Str(required=True, allow_none=False)
     bankCity = fields.Str(required=True, allow_none=False)
-    invoiceprefix = fields.Str(allow_none=False)
+    invoiceprefix = fields.Str(allow_none=True)
 
 
 class RequestClientSchema(Schema):
