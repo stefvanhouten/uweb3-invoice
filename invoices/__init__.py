@@ -18,6 +18,34 @@ from . import basepages
 logger.remove()
 
 
+def setup_logging(is_dev: bool):
+    """Setup loguru logging for the application.
+
+    If running in development mode diagnose will be enabled, this means
+    that when exceptions are logged the full stacktrace will be printed.
+    This also means that sensitive information might be logged.
+    """
+    if not is_dev:
+        logger.add(
+            "logs/loguru_prod.log",
+            level="WARNING",
+            rotation="1 week",
+            compression="zip",
+            diagnose=False,
+        )
+        return
+
+    logger.add(sys.stderr, level="DEBUG")
+    logger.add(
+        "logs/loguru_debug.log",
+        level="WARNING",
+        rotation="1 day",
+        compression="zip",
+        diagnose=True,
+    )
+    logger.debug("Running invoices in development mode.")
+
+
 def main():
     """Creates a uWeb3 application.
 
@@ -50,7 +78,6 @@ def main():
         urls,
         os.path.dirname(__file__),
     )
-    if app.config.config.getboolean("general", "development"):
-        logger.add(sys.stderr, level="DEBUG")
-        logger.debug("Running invoices in development mode.")
+    setup_logging(app.config.config.getboolean("general", "development"))
+
     return app
