@@ -1,6 +1,6 @@
 import abc
+import functools
 from dataclasses import dataclass
-from http import HTTPStatus
 
 import requests
 from loguru import logger
@@ -14,6 +14,11 @@ from invoices.common.libs import pyvies
 class ViesResult:
     is_valid: bool  # True if the VAT number is valid
     errors: list[str] | None  # List of errors that occured during validation
+
+
+@dataclass
+class BAGError:
+    message: str
 
 
 class ViesService:
@@ -212,11 +217,11 @@ class VatRuleIndividualNonResidential(IVatRule):
 
 class IBAGProcessing(abc.ABC):
     @abc.abstractmethod
-    def adresseerbaar_object(self, json_response: dict) -> str:
+    def adresseerbaar_object(self, json_response: dict) -> str | BAGError:
         pass
 
     @abc.abstractmethod
-    def gebruiksdoelen(self, json_response: dict) -> list[str]:
+    def gebruiksdoelen(self, json_response: dict) -> list[str] | BAGError:
         pass
 
 
@@ -226,11 +231,11 @@ class IBAGRequest(abc.ABC):
         self.endpoint = endpoint
 
     @abc.abstractmethod
-    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | None:
+    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | BAGError:
         pass
 
     @abc.abstractmethod
-    def verblijfsobjecten(self, identificatie: str) -> dict | None:
+    def verblijfsobjecten(self, identificatie: str) -> dict | BAGError:
         pass
 
 
@@ -238,29 +243,52 @@ class BAGProcessingService(IBAGProcessing):
     """Service for extracting the address information out of the BAG
     API response."""
 
-    def adresseerbaar_object(self, json_response: dict):
+    def adresseerbaar_object(self, json_response: dict) -> str | BAGError:
         """Extract the adresseerbaar object from the BAG response."""
-
-        # TODO: Handle responses with no results
-        if "_embedded" not in json_response:
-            return
-
-        if "adressen" not in json_response["_embedded"]:
-            return
+        if (
+            "_embedded" not in json_response
+            or "adresseerbareObjecten" not in json_response["_embedded"]
+        ):
+            return BAGError("No data found for requested address")
 
         return json_response["_embedded"]["adressen"][0][
             "adresseerbaarObjectIdentificatie"
         ]
 
-    def gebruiksdoelen(self, json_response: dict):
+    def gebruiksdoelen(self, json_response: dict) -> list[str] | BAGError:
         """Extract the gebruiksdoelen from the BAG response."""
-        if "verblijfsobject" not in json_response:
-            return
-
-        if "gebruiksdoelen" not in json_response["verblijfsobject"]:
-            return
+        if (
+            "verblijfsobject" not in json_response
+            or "gebruiksdoelen" not in json_response["verblijfsobject"]
+        ):
+            return BAGError(
+                "No 'verblijfsobject/gebruiksdoel' found for requested address"
+            )
 
         return json_response["verblijfsobject"]["gebruiksdoelen"]
+
+
+def bag_api_error_handler(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except requests.exceptions.Timeout:
+            logger.info("Connection to the BAG service timed out.")
+            return BAGError(message="Connection the the BAG API timed out.")
+        except requests.exceptions.ConnectionError as e:
+            logger.exception("Error occured while connecting to the BAG API. ", e)
+            return BAGError(
+                message="Connection the the BAG service could not be established."
+            )
+        except requests.exceptions.HTTPError as e:
+            logger.exception("BAG service returned an error.")
+            return BAGError(f"BAG service returned an error: {e}")
+        except requests.RequestException:
+            logger.exception("Unhandled exception during BAG API request.")
+            return BAGError(message="Unhandled exception during BAG API request.")
+
+    return wrapper
 
 
 class BAGRequestService(IBAGRequest):
@@ -272,7 +300,8 @@ class BAGRequestService(IBAGRequest):
         self.s = requests.Session()
         self.s.headers.update({"X-Api-Key": self.apikey})
 
-    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | None:
+    @bag_api_error_handler
+    def postcode_huisnummer(self, postcode: str, huisnummer: str) -> dict | BAGError:
         """Send a request to the BAG API for the given postcode and huisnummer.
 
         Args:
@@ -281,17 +310,17 @@ class BAGRequestService(IBAGRequest):
 
         Returns:
             dict: The JSON response from the BAG API.
+            BAGError: When an error occured during the request.
         """
+
         response = self.s.get(
             f"{self.endpoint}/adressen?postcode={postcode}&huisnummer={huisnummer}",
         )
-
-        if response.status_code != HTTPStatus.OK:
-            return
-
+        response.raise_for_status()
         return response.json()
 
-    def verblijfsobjecten(self, identificatie: str) -> dict | None:
+    @bag_api_error_handler
+    def verblijfsobjecten(self, identificatie: str) -> dict | BAGError:
         """Send a request to the verblijfsobjecten endpoint of the BAG API.
 
         Args:
@@ -300,15 +329,13 @@ class BAGRequestService(IBAGRequest):
 
         Returns:
             dict: The JSON response from the BAG API.
+            BAGError: When an error occured during the request.
         """
         response = self.s.get(
             f"{self.endpoint}/verblijfsobjecten/{identificatie}",
             headers={"Accept-Crs": "epsg:28992"},
         )
-
-        if response.status_code != HTTPStatus.OK:
-            return
-
+        response.raise_for_status()
         return response.json()
 
 
@@ -355,22 +382,22 @@ class BAGService:
         # TODO: Handle responses with no results, handle errors
         response = self.request.postcode_huisnummer(postcode, huisnummer)
 
-        if not response:
+        if isinstance(response, BAGError):
             return False
 
-        object = self.processing.adresseerbaar_object(response)
+        addressable_object = self.processing.adresseerbaar_object(response)
 
-        if not object:
+        if isinstance(addressable_object, BAGError):
             return False
 
-        response = self.request.verblijfsobjecten(object)
+        response = self.request.verblijfsobjecten(addressable_object)
 
-        if not response:
+        if isinstance(response, BAGError):
             return False
 
         doeleind = self.processing.gebruiksdoelen(response)
 
-        if not doeleind:
+        if isinstance(doeleind, BAGError):
             return False
 
         return "woonfunctie" in doeleind
