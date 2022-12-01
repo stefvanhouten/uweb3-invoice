@@ -245,11 +245,18 @@ class BAGProcessingService(IBAGProcessing):
 
     def adresseerbaar_object(self, json_response: dict) -> str | BAGError:
         """Extract the adresseerbaar object from the BAG response."""
+
         if (
             "_embedded" not in json_response
-            or "adresseerbareObjecten" not in json_response["_embedded"]
+            or "adressen" not in json_response["_embedded"]
         ):
             return BAGError("No data found for requested address")
+
+        if (
+            "adresseerbaarObjectIdentificatie"
+            not in json_response["_embedded"]["adressen"][0]
+        ):
+            return BAGError("Address object identificatie could not be found")
 
         return json_response["_embedded"]["adressen"][0][
             "adresseerbaarObjectIdentificatie"
