@@ -85,14 +85,15 @@ class Vies(IVies):
         try:
             vat_number = str(vat_number)
         except Exception:
-            ViesValidationError("Invalid VAT number provided")
+            raise ViesValidationError("Invalid VAT number provided")
+
         vat_number = vat_number.replace(" ", "")
 
         if vat_country_code is not None:
             try:
                 vat_country_code = str(vat_country_code)
             except Exception:
-                ViesValidationError("Invalid VAT country provided")
+                raise ViesValidationError("Invalid VAT country provided")
             vat_country_code = vat_country_code.replace(" ", "")
             vat_country_code = vat_country_code.upper()
 
