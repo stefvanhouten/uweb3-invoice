@@ -56,11 +56,13 @@ class PageMaker(basepages.PageMaker):
             invoice, payment["amount"], self.connection, self.options["mollie"]
         )
         content = self.parser.Parse("email/invoice.txt", **{"mollie": url})
-        helpers.mail_invoice(
-            recipients=invoice["client"]["email"],
-            subject="Mollie payment request",
-            body=content,
-        )
+
+        if invoice["client"]["email"]:
+            helpers.mail_invoice(
+                recipients=invoice["client"]["email"],
+                subject="Mollie payment request",
+                body=content,
+            )
         return uweb3.Redirect(
             f'/invoice/payments/{invoice["sequenceNumber"]}', httpcode=303
         )
