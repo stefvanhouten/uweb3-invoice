@@ -73,9 +73,9 @@ def to_pdf(html, filename=None):
 
 
 class MT940_processor:
-    INVOICE_REGEX_PATTERN = r"([0-9]{4}-[0-9]{3})|(PF-[0-9]{4}-[0-9]{3})"
+    INVOICE_REGEX_PATTERN = r"((.*)-[0-9]{4}-[0-9]{3})|((.*)-PF-[0-9]{4}-[0-9]{3})"
 
-    def __init__(self, files):
+    def __init__(self, files, prefix="invoice"):
         self.files = files
 
     def process_files(self):
