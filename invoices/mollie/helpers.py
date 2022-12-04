@@ -305,7 +305,7 @@ class MollieMixin:
         Mollie = self.NewMolliePaymentGateway()
 
         try:
-            if Mollie.Notification(transaction):
+            if Mollie.notification(transaction):
                 # Only when the notification changes the status to paid Mollie.Notification() returns True.
                 # In every other scenario it will either return False or raise an exception.
                 return self._MollieHandleSuccessfulpayment(transaction)
