@@ -543,3 +543,9 @@ class WarehouseOrder(Record, api_model.ModelSessionMixin):
 
         response.raise_for_status()
         return response.json()
+
+
+class BAGData(Record):
+    """Model class to store the BAG API data"""
+
+    _TABLE = "bagData"
