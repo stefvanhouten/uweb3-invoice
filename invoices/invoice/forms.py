@@ -63,7 +63,7 @@ class InvoiceForm(Form):
             "The amount for the payment request. "
             "Setting this value will also send an email to the client containing the mollie payment url."
         ),
-        validators=[validators.optional(), validators.NumberRange(min=0)],
+        validators=[validators.Optional(), validators.NumberRange(min=0)],
         render_kw={"placeholder": "0.00"},
     )
     description = TextAreaField(
