@@ -1,6 +1,4 @@
-#!/usr/bin/python
-"""Request handlers for the uWeb3 warehouse inventory software"""
-
+import json
 import os
 from functools import partial
 
@@ -11,6 +9,7 @@ from uweb3plugins.core.paginators.table import calc_total_pages
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher, ParseView, loggedin
 from invoices.common.helpers import FormFactory
+from invoices.common.libs import bag
 from invoices.invoice import forms, helpers, model, tables, views
 from invoices.invoice.decorators import WarehouseRequestWrapper
 
@@ -99,7 +98,8 @@ class PageMaker(basepages.PageMaker):
     @WarehouseRequestWrapper
     def RequestCreateNewInvoicePage(self, client_number):
         # Check if client exists
-        model.Client.FromClientNumber(self.connection, client_number)
+        client = model.Client.FromClientNumber(self.connection, client_number)
+
         invoice_form: forms.InvoiceForm = self.forms.get_form(
             "new_invoice_form",
             self.post,
@@ -110,6 +110,33 @@ class PageMaker(basepages.PageMaker):
             return self.RequestNewInvoicePage(client_number)
 
         invoice = model.Invoice.Create(self.connection, invoice_form.data)
+        bag_request_service = bag.BAGRequestService(
+            apikey=self.options["bag"]["apikey"],
+            endpoint="https://api.bag.acceptatie.kadaster.nl/lvbag/individuelebevragingen/v2",
+        )
+
+        bagservice = bag.BAGService(request=bag_request_service)
+        bagservice.is_residential_area(
+            postcode=client["postalCode"],
+            huisnummer=client["house_number"],
+        )
+
+        reqs = []
+        resp = []
+
+        for res in bag_request_service.get_history():
+            reqs.append({"url": res.request.url, "headers": dict(res.request.headers)})
+            resp.append(res.json())
+
+        model.BAGData.Create(
+            self.connection,
+            {
+                "request": json.dumps(reqs),
+                "response": json.dumps(resp),
+                "invoice": invoice["ID"],
+            },
+        )
+
         # TODO: When warehouse server is down we still want to send this
         # when the initial order creation fails.
         model.WarehouseOrder.Create(
