@@ -114,61 +114,12 @@ class PageMaker(basepages.PageMaker):
             config=helpers.InvoiceServiceConfig(**self.options),
         )
         invoice_service.set_client(client)
-        invoice_service.create(invoice_data=invoice_data)
+        context = invoice_service.create(invoice_data=invoice_data)
 
-        # invoice = model.Invoice.Create(self.connection, invoice_form.data)
-        # bag_request_service = bag.BAGRequestService(
-        #     apikey=self.options["bag"]["apikey"],
-        #     endpoint="https://api.bag.acceptatie.kadaster.nl/lvbag/individuelebevragingen/v2",
-        # )
-
-        # bagservice = bag.BAGService(request=bag_request_service)
-        # bagservice.is_residential_area(
-        #     postcode=client["postalCode"],
-        #     huisnummer=client["house_number"],
-        # )
-
-        # reqs = []
-        # resp = []
-
-        # for res in bag_request_service.get_history():
-        #     reqs.append({"url": res.request.url, "headers": dict(res.request.headers)})
-        #     resp.append(res.json())
-
-        # model.BAGData.Create(
-        #     self.connection,
-        #     {
-        #         "request": json.dumps(reqs),
-        #         "response": json.dumps(resp),
-        #         "invoice": invoice["ID"],
-        #     },
-        # )
-
-        # # TODO: When warehouse server is down we still want to send this
-        # # when the initial order creation fails.
-        # model.WarehouseOrder.Create(
-        #     self.warehouse_connection,
-        # {
-        #     "description": invoice["client"]["name"],
-        #     "status": invoice["status"],
-        #     "reference": invoice["sequenceNumber"],
-        #     "products": [
-        #         {"product_sku": p["product_sku"], "quantity": p["quantity"]}
-        #         for p in invoice_form.products.data
-        #     ],
-        # },
-        # )
-
-        # mollie_request_url = None
-        # if mollie_amount := invoice_form.mollie_payment_request.data:
-        #     mollie_request_url = helpers.create_mollie_request(
-        #         invoice, mollie_amount, self.connection, self.options["mollie"]
-        #     )
-
-        # if invoice["client"]["email"] and (
-        #     invoice_form.send_mail.data or mollie_request_url
-        # ):
-        #     self._send_mail(invoice["client"]["email"], invoice, mollie_request_url)
+        if invoice_data.send_mail and client["email"]:
+            self._send_mail(
+                client["email"], context.invoice, context.mollie_request_url
+            )
         return self.req.Redirect("/invoices", httpcode=303)
 
     def _send_mail(self, email: str, invoice: model.Invoice, mollie_request: str):

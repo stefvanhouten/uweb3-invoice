@@ -1,7 +1,7 @@
 import json
 import re
 from io import BytesIO
-from typing import Callable
+from typing import Callable, Optional
 
 import mt940
 from loguru import logger
@@ -225,9 +225,9 @@ class RequestContext(BaseModel):
         arbitrary_types_allowed = True
 
     request_service: bag.IBAGRequest
-    should_mail: bool = False
-    should_create_mollie_request: bool = False
     is_residential: bool = False
+    mollie_request_url: Optional[str] = None
+    invoice: Optional[model.Invoice] = None
 
 
 class InvoiceService:
@@ -254,7 +254,7 @@ class InvoiceService:
 
         self._client = client
 
-    def create(self, invoice_data: objects.Invoice):
+    def create(self, invoice_data: objects.Invoice) -> RequestContext:
         # Create a context object for the current creation request.
         logger.info("Creating new invoice for client {}", self.client["ID"])
 
@@ -266,8 +266,10 @@ class InvoiceService:
         )
 
         self._pre_create(invoice_data=invoice_data, context=context)
-        invoice = self._create(invoice_data=invoice_data, context=context)
-        self._post_create(invoice_data=invoice_data, context=context, invoice=invoice)
+        self._create(invoice_data=invoice_data, context=context)
+        self._post_create(invoice_data=invoice_data, context=context)
+
+        return context
 
     def _pre_create(self, invoice_data: objects.Invoice, context: RequestContext):
         # Choose the BAGRequestService that we want to use to communicate with the BAG API.
@@ -286,22 +288,25 @@ class InvoiceService:
             huisnummer=self.client["house_number"],  # type: ignore
         )
 
-    def _create(
-        self, invoice_data: objects.Invoice, context: RequestContext
-    ) -> model.Invoice:
+    def _create(self, invoice_data: objects.Invoice, context: RequestContext):
         logger.debug("Creating invoice for client {}", self.client["ID"])
-        invoice = InvoiceService.INVOICE_MODEL.Create(
+        context.invoice = InvoiceService.INVOICE_MODEL.Create(
             self._connection,
             invoice_data.dict(),
         )
-        return invoice
 
     def _post_create(
         self,
         invoice_data: objects.Invoice,
         context: RequestContext,
-        invoice: model.Invoice,
     ):
+        invoice = context.invoice
+
+        if not invoice:
+            return
+
+        # Send a request to the warehouse API to create a new order,
+        # this will update the stock of the products and create a new order on the system.
         logger.info("Creating warehouse order for invoice {}", invoice["ID"])
         InvoiceService.WAREHOUSE_ORDER_MODEL.Create(
             {
@@ -321,13 +326,15 @@ class InvoiceService:
 
         reqs = []
         resp = []
-
+        # Gather request/response data for all outgoing requests to BAG.
+        # We need to save this data in case we need to prove that the client's address
+        # is indeed a residential area.
         for res in context.request_service.get_history():
             reqs.append({"url": res.request.url, "headers": dict(res.request.headers)})
             resp.append(res.json())
 
         logger.info("Creating BAG data for invoice {}", invoice["ID"])
-        model.BAGData.Create(
+        InvoiceService.BAGDATA_MODEL.Create(
             self._connection,
             {
                 "request": json.dumps(reqs),
@@ -336,16 +343,11 @@ class InvoiceService:
             },
         )
 
-        # mollie_request_url = None
-        # if mollie_amount := invoice_data.mollie_payment_request:
-        #     create_mollie_request(
-        #         invoice,
-        #         mollie_amount,
-        #         self._connection,
-        #         self._config.mollie,
-        #     )
-
-        # if invoice["client"]["email"] and (
-        #     invoice_data.send_mail or mollie_request_url
-        # ):
-        #     self._send_mail(invoice["client"]["email"], invoice, mollie_request_url)
+        # Generate a Mollie payment URL for the invoice.
+        if invoice_data.mollie_payment_request:
+            context.mollie_request_url = create_mollie_request(
+                invoice,
+                invoice_data.mollie_payment_request,
+                self._connection,
+                self._config.mollie.dict(),
+            )
