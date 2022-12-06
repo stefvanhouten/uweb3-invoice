@@ -231,6 +231,19 @@ class RequestContext(BaseModel):
 
 
 class InvoiceService:
+    """Controller that can be used to create a new Invoice.
+
+    Creating an invoice is a multi-step process, containing the following procedures:
+        1. Check client address and determine if it is a residential address via BAG
+        2. Create the actual invoice
+        3. Update the Warehouse through the Warehouse API
+        4. Store the BAG data that was used to determine if the address is residential
+        5. Create a Mollie payment link if required.
+
+    Note that this service does not use ACID, if any of the steps after invoice creation
+    fail the invoice will still be created. This is by design.
+    """
+
     INVOICE_MODEL = model.Invoice
     WAREHOUSE_ORDER_MODEL = model.WarehouseOrder
     BAGDATA_MODEL = model.BAGData
@@ -249,6 +262,14 @@ class InvoiceService:
         return self._client
 
     def set_client(self, client: model.Client):
+        """Set the client that will be used for the current creation process.
+
+        Args:
+            client (model.Client): The client for which the invoice will be created.
+
+        Raises:
+            InvoiceSetupError: Raised when the setup process fails.
+        """
         if not client or not isinstance(client, model.Client):
             raise InvoiceSetupError("Not a valid client selected.")
 
