@@ -384,6 +384,9 @@ class Invoice(richmodel.RichModel, searchable_table.SearchableTableMixin):
         """
         return Invoice.List(connection, conditions=f"client in ({client.client_ids})")
 
+    def GetBAG(self):
+        return list(self._Children(BAGData, limit=1))
+
 
 class PaymentPlatform(Record):
     @classmethod

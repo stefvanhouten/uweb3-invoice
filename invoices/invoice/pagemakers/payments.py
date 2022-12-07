@@ -24,6 +24,7 @@ class PageMaker(basepages.PageMaker):
     @ParseView
     def ManagePayments(self, sequenceNumber):
         invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
+
         return views.InvoicePayments(
             title=f"Payments: {invoice['sequenceNumber']}",
             invoice=invoice,

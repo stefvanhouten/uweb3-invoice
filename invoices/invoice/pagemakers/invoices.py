@@ -1,3 +1,4 @@
+import json
 import os
 from functools import partial
 
@@ -274,3 +275,26 @@ class PageMaker(basepages.PageMaker):
             payments.append(invoice_ref)
 
         return self.RequestMt940(payments=payments, failed_invoices=failed_payments)
+
+    @route("/invoice/(.*)/bagdata", methods=("GET",))
+    @uweb3.decorators.ContentType("application/json")
+    @loggedin
+    @ParseView
+    def ShowBagData(self, sequenceNumber):
+        try:
+            invoice = model.Invoice.FromSequenceNumber(self.connection, sequenceNumber)
+        except model.Invoice.NotExistError:
+            return uweb3.Response({"error": "Invoice does not exist"}, httpcode=404)
+
+        bagdata = invoice.GetBAG()
+
+        if not bagdata:
+            return uweb3.Response(
+                {"error": "No BAG data found for invoice."}, httpcode=404
+            )
+
+        return {
+            "invoice": invoice["sequenceNumber"],
+            "requests": json.loads(bagdata[0]["request"]),
+            "responses": json.loads(bagdata[0]["response"]),
+        }
