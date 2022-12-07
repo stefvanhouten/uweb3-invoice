@@ -249,8 +249,15 @@ class InvoiceService:
     BAGDATA_MODEL = model.BAGData
 
     def __init__(self, connection, config: InvoiceServiceConfig):
-        self._client = None
+        """Initialize the InvoiceService.
 
+        Args:
+            connection (pagemaker.connection): The connection object to access the
+                database.
+            config (InvoiceServiceConfig): Configuration object that contains data
+                from the config.ini file.
+        """
+        self._client = None
         self._connection = connection
         self._config = config
 
@@ -276,9 +283,22 @@ class InvoiceService:
         self._client = client
 
     def create(self, invoice_data: objects.Invoice) -> RequestContext:
+        """Create a new Invoice record and call all related services that are required
+        to create a record.
+
+        Args:
+            invoice_data (objects.Invoice): The invoice data that will be used to create
+                the invoice.
+        Returns:
+            RequestContext: The context object that contains some data that was gathered
+                during the creation process.
+        """
         # Create a context object for the current creation request.
         logger.info("Creating new invoice for client {}", self.client["ID"])
 
+        # Create a context object for the current creation request.
+        # The request_service is used to communicate with the BAG API, and can be used
+        # to track what requests were made, and what the response was.
         context = RequestContext(
             request_service=bag.BAGRequestService(
                 apikey=self._config.bag.apikey,
@@ -292,10 +312,20 @@ class InvoiceService:
 
         return context
 
-    def _pre_create(self, invoice_data: objects.Invoice, context: RequestContext):
-        # Choose the BAGRequestService that we want to use to communicate with the BAG API.
-        # Use the default response service provided by the BAGService to handle response
-        # processing.
+    def _pre_create(
+        self, invoice_data: objects.Invoice, context: RequestContext
+    ) -> None:
+        """Run the services that are required before the invoice is created.
+
+        Args:
+            invoice_data (objects.Invoice): The invoice data that will be used to create
+                the invoice.
+            context (RequestContext): The context object that contains relevant data to
+                the current request.
+        """
+        # Choose the BAGRequestService that we want to use to communicate with the BAG
+        # API. Use the default response service provided by the BAGService to handle
+        # response processing.
         bag_service = bag.BAGService(
             bag_api_key=self._config.bag.apikey,
             request=context.request_service,
@@ -309,7 +339,18 @@ class InvoiceService:
             huisnummer=self.client["house_number"],  # type: ignore
         )
 
-    def _create(self, invoice_data: objects.Invoice, context: RequestContext):
+    def _create(self, invoice_data: objects.Invoice, context: RequestContext) -> None:
+        """Actually creates the invoice record in the database.
+
+        Args:
+            invoice_data (objects.Invoice): The invoice data that will be used to create
+                the invoice.
+            context (RequestContext): The context object that contains relevant data to
+                the current request.
+
+        Raises:
+            The regular database interaction errors.
+        """
         logger.debug("Creating invoice for client {}", self.client["ID"])
         context.invoice = InvoiceService.INVOICE_MODEL.Create(
             self._connection,
@@ -320,7 +361,18 @@ class InvoiceService:
         self,
         invoice_data: objects.Invoice,
         context: RequestContext,
-    ):
+    ) -> None:
+        """Run the services that are required after a succesful creation of an invoice.
+
+        Args:
+            invoice_data (objects.Invoice): The invoice data that will be used to create
+                the invoice.
+            context (RequestContext): The context object that contains relevant data to
+                the current request.
+        Raises:
+            requests.exceptions.RequestException: Raised when an error occurs while
+                communicating with the Warehouse API.
+        """
         invoice = context.invoice
 
         if not invoice:
@@ -329,6 +381,8 @@ class InvoiceService:
         # Send a request to the warehouse API to create a new order,
         # this will update the stock of the products and create a new order on the system.
         logger.info("Creating warehouse order for invoice {}", invoice["ID"])
+
+        # Attempt to create an order with the warehouse API.
         InvoiceService.WAREHOUSE_ORDER_MODEL.Create(
             {
                 "url": self._config.general.warehouse_api,
@@ -355,6 +409,9 @@ class InvoiceService:
             resp.append(res.json())
 
         logger.info("Creating BAG data for invoice {}", invoice["ID"])
+
+        # Attempt to create a BAG data record for the invoice. This record contains
+        # all the request/response data for a given invoice.
         InvoiceService.BAGDATA_MODEL.Create(
             self._connection,
             {
