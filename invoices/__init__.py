@@ -4,9 +4,10 @@ import sys
 # Third-party modules
 import uweb3
 from loguru import logger
+from uweb3.router import App
 
 from invoices.clients.urls import urls as client_urls
-from invoices.invoice.urls import urls as invoice_urls
+from invoices.invoice.pagemakers import invoices, payments
 from invoices.login.urls import urls as login_urls
 from invoices.mollie.urls import urls as mollie_urls
 from invoices.pickup.urls import urls as pickup_urls
@@ -60,7 +61,6 @@ def main():
         setting_urls
         + login_urls
         + client_urls
-        + invoice_urls
         + mollie_urls
         + pickup_urls
         + [
@@ -78,6 +78,8 @@ def main():
         urls,
         os.path.dirname(__file__),
     )
+    app.register_app(App(name="invoices", routes=invoices.PageMaker._routes))
+    app.register_app(App(name="payments", routes=payments.PageMaker._routes))
     setup_logging(app.config.config.getboolean("general", "development"))
 
     return app

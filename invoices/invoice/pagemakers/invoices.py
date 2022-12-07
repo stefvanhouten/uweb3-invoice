@@ -3,6 +3,7 @@ from functools import partial
 
 import uweb3
 from uweb3.libs.mail import MailSender
+from uweb3.router import register_pagemaker, route
 from uweb3plugins.core.paginators.table import calc_total_pages
 
 from invoices import basepages
@@ -21,6 +22,7 @@ class WarehouseAPIException(Exception):
     """Error that was raised during an API call to warehouse."""
 
 
+@register_pagemaker
 class PageMaker(basepages.PageMaker):
     TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 
@@ -43,6 +45,7 @@ class PageMaker(basepages.PageMaker):
             ),
         )
 
+    @route("/invoices", methods=("GET",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @ParseView
@@ -69,6 +72,7 @@ class PageMaker(basepages.PageMaker):
             invoices_table=table,
         )
 
+    @route("/invoices/create/(.*)", methods=("GET",))
     @loggedin
     @NotExistsErrorCatcher
     @uweb3.decorators.checkxsrf
@@ -90,6 +94,7 @@ class PageMaker(basepages.PageMaker):
             styles=["/styles/popup.css"],
         )
 
+    @route("/invoices/create/(.*)", methods=("POST",))
     @loggedin
     @NotExistsErrorCatcher
     @uweb3.decorators.checkxsrf
@@ -140,6 +145,7 @@ class PageMaker(basepages.PageMaker):
                 attachments=(pdf,),
             )
 
+    @route("/invoice/(.*)", methods=("GET",))
     @loggedin
     @ParseView
     @NotExistsErrorCatcher
@@ -152,6 +158,7 @@ class PageMaker(basepages.PageMaker):
             totals=invoice.Totals(),
         )
 
+    @route("/pdfinvoice/(.*)")
     @loggedin
     def RequestPDFInvoice(self, invoice):
         """Returns the invoice as a pdf file.
@@ -166,6 +173,7 @@ class PageMaker(basepages.PageMaker):
             )
         return requestedinvoice
 
+    @route("/invoices/settopayed", methods=("POST",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
@@ -176,6 +184,7 @@ class PageMaker(basepages.PageMaker):
         invoice.SetPayed()
         return self.req.Redirect("/invoices", httpcode=303)
 
+    @route("/invoices/settonew", methods=("POST",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
@@ -206,6 +215,7 @@ class PageMaker(basepages.PageMaker):
             )
         return self.req.Redirect("/invoices", httpcode=303)
 
+    @route("/invoices/cancel", methods=("POST",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
@@ -220,6 +230,7 @@ class PageMaker(basepages.PageMaker):
         invoice.CancelProFormaInvoice()
         return self.req.Redirect("/invoices", httpcode=303)
 
+    @route("/invoices/mt940", methods=("GET",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @ParseView
@@ -228,6 +239,7 @@ class PageMaker(basepages.PageMaker):
             payments=payments, failed_invoices=failed_invoices, mt940_preview=True
         )
 
+    @route("/invoices/upload", methods=("POST",))
     @loggedin
     @uweb3.decorators.checkxsrf
     def RequestUploadMt940(self):

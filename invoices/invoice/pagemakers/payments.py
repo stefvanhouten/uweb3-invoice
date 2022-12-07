@@ -4,6 +4,7 @@
 import os
 
 import uweb3
+from uweb3.router import register_pagemaker, route
 
 from invoices import basepages
 from invoices.common.decorators import NotExistsErrorCatcher, ParseView, loggedin
@@ -12,9 +13,11 @@ from invoices.invoice import helpers, model, views
 from invoices.mollie import model as mollie_model
 
 
+@register_pagemaker
 class PageMaker(basepages.PageMaker):
     TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 
+    @route("/invoice/payments/(.*)", methods=("GET",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
@@ -34,6 +37,7 @@ class PageMaker(basepages.PageMaker):
             platforms=list(model.PaymentPlatform.List(self.connection)),
         )
 
+    @route("/invoice/payments/(.*)", methods=("POST",))
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
@@ -45,6 +49,7 @@ class PageMaker(basepages.PageMaker):
             f'/invoice/payments/{invoice["sequenceNumber"]}', httpcode=303
         )
 
+    @route("/invoice/payments/mollie/(.*)")
     @loggedin
     @uweb3.decorators.checkxsrf
     @NotExistsErrorCatcher
