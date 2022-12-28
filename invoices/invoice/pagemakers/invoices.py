@@ -1,4 +1,3 @@
-import json
 import os
 from functools import partial
 
@@ -8,6 +7,7 @@ from uweb3.router import register_pagemaker, route
 from uweb3plugins.core.paginators.table import calc_total_pages
 
 from invoices import basepages
+from invoices.clients.helpers import TimeStampBag
 from invoices.common.decorators import NotExistsErrorCatcher, ParseView, loggedin
 from invoices.common.helpers import FormFactory
 from invoices.invoice import forms, helpers, model, objects, tables, views
@@ -30,7 +30,7 @@ class PageMaker(basepages.PageMaker):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.warehouse_api_url = self.config.options["general"]["warehouse_api"]
-        self.warehouse_apikey = self.config.options["general"]["apikey"]
+        self.warehouse_apikey = self.config.options["general"]["warehouse_apikey"]
         self.warehouse_connection = {
             "url": self.warehouse_api_url,
             "apikey": self.warehouse_apikey,
@@ -286,15 +286,18 @@ class PageMaker(basepages.PageMaker):
         except model.Invoice.NotExistError:
             return uweb3.Response({"error": "Invoice does not exist"}, httpcode=404)
 
-        bagdata = invoice.GetBAG()
+        timestamp_record = invoice["client"]["timestamp_record"]
 
-        if not bagdata:
+        if not timestamp_record:
             return uweb3.Response(
-                {"error": "No BAG data found for invoice."}, httpcode=404
+                {"error": "No timestamp record found for invoice."}, httpcode=404
             )
+
+        timestamper = TimeStampBag()
+        result = timestamper.record_from_id(timestamp_record)
 
         return {
             "invoice": invoice["sequenceNumber"],
-            "requests": json.loads(bagdata[0]["request"]),
-            "responses": json.loads(bagdata[0]["response"]),
+            "timestamp_record": timestamp_record,
+            "bag": result,
         }

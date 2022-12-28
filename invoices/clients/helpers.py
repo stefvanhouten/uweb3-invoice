@@ -1,9 +1,11 @@
 import abc
 from dataclasses import dataclass
 
+import requests
 from loguru import logger
 
 from invoices.clients import model
+from invoices.common.helpers import load_config
 from invoices.common.libs import pyvies
 
 
@@ -205,3 +207,36 @@ class VatRuleIndividualNonResidential(IVatRule):
     def process(self, client: model.Client) -> int | None:
         if client["client_type"] == "Individual" and not client["residential"]:
             return self.vat_amount
+
+
+class TimeStampBag:
+    def __init__(self):
+        self.config = load_config()
+        self.url = self.config["general"]["timestamping_api"]
+        self.apikey = self.config["general"]["timestamping_apikey"]
+
+    def create_bag_timestamp(
+        self,
+        postal_code: str,
+        house_number: str,
+        house_number_addition: str | None = None,
+    ):
+        result = requests.post(
+            f"{self.url}/timestamp/create",
+            json={
+                "postal_code": postal_code,
+                "house_number": house_number,
+                "house_number_addition": house_number_addition,
+                "apikey": self.apikey,
+            },
+        )
+        result.raise_for_status()
+        return result.json()
+
+    def record_from_id(self, id):
+        result = requests.get(
+            f"{self.url}/timestamp/details/{id}",
+            headers={"apikey": self.apikey},
+        )
+        result.raise_for_status()
+        return result.json()

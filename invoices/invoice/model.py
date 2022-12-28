@@ -384,9 +384,6 @@ class Invoice(richmodel.RichModel, searchable_table.SearchableTableMixin):
         """
         return Invoice.List(connection, conditions=f"client in ({client.client_ids})")
 
-    def GetBAG(self):
-        return list(self._Children(BAGData, limit=1))
-
 
 class PaymentPlatform(Record):
     @classmethod
@@ -546,9 +543,3 @@ class WarehouseOrder(Record, api_model.ModelSessionMixin):
 
         response.raise_for_status()
         return response.json()
-
-
-class BAGData(Record):
-    """Model class to store the BAG API data"""
-
-    _TABLE = "bagData"

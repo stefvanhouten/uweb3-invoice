@@ -18,12 +18,8 @@ class PageMaker(basepages.PageMaker):
         super().__init__(*args, **kwargs)
         self.forms = FormFactory()
         self.forms.register_form(
-            "mollie_settings",
-            BaseFormServiceBuilder(form=forms.MollieSettingsForm),
-        )
-        self.forms.register_form(
-            "warehouse_settings",
-            BaseFormServiceBuilder(form=forms.WarehouseSettingsForm),
+            "settings",
+            BaseFormServiceBuilder(form=forms.SettingsForm),
         )
 
     @loggedin
@@ -34,18 +30,15 @@ class PageMaker(basepages.PageMaker):
             errors = {}
 
         mollie_form = self.forms.get_form(
-            "mollie_settings",
+            "settings",
             data=dict(
                 webhook_url=self.options["mollie"]["webhook_url"],
                 redirect_url=self.options["mollie"]["redirect_url"],
-                apikey=self.options["mollie"]["apikey"],
-            ),
-        )
-        warehouse_form = self.forms.get_form(
-            "warehouse_settings",
-            data=dict(
+                mollie_apikey=self.options["mollie"]["apikey"],
                 warehouse_api=self.options["general"]["warehouse_api"],
-                apikey=self.options["general"]["apikey"],
+                warehouse_apikey=self.options["general"]["warehouse_apikey"],
+                timestamp_api=self.options["general"]["timestamping_api"],
+                timestamp_apikey=self.options["general"]["timestamping_apikey"],
             ),
         )
 
@@ -59,7 +52,6 @@ class PageMaker(basepages.PageMaker):
             "title": "Settings",
             "page_id": "settings",
             "mollie_form": mollie_form,
-            "warehouse_form": warehouse_form,
             "settings": settings,
             "errors": errors,
             "redirect_errors": self.get.getlist("error"),
@@ -93,32 +85,23 @@ class PageMaker(basepages.PageMaker):
 
     @loggedin
     @uweb3.decorators.checkxsrf
-    def RequestWarehouseSettingsSave(self):
-        warehouse_form: forms.WarehouseSettingsForm = self.forms.get_form(
-            "warehouse_settings", self.post
-        )  # type: ignore
-
-        if not warehouse_form.validate():
-            return self.RequestSettings()
-
-        self.config.Update(
-            "general", "warehouse_api", str(warehouse_form.warehouse_api.data)
-        )
-
-        self.config.Update("general", "apikey", str(warehouse_form.apikey.data))
-        return self.req.Redirect("/settings", httpcode=303)
-
-    @loggedin
-    @uweb3.decorators.checkxsrf
     def RequestMollieSettingsSave(self):
-        mollie_form: forms.MollieSettingsForm = self.forms.get_form(
-            "mollie_settings", self.post
+        form: forms.SettingsForm = self.forms.get_form(
+            "settings", self.post
         )  # type: ignore
 
-        if not mollie_form.validate():
+        if not form.validate():
             return self.RequestSettings()
 
-        self.config.Update("mollie", "apikey", str(mollie_form.apikey.data))
-        self.config.Update("mollie", "webhook_url", str(mollie_form.webhook_url.data))
-        self.config.Update("mollie", "redirect_url", str(mollie_form.redirect_url.data))
+        self.config.Update("mollie", "apikey", str(form.mollie_apikey.data))
+        self.config.Update("mollie", "webhook_url", str(form.webhook_url.data))
+        self.config.Update("mollie", "redirect_url", str(form.redirect_url.data))
+        self.config.Update("general", "warehouse_api", str(form.warehouse_api.data))
+        self.config.Update(
+            "general", "warehouse_apikey", str(form.warehouse_apikey.data)
+        )
+        self.config.Update("general", "timestamping_api", str(form.timestamp_api.data))
+        self.config.Update(
+            "general", "timestamping_apikey", str(form.timestamp_apikey.data)
+        )
         return self.req.Redirect("/settings", httpcode=303)

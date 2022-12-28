@@ -1,4 +1,3 @@
-import json
 import re
 from io import BytesIO
 from typing import Callable, Optional
@@ -10,7 +9,6 @@ from uweb3.libs.mail import MailSender
 from weasyprint import HTML
 
 from invoices.common import helpers as common_helpers
-from invoices.common.libs import bag
 from invoices.invoice import model, objects
 from invoices.mollie.mollie import helpers as mollie_module
 
@@ -205,7 +203,7 @@ class InvoiceServiceBagConfig(BaseModel):
 
 class InvoiceServiceGeneralConfig(BaseModel):
     warehouse_api: str
-    apikey: str
+    warehouse_apikey: str
 
 
 class InvoiceServiceMollieConfig(BaseModel):
@@ -224,7 +222,6 @@ class RequestContext(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    request_service: bag.IBAGRequest
     is_residential: bool = False
     mollie_request_url: Optional[str] = None
     invoice: Optional[model.Invoice] = None
@@ -246,7 +243,7 @@ class InvoiceService:
 
     INVOICE_MODEL = model.Invoice
     WAREHOUSE_ORDER_MODEL = model.WarehouseOrder
-    BAGDATA_MODEL = model.BAGData
+    # TIMESTAMP_SERVICE = timestamp_service.DocumentSigningTimeStampService
 
     def __init__(self, connection, config: InvoiceServiceConfig):
         """Initialize the InvoiceService.
@@ -299,45 +296,12 @@ class InvoiceService:
         # Create a context object for the current creation request.
         # The request_service is used to communicate with the BAG API, and can be used
         # to track what requests were made, and what the response was.
-        context = RequestContext(
-            request_service=bag.BAGRequestService(
-                apikey=self._config.bag.apikey,
-                endpoint=self._config.bag.url,
-            )
-        )
+        context = RequestContext()
 
-        self._pre_create(invoice_data=invoice_data, context=context)
         self._create(invoice_data=invoice_data, context=context)
         self._post_create(invoice_data=invoice_data, context=context)
 
         return context
-
-    def _pre_create(
-        self, invoice_data: objects.Invoice, context: RequestContext
-    ) -> None:
-        """Run the services that are required before the invoice is created.
-
-        Args:
-            invoice_data (objects.Invoice): The invoice data that will be used to create
-                the invoice.
-            context (RequestContext): The context object that contains relevant data to
-                the current request.
-        """
-        # Choose the BAGRequestService that we want to use to communicate with the BAG
-        # API. Use the default response service provided by the BAGService to handle
-        # response processing.
-        bag_service = bag.BAGService(
-            bag_api_key=self._config.bag.apikey,
-            request=context.request_service,
-        )
-
-        # Send a request to the BAG API to check if the client's address is that of a
-        # residential area.
-        logger.debug("Requesting BAG data for client {}", self.client["ID"])
-        context.is_residential = bag_service.is_residential_area(
-            postcode=self.client["postalCode"],  # type: ignore
-            huisnummer=self.client["house_number"],  # type: ignore
-        )
 
     def _create(self, invoice_data: objects.Invoice, context: RequestContext) -> None:
         """Actually creates the invoice record in the database.
@@ -386,7 +350,7 @@ class InvoiceService:
         InvoiceService.WAREHOUSE_ORDER_MODEL.Create(
             {
                 "url": self._config.general.warehouse_api,
-                "apikey": self._config.general.apikey,
+                "apikey": self._config.general.warehouse_apikey,
             },
             {
                 "description": invoice["client"]["name"],
@@ -399,30 +363,9 @@ class InvoiceService:
             },
         )
 
-        reqs = []
-        resp = []
-        # Gather request/response data for all outgoing requests to BAG.
-        # We need to save this data in case we need to prove that the client's address
-        # is indeed a residential area.
-        for res in context.request_service.get_history():
-            reqs.append({"url": res.request.url, "headers": dict(res.request.headers)})
-            resp.append(res.json())
-
-        logger.info("Creating BAG data for invoice {}", invoice["ID"])
-
-        # Attempt to create a BAG data record for the invoice. This record contains
-        # all the request/response data for a given invoice.
-        InvoiceService.BAGDATA_MODEL.Create(
-            self._connection,
-            {
-                "request": json.dumps(reqs),
-                "response": json.dumps(resp),
-                "invoice": invoice["ID"],
-            },
-        )
-
         # Generate a Mollie payment URL for the invoice.
         if invoice_data.mollie_payment_request:
+            logger.info("Creating mollie payment request for invoice {}", invoice["ID"])
             context.mollie_request_url = create_mollie_request(
                 invoice,
                 invoice_data.mollie_payment_request,

@@ -19,20 +19,6 @@
 </section>
 <section>
   <header>
-    <h2>Warehouse settings</h2>
-  </header>
-  <div>
-    <div class="grid">
-      <div class="col-1-2">
-        <form action="/warehousesettings" method="post">
-          <input type="hidden" name="xsrf" value="[xsrf]" />
-          [warehouse_form:render]
-          <input type="submit" value="Save changes" />
-        </form>
-      </div>
-</section>
-<section>
-  <header>
     <h2>Your company settings</h2>
     {{ ifpresent [settings:name]}}
     <p>[settings:name]</p>

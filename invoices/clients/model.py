@@ -2,11 +2,11 @@ from uweb3plugins.core.models import richversionrecord
 from uweb3plugins.core.paginators.model import searchable_table
 
 from invoices.clients import helpers
-from invoices.common.libs import bag
 
 
 class Client(
-    richversionrecord.RichVersionedRecord, searchable_table.SearchableTableMixin
+    richversionrecord.RichVersionedRecord,
+    searchable_table.SearchableTableMixin,
 ):
     """Abstraction class for Clients stored in the database."""
 
@@ -19,11 +19,18 @@ class Client(
         self._client_ids = None
 
     def _PreSave(self, cursor):
-        bagservice = bag.BAGService()
-        self["residential"] = bagservice.is_residential_area(
-            postcode=self["postalCode"],
-            huisnummer=self["house_number"],
+        bagservice = helpers.TimeStampBag()
+        house_number_addition = (
+            self["house_number_addition"] if self["house_number_addition"] else None
         )
+
+        result = bagservice.create_bag_timestamp(
+            postal_code=self["postalCode"],
+            house_number=self["house_number"],
+            house_number_addition=house_number_addition,
+        )
+        self["residential"] = result["is_residential"]
+        self["timestamp_record"] = result["ID"]
         super()._PreSave(cursor)
 
     @classmethod
