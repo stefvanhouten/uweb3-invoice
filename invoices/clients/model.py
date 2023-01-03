@@ -33,6 +33,21 @@ class Client(
         self["timestamp_record"] = result["ID"]
         super()._PreSave(cursor)
 
+    def _PreCreate(self, cursor):
+        bagservice = helpers.TimeStampBag()
+        house_number_addition = (
+            self["house_number_addition"] if self["house_number_addition"] else None
+        )
+
+        result = bagservice.create_bag_timestamp(
+            postal_code=self["postalCode"],
+            house_number=self["house_number"],
+            house_number_addition=house_number_addition,
+        )
+        self["residential"] = result["is_residential"]
+        self["timestamp_record"] = result["ID"]
+        super()._PreCreate(cursor)
+
     @classmethod
     def IsFirstClient(cls, connection):
         with connection as cursor:
